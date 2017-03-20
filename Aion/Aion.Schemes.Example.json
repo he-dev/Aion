@@ -1,0 +1,17 @@
+﻿{
+  "Schedule": "0/12 * * * * ?",
+  "Enabled": true, 
+  "StartImmediately": true,
+  "Robots": [
+    {
+      "FileName": "Aion.Robots.TestRobot2.exe",
+      "Enabled": true,
+      "WindowStyle": "Normal"
+    },
+    {
+      "FileName": "Aion.Robots.TestRobot3.exe",
+      "Enabled": true,
+      "WindowStyle": "Normal"
+    }
+  ]
+}
