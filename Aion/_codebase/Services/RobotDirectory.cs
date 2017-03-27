@@ -8,28 +8,32 @@ namespace Aion.Services
 {
     internal delegate IEnumerable<string> GetDirectoriesCallback(string path, string searchPattern);
 
-    internal class RobotFileNameResolver
+    internal class RobotDirectory
     {
         private readonly GetDirectoriesCallback _getDirectories;
 
-        public RobotFileNameResolver(GetDirectoriesCallback getDirectories)
+        public const string SearchPattern = "v*.*.*";
+
+        public RobotDirectory(GetDirectoriesCallback getDirectories)
         {
-            _getDirectories = getDirectories;
+            _getDirectories = getDirectories ?? throw new ArgumentNullException(nameof(getDirectories));
         }
+
+        public RobotDirectory() : this(Directory.GetDirectories) { }
 
         // Builds robot-file-name e.g.:
         // robotsDirectoryName: "C:\Robots"
         // RobotConfig.FileName: Aion.TestRobot1.exe
         // FullPath: C:\Robots\Aion.TestRobot1\v1.0.2\Aion.TestRobot1.exe
 
-        public string Resolve(string path, string fileName)
+        public string GetRobotFileName(string path, string fileName)
         {
             if (string.IsNullOrEmpty(path)) throw new ArgumentNullException(nameof(path));
             if (string.IsNullOrEmpty(fileName)) throw new ArgumentNullException(nameof(fileName));
             if (Path.IsPathRooted(fileName)) return fileName;
 
             var versions = GetVersions(Path.Combine(path, Path.GetFileNameWithoutExtension(fileName)));
-            var latestVersion = GetLatestVersion(versions);
+            var latestVersion = FindLatestVersion(versions);
 
             return string.IsNullOrEmpty(latestVersion) ? null : Path.Combine(
                 path,
@@ -41,14 +45,10 @@ namespace Aion.Services
 
         public IEnumerable<string> GetVersions(string path)
         {
-            return _getDirectories(
-                path: path,
-                searchPattern: "v*.*.*"
-            )
-            .Select(x => x.Split('\\').Last());
+            return _getDirectories(path, SearchPattern).Select(x => x.Split('\\').Last());
         }
 
-        public static string GetLatestVersion(IEnumerable<string> versions)
+        public static string FindLatestVersion(IEnumerable<string> versions)
         {
             return ParseVersions().OrderByDescending(x => x).FirstOrDefault();
 

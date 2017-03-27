@@ -14,7 +14,7 @@ namespace Aion.Jobs
     [DisallowConcurrentExecution]
     class RobotLaucher : IJob
     {
-        private static readonly RobotFileNameResolver RobotFileNameResolver = new RobotFileNameResolver(Directory.GetDirectories);
+        private static readonly RobotDirectory RobotDirectory = new RobotDirectory();
         private static readonly ILogger Logger = LoggerFactory.CreateLogger(nameof(RobotLaucher));
 
         public void Execute(IJobExecutionContext context)
@@ -44,7 +44,7 @@ namespace Aion.Jobs
 
         private static bool LaunchRobot(string robotsDirectoryName, RobotInfo robot)
         {
-            var robotFileName = RobotFileNameResolver.Resolve(robotsDirectoryName, robot.FileName);
+            var robotFileName = RobotDirectory.GetRobotFileName(robotsDirectoryName, robot.FileName);
             if (string.IsNullOrEmpty(robotFileName))
             {
                 throw new FileNotFoundException($"File not found '{robotFileName}'.");

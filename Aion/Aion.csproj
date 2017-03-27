@@ -145,7 +145,7 @@
     <Compile Include="_codebase\Jobs\RobotConfigUpdater.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="_codebase\Services\RobotFileNameResolver.cs" />
+    <Compile Include="_codebase\Services\RobotDirectory.cs" />
     <Compile Include="_codebase\Services\CronService.cs">
       <SubType>Component</SubType>
     </Compile>

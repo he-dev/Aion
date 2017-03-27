@@ -14,6 +14,8 @@ namespace Aion.Services
     {
         private static readonly ILogger Logger;
 
+        public const string SearchPattern = "Aion.Schemes.*.json";
+
         static SchemeReader()
         {
             Logger = LoggerFactory.CreateLogger(nameof(SchemeReader));
@@ -21,7 +23,7 @@ namespace Aion.Services
 
         public static IEnumerable<RobotScheme> ReadSchemes(string path) => GetSchemeFileNames(path).Select(ReadeScheme).Where(Conditional.IsNotNull);
 
-        public static string[] GetSchemeFileNames(string path) => Directory.GetFiles(path, "Aion.Schemes.*.json");
+        public static string[] GetSchemeFileNames(string path) => Directory.GetFiles(path, SearchPattern);
 
         public static RobotScheme ReadeScheme(string fileName)
         {

@@ -9,14 +9,14 @@ namespace Aion.Tests
         [TestMethod]
         public void Resolve_MultipleVersions_PathWithLatestVersion()
         {
-            var resolver = new RobotFileNameResolver((path, searchPattern) => new []
+            var resolver = new RobotDirectory((path, searchPattern) => new []
             {
                 @"C:\foo\bar\v3.4.1",
                 @"C:\foo\bar\v5.0.1",
                 @"C:\foo\bar\v1.2.0",
             });
 
-            var fileName = resolver.Resolve(@"C:\foo", "bar.exe");
+            var fileName = resolver.GetRobotFileName(@"C:\foo", "bar.exe");
 
             Assert.AreEqual(@"C:\foo\bar\v5.0.1\bar.exe", fileName);
         }
@@ -24,21 +24,21 @@ namespace Aion.Tests
         [TestMethod]
         public void GetLatestVersion_MultipleVersions_Latest()
         {
-            var latestVersion = RobotFileNameResolver.GetLatestVersion(new[] { "v2.0.0", "v2.0.5", "v2.0.1" });
+            var latestVersion = RobotDirectory.FindLatestVersion(new[] { "v2.0.0", "v2.0.5", "v2.0.1" });
             Assert.AreEqual(@"2.0.5", latestVersion);
         }
 
         [TestMethod]
         public void GetLatestVersion_MultipleVersionsWithDisabled_Latest()
         {
-            var latestVersion = RobotFileNameResolver.GetLatestVersion(new[] { "v2.0.0", "_v2.0.5", "v2.0.1" });
+            var latestVersion = RobotDirectory.FindLatestVersion(new[] { "v2.0.0", "_v2.0.5", "v2.0.1" });
             Assert.AreEqual(@"2.0.1", latestVersion);
         }
 
         [TestMethod]
         public void GetLatestVersion_NoValidVersions_null()
         {
-            var latestVersion = RobotFileNameResolver.GetLatestVersion(new[] { "_v2.0.0", "_v2.0.5", "abc" });
+            var latestVersion = RobotDirectory.FindLatestVersion(new[] { "_v2.0.0", "_v2.0.5", "abc" });
             Assert.IsNull(latestVersion);
         }
     }
