@@ -6,6 +6,7 @@ using Aion.Data;
 using Aion.Extensions;
 using Newtonsoft.Json;
 using Reusable;
+using Reusable.Extensions;
 using Reusable.Logging;
 
 namespace Aion.Services
