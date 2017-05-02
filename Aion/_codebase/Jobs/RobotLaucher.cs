@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Aion.Data;
-using Aion.Data.Configs;
+using Aion.Data.Configuration;
 using Aion.Extensions;
 using Aion.Services;
 using Quartz;
@@ -12,15 +12,17 @@ using Reusable.Logging;
 namespace Aion.Jobs
 {
     [DisallowConcurrentExecution]
-    class RobotLaucher : IJob
+    internal class RobotLaucher : RobotJob, IJob
     {
         private static readonly RobotDirectory RobotDirectory = new RobotDirectory();
         private static readonly ILogger Logger = LoggerFactory.CreateLogger(nameof(RobotLaucher));
 
         public void Execute(IJobExecutionContext context)
         {
+            if (Scheduler == null) { throw new InvalidOperationException($"Did you forget to set the '{nameof(Scheduler)}'?"); }
+
             var schemeName = context.JobDetail.Key.Name;
-            if (CronService.Instance.Scheduler.TryGetRobotScheme(schemeName, out RobotScheme scheme))
+            if (Scheduler.TryGetRobotScheme(schemeName, out RobotScheme scheme))
             {
                 LaunchRobots(scheme);
             }
@@ -32,7 +34,7 @@ namespace Aion.Jobs
             {
                 try
                 {
-                    if (!LaunchRobot(AppSettingsConfig.Paths.RobotsDirectoryName, robotConfig)) break;
+                    LaunchRobot(Program.Configuration.Load<Program, Global>().RobotsDirectoryName, robotConfig);
                 }
                 catch (Exception ex)
                 {
@@ -42,7 +44,7 @@ namespace Aion.Jobs
             }
         }
 
-        private static bool LaunchRobot(string robotsDirectoryName, RobotInfo robot)
+        private static void LaunchRobot(string robotsDirectoryName, RobotInfo robot)
         {
             var robotFileName = RobotDirectory.GetRobotFileName(robotsDirectoryName, robot.FileName);
             if (string.IsNullOrEmpty(robotFileName))
@@ -76,13 +78,18 @@ namespace Aion.Jobs
                 if (process.ExitCode != 0) logEntry.Warn();
                 logEntry.Message($" {robotFileName.DoubleQuote()} exited with error code {process.ExitCode}.");
             }
-
-            return true;
         }
 
         private static bool IsRunning(string robotFileName, string arguments)
         {
-            return Wmi.IsRunning(arguments, Wmi.GetCommandLines(Path.GetFileName(robotFileName)).ToList());
+           var commandLines = Wmi.GetCommandLines(Path.GetFileName(robotFileName)).ToList();
+
+            // Skip the file name.
+            var currentCommandLines = commandLines.Select(x => Reusable.Colin.CommandLineTokenizer.Tokenize(x).Skip(1).OrderBy(y => y)).ToList();
+            if (!currentCommandLines.Any()) return false;
+
+            var tokens = Reusable.Colin.CommandLineTokenizer.Tokenize(arguments ?? string.Empty).OrderBy(x => x).ToList();
+            return currentCommandLines.Any(x => x.SequenceEqual(tokens));
         }
     }
 }

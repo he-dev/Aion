@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Linq;
-using Aion.Data.Configs;
+using Aion.Data.Configuration;
 using Aion.Services;
 using Quartz;
 using Reusable.Logging;
@@ -8,7 +8,7 @@ using Reusable.Logging;
 namespace Aion.Jobs
 {
     [DisallowConcurrentExecution]
-    class RobotConfigUpdater : IJob
+    internal class RobotConfigUpdater : RobotJob, IJob
     {
         private static readonly ILogger Logger;
 
@@ -21,8 +21,8 @@ namespace Aion.Jobs
         {
             try
             {
-                var schemes = SchemeReader.ReadSchemes(AppSettingsConfig.Paths.RobotsDirectoryName).ToArray();
-                CronService.Instance.Scheduler.ScheduleRobots(schemes);
+                var schemes = SchemeReader.ReadSchemes(Program.Configuration.Load<Program, Global>().RobotsDirectoryName).ToArray();
+                Scheduler.ScheduleRobots(schemes);
             }
             catch (Exception ex)
             {

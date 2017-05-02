@@ -17,15 +17,5 @@ namespace Aion.Services
                 }
             }
         }
-
-        public static bool IsRunning(string arguments, IList<string> commandLines)
-        {
-            // Skip the file name.
-            var currentCommandLines = commandLines.Select(x => Reusable.Shelly.CommandLineTokenizer.Tokenize(x).Skip(1).OrderBy(y => y)).ToList();
-            if (!currentCommandLines.Any()) return false;
-
-            var tokens = Reusable.Shelly.CommandLineTokenizer.Tokenize(arguments ?? string.Empty).OrderBy(x => x).ToList();
-            return currentCommandLines.Any(x => x.SequenceEqual(tokens));
-        }
     }
 }

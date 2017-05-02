@@ -73,9 +73,8 @@
       <HintPath>..\packages\Common.Logging.Core.3.3.1\lib\net40\Common.Logging.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <HintPath>..\packages\NLog.4.4.3\lib\net45\NLog.dll</HintPath>
@@ -85,38 +84,32 @@
       <HintPath>..\packages\Quartz.2.5.0\lib\net40\Quartz.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Reusable.Colin, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Reusable.Colin.3.0.1\lib\net452\Reusable.Colin.dll</HintPath>
+    </Reference>
+    <Reference Include="Reusable.ConfigWhiz.Core, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Reusable.ConfigWhiz.Core.3.0.1\lib\net452\Reusable.ConfigWhiz.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Reusable.ConfigWhiz.Datastores.AppConfig, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Reusable.ConfigWhiz.Datastores.AppConfig.3.0.1\lib\net452\Reusable.ConfigWhiz.Datastores.AppConfig.dll</HintPath>
+    </Reference>
     <Reference Include="Reusable.Core, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.Core.2.28.0\lib\net452\Reusable.Core.dll</HintPath>
+      <HintPath>..\packages\Reusable.Core.3.0.1\lib\net452\Reusable.Core.dll</HintPath>
     </Reference>
     <Reference Include="Reusable.Logging, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.Logging.2.28.0\lib\net452\Reusable.Logging.dll</HintPath>
+      <HintPath>..\packages\Reusable.Logging.3.0.1\lib\net452\Reusable.Logging.dll</HintPath>
     </Reference>
     <Reference Include="Reusable.Logging.Adapters.NLog, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.Logging.Adapters.NLog.2.28.0\lib\net452\Reusable.Logging.Adapters.NLog.dll</HintPath>
+      <HintPath>..\packages\Reusable.Logging.Adapters.NLog.3.0.1\lib\net452\Reusable.Logging.Adapters.NLog.dll</HintPath>
     </Reference>
     <Reference Include="Reusable.Logging.NLog.Tools, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.Logging.NLog.Tools.2.28.0\lib\net452\Reusable.Logging.NLog.Tools.dll</HintPath>
+      <HintPath>..\packages\Reusable.Logging.NLog.Tools.3.0.1\lib\net452\Reusable.Logging.NLog.Tools.dll</HintPath>
     </Reference>
     <Reference Include="Reusable.SemanticVersion, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.SemanticVersion.2.28.0\lib\net452\Reusable.SemanticVersion.dll</HintPath>
-    </Reference>
-    <Reference Include="Reusable.Shelly, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.Shelly.2.27.3\lib\net452\Reusable.Shelly.dll</HintPath>
+      <HintPath>..\packages\Reusable.SemanticVersion.3.0.1\lib\net452\Reusable.SemanticVersion.dll</HintPath>
     </Reference>
     <Reference Include="Reusable.TypeConversion, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.TypeConversion.2.28.0\lib\net452\Reusable.TypeConversion.dll</HintPath>
-    </Reference>
-    <Reference Include="SmartConfig.Core, Version=7.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\SmartConfig.Core.9.0.3\lib\net452\SmartConfig.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="SmartConfig.DataStores.AppConfig, Version=7.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\SmartConfig.DataStores.AppConfig.9.0.3\lib\net452\SmartConfig.DataStores.AppConfig.dll</HintPath>
-    </Reference>
-    <Reference Include="SmartConfig.DataStores.Registry, Version=7.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\SmartConfig.Core.9.0.3\lib\net452\SmartConfig.DataStores.Registry.dll</HintPath>
-    </Reference>
-    <Reference Include="SmartConfig.DataStores.SqlServer, Version=7.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\SmartConfig.Core.9.0.3\lib\net452\SmartConfig.DataStores.SqlServer.dll</HintPath>
+      <HintPath>..\packages\Reusable.TypeConversion.3.0.1\lib\net452\Reusable.TypeConversion.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Collections.Immutable, Version=1.2.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -139,10 +132,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="_codebase\Data\Configs\AppSettingsConfig.cs" />
+    <Compile Include="_codebase\Data\Configuration.cs" />
     <Compile Include="_codebase\Extensions\StringExtensions.cs" />
     <Compile Include="_codebase\Jobs\RobotLaucher.cs" />
     <Compile Include="_codebase\Services\SchemeReader.cs" />
+    <Compile Include="_codebase\Services\ServiceStarter.cs" />
     <Compile Include="_codebase\Services\Wmi.cs" />
     <Compile Include="_codebase\Data\RobotScheme.cs" />
     <Compile Include="_codebase\Jobs\RobotConfigUpdater.cs">

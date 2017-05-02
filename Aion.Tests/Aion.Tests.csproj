@@ -45,9 +45,8 @@
       <HintPath>..\packages\Common.Logging.Core.3.3.1\lib\net40\Common.Logging.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <HintPath>..\packages\NLog.4.4.3\lib\net45\NLog.dll</HintPath>
@@ -58,19 +57,19 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="Reusable.Core, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.Core.2.28.0\lib\net452\Reusable.Core.dll</HintPath>
+      <HintPath>..\packages\Reusable.Core.3.0.1\lib\net452\Reusable.Core.dll</HintPath>
     </Reference>
     <Reference Include="Reusable.Logging, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.Logging.2.28.0\lib\net452\Reusable.Logging.dll</HintPath>
+      <HintPath>..\packages\Reusable.Logging.3.0.1\lib\net452\Reusable.Logging.dll</HintPath>
     </Reference>
     <Reference Include="Reusable.Logging.Adapters.NLog, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.Logging.Adapters.NLog.2.28.0\lib\net452\Reusable.Logging.Adapters.NLog.dll</HintPath>
+      <HintPath>..\packages\Reusable.Logging.Adapters.NLog.3.0.1\lib\net452\Reusable.Logging.Adapters.NLog.dll</HintPath>
     </Reference>
     <Reference Include="Reusable.Logging.NLog.Tools, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.Logging.NLog.Tools.2.28.0\lib\net452\Reusable.Logging.NLog.Tools.dll</HintPath>
+      <HintPath>..\packages\Reusable.Logging.NLog.Tools.3.0.1\lib\net452\Reusable.Logging.NLog.Tools.dll</HintPath>
     </Reference>
     <Reference Include="Reusable.SemanticVersion, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Reusable.SemanticVersion.2.28.0\lib\net452\Reusable.SemanticVersion.dll</HintPath>
+      <HintPath>..\packages\Reusable.SemanticVersion.3.0.1\lib\net452\Reusable.SemanticVersion.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Collections.Immutable, Version=1.2.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">

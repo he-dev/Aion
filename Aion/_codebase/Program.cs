@@ -1,31 +1,49 @@
 ﻿using System;
 using Aion.Data;
+using Aion.Data.Configuration;
 using Aion.Services;
 using Reusable.Logging;
-using SmartConfig.DataStores.AppConfig;
-using Aion.Data.Configs;
+using Aion.Jobs;
+using Reusable.ConfigWhiz;
+using Reusable.ConfigWhiz.Datastores.AppConfig;
 
 namespace Aion
 {
-    internal static class Program
+    internal class Program
     {
         public const string InstanceName = "Aion";
         public const string InstanceVersion = "4.0.0";
 
         private static readonly ILogger Logger;
 
+        public static Configuration Configuration { get; }
+
         static Program()
         {
             InitializeLogging();
             Logger = LoggerFactory.CreateLogger(nameof(Program));
-            InitializeConfiguraiton();
+            Configuration = InitializeConfiguraiton();
         }
 
         private static void Main()
         {
             //Logger.Info().MessageFormat("*** {Name} v{Version} ***", new { Name = InstanceName, Version = InstanceVersion }).Log();
 
-            CronService.Start();
+            try
+            {
+                var cronService = ServiceStarter.Start<CronService>();
+                RobotJob.Scheduler = cronService.Scheduler;
+
+                cronService.Scheduler.ScheduleJob<RobotConfigUpdater>(
+                    name: nameof(RobotConfigUpdater),
+                    cronExpression: Configuration.Load<Program, Global>().RobotConfigUpdaterSchedule,
+                    startImmediately: false
+                );
+            }
+            catch (Exception ex)
+            {
+                LogEntry.New().Error().Exception(ex).Message("Error starting service.").Log(Logger);
+            }
 
             if (Environment.UserInteractive)
             {
@@ -45,19 +63,14 @@ namespace Aion
             Reusable.Logging.LoggerFactory.Initialize<Reusable.Logging.Adapters.NLogFactory>();
         }
 
-        private static void InitializeConfiguraiton()
+        private static Configuration InitializeConfiguraiton()
         {
             //var loadSettingsLogger = Logger.Info().Message("Config loaded.").StartStopwatch();
             try
             {
-                SmartConfig.Configuration.Builder()
-                    .From(new AppSettingsStore())
-                    .Select(typeof(AppSettingsConfig));
-
-                //SmartConfig.Configuration.Builder()
-                //    .From(new SQLiteStore("name=configdb", builder => builder.Column("Environment", DbType.String, 50)))
-                //    .Where("Environment", AppSettingsConfig.Environment)
-                //    .Select(typeof(MainConfig));                
+                var configuration = new Reusable.ConfigWhiz.Configuration(new AppSettings());
+                configuration.Load<Program, Data.Configuration.Global>();
+                return configuration;
             }
             catch (Exception ex)
             {
@@ -70,5 +83,11 @@ namespace Aion
             }
 
         }
+    }
+
+    internal abstract class RobotJob
+    {
+        // This is a workaround for the job-data-map because it really sucks.
+        public static CronScheduler Scheduler { get; set; }
     }
 }
