@@ -8,13 +8,13 @@ using Reusable.Logging;
 namespace Aion.Jobs
 {
     [DisallowConcurrentExecution]
-    internal class RobotConfigUpdater : RobotJob, IJob
+    internal class RobotScheduleUpdater : RobotJob, IJob
     {
         private static readonly ILogger Logger;
 
-        static RobotConfigUpdater()
+        static RobotScheduleUpdater()
         {
-            Logger = LoggerFactory.CreateLogger(nameof(RobotConfigUpdater));
+            Logger = LoggerFactory.CreateLogger(nameof(RobotScheduleUpdater));
         }
 
         public void Execute(IJobExecutionContext context)

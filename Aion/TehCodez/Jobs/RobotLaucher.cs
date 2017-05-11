@@ -8,13 +8,13 @@ using Aion.Extensions;
 using Aion.Services;
 using Quartz;
 using Reusable.Logging;
+using Reusable.Management;
 
 namespace Aion.Jobs
 {
     [DisallowConcurrentExecution]
     internal class RobotLaucher : RobotJob, IJob
     {
-        private static readonly RobotDirectory RobotDirectory = new RobotDirectory();
         private static readonly ILogger Logger = LoggerFactory.CreateLogger(nameof(RobotLaucher));
 
         public void Execute(IJobExecutionContext context)
@@ -46,15 +46,26 @@ namespace Aion.Jobs
 
         private static void LaunchRobot(string robotsDirectoryName, RobotInfo robot)
         {
-            var robotFileName = RobotDirectory.GetRobotFileName(robotsDirectoryName, robot.FileName);
+            var latestVersion =
+                RobotDirectory
+                    .GetVersionDirectories(RobotDirectory.CreateMainDirectoryName(robotsDirectoryName, robot.FileName))
+                    .GetLatestVersion();
+
+            var robotFileName =
+                new RobotFileNameBuilder()
+                    .RobotDirectoryName(robotsDirectoryName)
+                    .Version(latestVersion)
+                    .FileName(robot.FileName)
+                    .Build();
+
             if (string.IsNullOrEmpty(robotFileName))
             {
-                throw new FileNotFoundException($"File not found '{robotFileName}'.");
+                throw new FileNotFoundException($"Robot not found '{robotFileName}'.");
             }
 
             if (IsRunning(robot.FileName, robot.Arguments))
             {
-                throw new InvalidOperationException($"Process already running '{robotFileName}'.");
+                throw new InvalidOperationException($"Robot already running '{robotFileName}'.");
             }
 
             var process = Process.Start(new ProcessStartInfo
@@ -67,22 +78,22 @@ namespace Aion.Jobs
 
             if (process == null)
             {
-                throw new Exception($"Error starting {robotFileName.DoubleQuote()}.");
+                throw new ProcessNotStartedException(robotFileName);
             }
 
-            LogEntry.New().Info().Message($"Started {robotFileName.DoubleQuote()}").Log(Logger);
+            LogEntry.New().Info().Message($"Started '{robotFileName}'").Log(Logger);
 
             using (var logEntry = LogEntry.New().Info().Stopwatch(sw => sw.Start()).AsAutoLog(Logger))
             {
                 process.WaitForExit();
                 if (process.ExitCode != 0) logEntry.Warn();
-                logEntry.Message($" {robotFileName.DoubleQuote()} exited with error code {process.ExitCode}.");
+                logEntry.Message($"'{robotFileName}' exited with error code {process.ExitCode}.");
             }
         }
 
         private static bool IsRunning(string robotFileName, string arguments)
         {
-           var commandLines = Wmi.GetCommandLines(Path.GetFileName(robotFileName)).ToList();
+            var commandLines = Wmi.GetCommandLines(Path.GetFileName(robotFileName)).ToList();
 
             // Skip the file name.
             var currentCommandLines = commandLines.Select(x => Reusable.Colin.CommandLineTokenizer.Tokenize(x).Skip(1).OrderBy(y => y)).ToList();
@@ -91,5 +102,12 @@ namespace Aion.Jobs
             var tokens = Reusable.Colin.CommandLineTokenizer.Tokenize(arguments ?? string.Empty).OrderBy(x => x).ToList();
             return currentCommandLines.Any(x => x.SequenceEqual(tokens));
         }
+    }
+
+    internal class ProcessNotStartedException : Exception
+    {
+        public ProcessNotStartedException(string fileName)
+            : base($"Error starting '{fileName}'.", null)
+        { }
     }
 }

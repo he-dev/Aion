@@ -5,7 +5,6 @@ using System.Linq;
 using Aion.Data;
 using Aion.Extensions;
 using Newtonsoft.Json;
-using Reusable;
 using Reusable.Extensions;
 using Reusable.Logging;
 
@@ -15,7 +14,7 @@ namespace Aion.Services
     {
         private static readonly ILogger Logger;
 
-        public const string SearchPattern = "Aion.Schemes.*.json";
+        public const string SearchPattern = "*.json";
 
         static SchemeReader()
         {

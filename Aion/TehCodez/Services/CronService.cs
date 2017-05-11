@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Linq;
-using System.ServiceProcess;
-using Aion.Data;
-using Aion.Jobs;
-using Quartz;
-using Quartz.Impl;
+﻿using System.ServiceProcess;
 using Reusable.Logging;
 
 namespace Aion.Services

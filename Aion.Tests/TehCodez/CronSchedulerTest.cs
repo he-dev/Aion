@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using Aion.Data;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Aion.Services;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Aion.Tests
 {

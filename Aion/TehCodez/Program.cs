@@ -1,11 +1,10 @@
 ﻿using System;
-using Aion.Data;
 using Aion.Data.Configuration;
-using Aion.Services;
-using Reusable.Logging;
 using Aion.Jobs;
+using Aion.Services;
 using Reusable.ConfigWhiz;
 using Reusable.ConfigWhiz.Datastores.AppConfig;
+using Reusable.Logging;
 
 namespace Aion
 {
@@ -34,8 +33,8 @@ namespace Aion
                 var cronService = ServiceStarter.Start<CronService>();
                 RobotJob.Scheduler = cronService.Scheduler;
 
-                cronService.Scheduler.ScheduleJob<RobotConfigUpdater>(
-                    name: nameof(RobotConfigUpdater),
+                cronService.Scheduler.ScheduleJob<RobotScheduleUpdater>(
+                    name: nameof(RobotScheduleUpdater),
                     cronExpression: Configuration.Load<Program, Global>().RobotConfigUpdaterSchedule,
                     startImmediately: false
                 );
@@ -54,7 +53,6 @@ namespace Aion
         private static void InitializeLogging()
         {
             Reusable.Logging.NLog.Tools.LayoutRenderers.InvariantPropertiesLayoutRenderer.Register();
-            Reusable.Logging.NLog.Tools.DatabaseTargetQueryGenerator.GenerateInsertQueries();
 
             Reusable.Logging.Logger.ComputedProperties.Add(new Reusable.Logging.ComputedProperties.AppSetting(name: "Environment", key: $"{InstanceName}.Environment"));
             Reusable.Logging.Logger.ComputedProperties.Add(new Reusable.Logging.ComputedProperties.ElapsedSeconds());
@@ -69,7 +67,7 @@ namespace Aion
             try
             {
                 var configuration = new Reusable.ConfigWhiz.Configuration(new AppSettings());
-                configuration.Load<Program, Data.Configuration.Global>();
+                configuration.Load<Program, Aion.Data.Configuration.Global>();
                 return configuration;
             }
             catch (Exception ex)
