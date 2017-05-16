@@ -26,11 +26,11 @@ namespace Aion
 
         private static void Main()
         {
-            //Logger.Info().MessageFormat("*** {Name} v{Version} ***", new { Name = InstanceName, Version = InstanceVersion }).Log();
+            LogEntry.New().Info().Message($"*** {InstanceName} v{InstanceVersion} started ***").Log(Logger);
 
             try
             {
-                var cronService = ServiceStarter.Start<CronService>();
+                var cronService = new CronService();
                 RobotJob.Scheduler = cronService.Scheduler;
 
                 cronService.Scheduler.ScheduleJob<RobotScheduleUpdater>(
@@ -38,6 +38,8 @@ namespace Aion
                     cronExpression: Configuration.Load<Program, Global>().RobotConfigUpdaterSchedule,
                     startImmediately: false
                 );
+
+                ServiceStarter.Start(cronService);
             }
             catch (Exception ex)
             {
@@ -54,7 +56,7 @@ namespace Aion
         {
             Reusable.Logging.NLog.Tools.LayoutRenderers.InvariantPropertiesLayoutRenderer.Register();
 
-            Reusable.Logging.Logger.ComputedProperties.Add(new Reusable.Logging.ComputedProperties.AppSetting(name: "Environment", key: $"{InstanceName}.Environment"));
+            Reusable.Logging.Logger.ComputedProperties.Add(new Reusable.Logging.ComputedProperties.AppSetting(name: "Environment", key: $"Aion.Program.Global.Environment"));
             Reusable.Logging.Logger.ComputedProperties.Add(new Reusable.Logging.ComputedProperties.ElapsedSeconds());
             Reusable.Logging.Logger.ComputedProperties.Add(new Reusable.Logging.ComputedProperties.ElapsedHours());
 
@@ -63,23 +65,9 @@ namespace Aion
 
         private static Configuration InitializeConfiguraiton()
         {
-            //var loadSettingsLogger = Logger.Info().Message("Config loaded.").StartStopwatch();
-            try
-            {
-                var configuration = new Reusable.ConfigWhiz.Configuration(new AppSettings());
-                configuration.Load<Program, Aion.Data.Configuration.Global>();
-                return configuration;
-            }
-            catch (Exception ex)
-            {
-                //loadSettingsLogger.Error().Exception(ex);
-                throw;
-            }
-            finally
-            {
-                //loadSettingsLogger.Log();
-            }
-
+            var configuration = new Reusable.ConfigWhiz.Configuration(new AppSettings());
+            configuration.Load<Program, Aion.Data.Configuration.Global>();
+            return configuration;
         }
     }
 

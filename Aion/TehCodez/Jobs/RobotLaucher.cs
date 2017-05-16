@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using Aion.Data;
 using Aion.Data.Configuration;
 using Aion.Extensions;
@@ -86,8 +87,12 @@ namespace Aion.Jobs
             using (var logEntry = LogEntry.New().Info().Stopwatch(sw => sw.Start()).AsAutoLog(Logger))
             {
                 process.WaitForExit();
-                if (process.ExitCode != 0) logEntry.Warn();
-                logEntry.Message($"'{robotFileName}' exited with error code {process.ExitCode}.");
+                if (process.ExitCode != 0)
+                {
+                    logEntry.Error().Message($"'{robotFileName}' exited with error code {process.ExitCode}.");
+                    throw new ProcessTerminatedException($"'{robotFileName}' exited with error code {process.ExitCode}.");
+                }
+                logEntry.Info().Message($"'{robotFileName}' exited with error code {process.ExitCode}.");
             }
         }
 
@@ -102,6 +107,12 @@ namespace Aion.Jobs
             var tokens = Reusable.Colin.CommandLineTokenizer.Tokenize(arguments ?? string.Empty).OrderBy(x => x).ToList();
             return currentCommandLines.Any(x => x.SequenceEqual(tokens));
         }
+    }
+
+    [Serializable]
+    internal class ProcessTerminatedException : Exception
+    {
+        public ProcessTerminatedException(string message) : base(message, null) { }
     }
 
     internal class ProcessNotStartedException : Exception

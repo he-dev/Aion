@@ -11,10 +11,8 @@ namespace Aion.Services
 
     internal class ServiceStarter
     {
-        public static TService Start<TService>(params string[] args) where TService : ServiceBase, IService, new()
+        public static void Start<TService>(TService service, params string[] args) where TService : ServiceBase, IService, new()
         {
-            var service = new TService();
-
             if (Environment.UserInteractive && Debugger.IsAttached)
             {
                 service.Start(args);
@@ -23,8 +21,6 @@ namespace Aion.Services
             {
                 ServiceBase.Run(service);
             }
-
-            return service;
         }
     }
 }
