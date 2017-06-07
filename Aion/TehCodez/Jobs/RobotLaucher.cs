@@ -69,30 +69,31 @@ namespace Aion.Jobs
                 throw new InvalidOperationException($"Robot already running '{robotFileName}'.");
             }
 
-            var process = Process.Start(new ProcessStartInfo
+            using (var process = Process.Start(new ProcessStartInfo
             {
                 FileName = robotFileName,
                 Arguments = robot.Arguments,
                 WindowStyle = robot.WindowStyle,
                 //UseShellExecute = false,
-            });
-
-            if (process == null)
+            }))
             {
-                throw new ProcessNotStartedException(robotFileName);
-            }
-
-            LogEntry.New().Info().Message($"Started '{robotFileName}'").Log(Logger);
-
-            using (var logEntry = LogEntry.New().Info().Stopwatch(sw => sw.Start()).AsAutoLog(Logger))
-            {
-                process.WaitForExit();
-                if (process.ExitCode != 0)
+                if (process == null)
                 {
-                    logEntry.Error().Message($"'{robotFileName}' exited with error code {process.ExitCode}.");
-                    throw new ProcessTerminatedException($"'{robotFileName}' exited with error code {process.ExitCode}.");
+                    throw new ProcessNotStartedException(robotFileName);
                 }
-                logEntry.Info().Message($"'{robotFileName}' exited with error code {process.ExitCode}.");
+
+                LogEntry.New().Info().Message($"Started '{robotFileName}'").Log(Logger);
+
+                using (var logEntry = LogEntry.New().Info().Stopwatch(sw => sw.Start()).AsAutoLog(Logger))
+                {
+                    process.WaitForExit();
+                    if (process.ExitCode != 0)
+                    {
+                        logEntry.Error().Message($"'{robotFileName}' exited with error code {process.ExitCode}.");
+                        throw new ProcessTerminatedException($"'{robotFileName}' exited with error code {process.ExitCode}.");
+                    }
+                    logEntry.Info().Message($"'{robotFileName}' exited with error code {process.ExitCode}.");
+                }
             }
         }
 
