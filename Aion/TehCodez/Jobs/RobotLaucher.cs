@@ -10,6 +10,8 @@ using Aion.Services;
 using Quartz;
 using Reusable.Logging;
 using Reusable.Management;
+using System.Management;
+using System.Collections.Generic;
 
 namespace Aion.Jobs
 {
@@ -99,7 +101,7 @@ namespace Aion.Jobs
 
         private static bool IsRunning(string robotFileName, string arguments)
         {
-            var commandLines = Wmi.GetCommandLines(Path.GetFileName(robotFileName)).ToList();
+            var commandLines = GetCommandLines(robotFileName).ToList();  // Wmi.GetCommandLines(Path.GetFileName(robotFileName)).ToList();
 
             // Skip the file name.
             var currentCommandLines = commandLines.Select(x => Reusable.Colin.CommandLineTokenizer.Tokenize(x).Skip(1).OrderBy(y => y)).ToList();
@@ -107,6 +109,21 @@ namespace Aion.Jobs
 
             var tokens = Reusable.Colin.CommandLineTokenizer.Tokenize(arguments ?? string.Empty).OrderBy(x => x).ToList();
             return currentCommandLines.Any(x => x.SequenceEqual(tokens));
+        }
+
+        private static IEnumerable<string> GetCommandLines(string processName)
+        {
+            //if (processName.IsNullOrEmpty()) throw new ArgumentNullException(nameof(processName));
+
+            var query = $"SELECT CommandLine FROM Win32_Process WHERE Name = '{processName}'";
+            using (var searcher = new ManagementObjectSearcher(query))
+            using (var results = searcher.Get())
+            {
+                foreach (var instance in results)
+                {
+                    yield return instance["CommandLine"].ToString();
+                }
+            }
         }
     }
 
