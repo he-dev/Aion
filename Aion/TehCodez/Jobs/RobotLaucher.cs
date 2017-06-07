@@ -51,7 +51,7 @@ namespace Aion.Jobs
         {
             var latestVersion =
                 RobotDirectory
-                    .GetVersionDirectories(RobotDirectory.CreateMainDirectoryName(robotsDirectoryName, robot.FileName))
+                    .GetVersions(RobotPath.Combine(robotsDirectoryName, robot.FileName))
                     .GetLatestVersion();
 
             var robotFileName =

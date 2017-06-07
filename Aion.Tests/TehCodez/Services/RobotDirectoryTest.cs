@@ -8,14 +8,6 @@ namespace Aion.Tests.Services
     public class RobotDirectoryTest
     {
         [TestMethod]
-        public void CreateMainDirectoryName_DirectoryAndFileName_Name()
-        {
-            Assert.AreEqual(
-                @"c:\foo\bar\baz",
-                RobotDirectory.CreateMainDirectoryName(@"c:\foo\bar", @"baz.exe"));
-        }
-
-        [TestMethod]
         public void GetLatestVersion_MiscVersions_LatestVersion()
         {
             var paths = new[]

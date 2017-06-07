@@ -73,6 +73,9 @@
       <HintPath>..\packages\Common.Logging.Core.3.3.1\lib\net40\Common.Logging.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="JetBrains.Annotations, Version=10.4.0.0, Culture=neutral, PublicKeyToken=1010a0d8d6380325, processorArchitecture=MSIL">
+      <HintPath>..\packages\JetBrains.Annotations.10.4.0\lib\net\JetBrains.Annotations.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -136,6 +139,8 @@
     <Compile Include="TehCodez\Extensions\StringExtensions.cs" />
     <Compile Include="TehCodez\Jobs\RobotLaucher.cs" />
     <Compile Include="TehCodez\Services\RobotFileNameBuilder.cs" />
+    <Compile Include="TehCodez\Services\RobotPath.cs" />
+    <Compile Include="TehCodez\Services\RobotSchemeComparer.cs" />
     <Compile Include="TehCodez\Services\SchemeReader.cs" />
     <Compile Include="TehCodez\Services\ServiceStarter.cs" />
     <Compile Include="TehCodez\Data\RobotScheme.cs" />

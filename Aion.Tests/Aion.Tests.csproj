@@ -45,6 +45,9 @@
       <HintPath>..\packages\Common.Logging.Core.3.3.1\lib\net40\Common.Logging.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="JetBrains.Annotations, Version=10.4.0.0, Culture=neutral, PublicKeyToken=1010a0d8d6380325, processorArchitecture=MSIL">
+      <HintPath>..\packages\JetBrains.Annotations.10.4.0\lib\net\JetBrains.Annotations.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -92,7 +95,9 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="TehCodez\Services\RobotPathTest.cs" />
     <Compile Include="TehCodez\Services\RobotDirectoryTest.cs" />
+    <Compile Include="TehCodez\Services\RobotSchemeComparerTest.cs" />
     <Compile Include="_TestHelpers\AssemblyInitialize.cs" />
     <Compile Include="TehCodez\CronSchedulerTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

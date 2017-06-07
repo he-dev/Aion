@@ -7,27 +7,16 @@ using Reusable;
 namespace Aion.Services
 {
     internal static class RobotDirectory
-    {
-        public static string CreateMainDirectoryName(string directoryName, string fileName)
+    {        
+        public static IEnumerable<string> GetVersions(string path)
         {
-            if (directoryName == null) throw new ArgumentNullException(nameof(directoryName));
-            if (fileName == null) throw new ArgumentNullException(nameof(fileName));
-
-            return 
-                Path.Combine(
-                    directoryName,
-                    Path.GetFileNameWithoutExtension(fileName));
-        }
-
-        public static IEnumerable<string> GetVersionDirectories(string mainDirectoryName)
-        {
-            if (mainDirectoryName == null) throw new ArgumentNullException(nameof(mainDirectoryName));
+            if (path == null) throw new ArgumentNullException(nameof(path));
 
             const string searchPattern = "v*.*.*";
             return
                 Directory
                     .GetDirectories(
-                        mainDirectoryName, 
+                        path, 
                         searchPattern);
         }
 
