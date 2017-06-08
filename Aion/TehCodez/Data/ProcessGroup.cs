@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -9,8 +10,16 @@ using Newtonsoft.Json;
 
 namespace Aion.Data
 {
-    public class RobotScheme : IEquatable<RobotScheme>
+    [JsonObject]
+    public class ProcessGroup : IEquatable<ProcessGroup>, IGrouping<string, ProcessInfo>
     {
+        #region IGrouping
+
+        [JsonIgnore]
+        public string Key => FileName;
+
+        #endregion
+
         [JsonRequired]
         public string Schedule { get; set; }
 
@@ -21,18 +30,19 @@ namespace Aion.Data
         public bool StartImmediately { get; set; }
 
         [JsonRequired]
-        public List<RobotInfo> Robots { get; set; } = new List<RobotInfo>();
+        public List<ProcessInfo> Items { get; set; } = new List<ProcessInfo>();
 
         [JsonIgnore]
         public string FileName { get; set; }
 
+
         public override string ToString() => Path.GetFileNameWithoutExtension(FileName);
 
-        public static implicit operator string(RobotScheme scheme) => scheme.ToString();
+        public static implicit operator string(ProcessGroup scheme) => scheme.ToString();
 
-        #region IEquatable<RobotScheme>
+        #region IEquatable<ProcessGroup>
 
-        public bool Equals(RobotScheme other)
+        public bool Equals(ProcessGroup other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
@@ -41,7 +51,7 @@ namespace Aion.Data
                 string.Equals(Schedule, other.Schedule, StringComparison.OrdinalIgnoreCase) &&
                 Enabled == other.Enabled &&
                 StartImmediately == other.StartImmediately &&
-                Robots.SequenceEqual(other.Robots);
+                this.SequenceEqual(other);
         }
 
         public override bool Equals(object obj)
@@ -49,7 +59,7 @@ namespace Aion.Data
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return Equals((RobotScheme)obj);
+            return Equals((ProcessGroup)obj);
         }
 
         public override int GetHashCode()
@@ -61,16 +71,21 @@ namespace Aion.Data
                     FileName.ToLowerInvariant().GetHashCode(),
                     StartImmediately.GetHashCode(),
                     Schedule.ToLowerInvariant().GetHashCode(),
-                    Robots.GetHashCode(),
                     Enabled.GetHashCode(),
-                }.Aggregate(0, (current, next) => (current * 397) ^ next);
+                }
+                .Concat(this.Select(x => x.GetHashCode()))
+                .Aggregate(0, (current, next) => (current * 397) ^ next);
             }
         }
 
-        #endregion    
+        public IEnumerator<ProcessInfo> GetEnumerator() => Items.GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        #endregion
     }
 
-    public class RobotInfo : IEquatable<RobotInfo>
+    public class ProcessInfo : IEquatable<ProcessInfo>
     {
         [JsonRequired]
         public string FileName { get; set; }
@@ -85,7 +100,7 @@ namespace Aion.Data
 
         #region IEquatable
 
-        public bool Equals(RobotInfo other)
+        public bool Equals(ProcessInfo other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
@@ -101,7 +116,7 @@ namespace Aion.Data
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return Equals((RobotInfo)obj);
+            return Equals((ProcessInfo)obj);
         }
 
         public override int GetHashCode()

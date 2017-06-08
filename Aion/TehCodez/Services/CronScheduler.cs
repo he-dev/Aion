@@ -14,7 +14,7 @@ namespace Aion.Services
 {
     public class CronScheduler
     {
-        private readonly ConcurrentDictionary<string, RobotScheme> _robots = new ConcurrentDictionary<string, RobotScheme>();
+        private readonly ConcurrentDictionary<string, ProcessGroup> _robots = new ConcurrentDictionary<string, ProcessGroup>();
 
         private readonly IScheduler _quartzScheduler;
 
@@ -41,13 +41,13 @@ namespace Aion.Services
                     .Select(x => x.CronExpressionString);
         }
 
-        public bool TryGetRobotScheme(string name, out RobotScheme scheme) => _robots.TryGetValue(name, out scheme);
+        public bool TryGetProcessGroup(string name, out ProcessGroup scheme) => _robots.TryGetValue(name, out scheme);
 
         public void Start() => _quartzScheduler.Start();
 
         public void Shutdown() => _quartzScheduler.Shutdown(true);
 
-        public void ScheduleRobots(params RobotScheme[] robotSchemes)
+        public void ScheduleRobots(params ProcessGroup[] robotSchemes)
         {
             foreach (var scheme in robotSchemes)
             {
@@ -62,11 +62,11 @@ namespace Aion.Services
             }
         }
 
-        public void ScheduleRobots(RobotScheme scheme)
+        public void ScheduleRobots(ProcessGroup scheme)
         {
             if (scheme.Enabled)
             {
-                if (_robots.TryGetValue(scheme, out RobotScheme currentScheme))
+                if (_robots.TryGetValue(scheme, out ProcessGroup currentScheme))
                 {
                     RescheduleJob(scheme, scheme.Schedule.Trim(), scheme.StartImmediately);
                     _robots.TryUpdate(scheme, scheme, currentScheme);
@@ -80,7 +80,7 @@ namespace Aion.Services
             else
             {
                 UnscheduleJob(scheme);
-                _robots.TryRemove(scheme, out RobotScheme removedScheme);
+                _robots.TryRemove(scheme, out ProcessGroup removedScheme);
             }
         }
 

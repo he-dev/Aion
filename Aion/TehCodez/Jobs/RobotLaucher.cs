@@ -25,15 +25,15 @@ namespace Aion.Jobs
             if (Scheduler == null) { throw new InvalidOperationException($"Did you forget to set the '{nameof(Scheduler)}'?"); }
 
             var schemeName = context.JobDetail.Key.Name;
-            if (Scheduler.TryGetRobotScheme(schemeName, out RobotScheme scheme))
+            if (Scheduler.TryGetProcessGroup(schemeName, out ProcessGroup scheme))
             {
                 LaunchRobots(scheme);
             }
         }
 
-        private static void LaunchRobots(RobotScheme scheme)
+        private static void LaunchRobots(ProcessGroup processGroup)
         {
-            foreach (var robotConfig in scheme.Robots.Where(r => r.Enabled))
+            foreach (var robotConfig in processGroup.Where(r => r.Enabled))
             {
                 try
                 {
@@ -47,18 +47,18 @@ namespace Aion.Jobs
             }
         }
 
-        private static void LaunchRobot(string robotsDirectoryName, RobotInfo robot)
+        private static void LaunchRobot(string robotsDirectoryName, ProcessInfo processInfo)
         {
             var latestVersion =
                 RobotDirectory
-                    .GetVersions(RobotPath.Combine(robotsDirectoryName, robot.FileName))
+                    .GetVersions(RobotPath.Combine(robotsDirectoryName, processInfo.FileName))
                     .GetLatestVersion();
 
             var robotFileName =
                 new RobotFileNameBuilder()
                     .RobotDirectoryName(robotsDirectoryName)
                     .Version(latestVersion)
-                    .FileName(robot.FileName)
+                    .FileName(processInfo.FileName)
                     .Build();
 
             if (string.IsNullOrEmpty(robotFileName))
@@ -66,7 +66,7 @@ namespace Aion.Jobs
                 throw new FileNotFoundException($"Robot not found '{robotFileName}'.");
             }
 
-            if (IsRunning(robot.FileName, robot.Arguments))
+            if (IsRunning(processInfo.FileName, processInfo.Arguments))
             {
                 throw new InvalidOperationException($"Robot already running '{robotFileName}'.");
             }
@@ -74,8 +74,8 @@ namespace Aion.Jobs
             using (var process = Process.Start(new ProcessStartInfo
             {
                 FileName = robotFileName,
-                Arguments = robot.Arguments,
-                WindowStyle = robot.WindowStyle,
+                Arguments = processInfo.Arguments,
+                WindowStyle = processInfo.WindowStyle,
                 //UseShellExecute = false,
             }))
             {

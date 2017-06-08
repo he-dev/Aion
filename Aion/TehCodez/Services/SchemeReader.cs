@@ -21,16 +21,16 @@ namespace Aion.Services
             Logger = LoggerFactory.CreateLogger(nameof(SchemeReader));
         }
 
-        public static IEnumerable<RobotScheme> ReadSchemes(string path) => GetSchemeFileNames(path).Select(ReadeScheme).Where(Conditional.IsNotNull);
+        public static IEnumerable<ProcessGroup> ReadProcessGroups(string path) => GetProcessGroupFileNames(path).Select(ReadProcessGroup).Where(Conditional.IsNotNull);
 
-        public static string[] GetSchemeFileNames(string path) => Directory.GetFiles(path, SearchPattern);
+        public static string[] GetProcessGroupFileNames(string path) => Directory.GetFiles(path, SearchPattern);
 
-        public static RobotScheme ReadeScheme(string fileName)
+        public static ProcessGroup ReadProcessGroup(string fileName)
         {
             try
             {
                 var json = File.ReadAllText(fileName);
-                var robotScheme = JsonConvert.DeserializeObject<RobotScheme>(json, new JsonSerializerSettings
+                var robotScheme = JsonConvert.DeserializeObject<ProcessGroup>(json, new JsonSerializerSettings
                 {
                     DefaultValueHandling = DefaultValueHandling.Populate
                 });

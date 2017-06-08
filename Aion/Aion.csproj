@@ -143,7 +143,7 @@
     <Compile Include="TehCodez\Services\RobotSchemeComparer.cs" />
     <Compile Include="TehCodez\Services\SchemeReader.cs" />
     <Compile Include="TehCodez\Services\ServiceStarter.cs" />
-    <Compile Include="TehCodez\Data\RobotScheme.cs" />
+    <Compile Include="TehCodez\Data\ProcessGroup.cs" />
     <Compile Include="TehCodez\Jobs\RobotScheduleUpdater.cs">
       <SubType>Code</SubType>
     </Compile>

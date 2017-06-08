@@ -19,15 +19,16 @@ namespace Aion.Tests
         [TestMethod]
         public void ScheduleRobots_OneRobot_ScheduledOneRobot()
         {
-            _cronScheduler.ScheduleRobots(new RobotScheme
+            _cronScheduler.ScheduleRobots(new ProcessGroup
             {
                 Enabled = true,
                 FileName = @"c:\tests\test.exe",
                 Schedule = "0/6 * * * * ? ",
-                Robots =
+                Items =
                 {
-                    new RobotInfo { FileName = "robot-1.exe" }
+                    new ProcessInfo { FileName = "robot-1.exe" }
                 }
+
             });
 
             Assert.AreEqual("0/6 * * * * ?", _cronScheduler.GetJobSchedules("test").Single());
@@ -36,21 +37,21 @@ namespace Aion.Tests
         [TestMethod]
         public void ScheduleRobots_RobotSequence_ScheduledFirstRobot()
         {
-            _cronScheduler.ScheduleRobots(new RobotScheme
+            _cronScheduler.ScheduleRobots(new ProcessGroup
             {
                 Enabled = true,
                 FileName = @"c:\tests\test2.json",
                 Schedule = "0/3 * * * * ?",
-                Robots =
+                Items =
                 {
-                    new RobotInfo { FileName = "robot-1.exe" },
-                    new RobotInfo { FileName = "robot-3.exe" },
-                    new RobotInfo { FileName = "robot-2.exe" },
+                    new ProcessInfo { FileName = "robot-1.exe" },
+                    new ProcessInfo { FileName = "robot-3.exe" },
+                    new ProcessInfo { FileName = "robot-2.exe" },
                 }
             });
 
-            Assert.IsTrue(_cronScheduler.TryGetRobotScheme("test2", out RobotScheme scheme));
-            Assert.AreEqual(3, scheme.Robots.Count);
+            Assert.IsTrue(_cronScheduler.TryGetProcessGroup("test2", out ProcessGroup scheme));
+            Assert.AreEqual(3, scheme.Count());
             Assert.AreEqual("0/3 * * * * ?", _cronScheduler.GetJobSchedules("test2").Single());
         }
 
@@ -59,59 +60,59 @@ namespace Aion.Tests
         {
             var robotConfigs = new[]
             {
-                new RobotScheme
+                new ProcessGroup
                 {
                     Enabled = true,
                     FileName = @"c:\tests\test2.json",
                     Schedule = "0/6 * * * * ?",
-                    Robots =
+                    Items =
                     {
-                        new RobotInfo { FileName = "robot-2.exe" },
+                        new ProcessInfo { FileName = "robot-2.exe" },
                     }
                 },
-                new RobotScheme
+                new ProcessGroup
                 {
                     Enabled = true,
                     FileName = @"c:\tests\test3.json",
                     Schedule = "0/6 * * * * ?",
-                    Robots =
+                    Items =
                     {
-                        new RobotInfo { FileName = "robot-1.exe" },
-                        new RobotInfo { FileName = "robot-3.exe" },
+                        new ProcessInfo { FileName = "robot-1.exe" },
+                        new ProcessInfo { FileName = "robot-3.exe" },
                     }
                 }
             };
             _cronScheduler.ScheduleRobots(robotConfigs);
 
-            Assert.IsTrue(_cronScheduler.TryGetRobotScheme("test2", out RobotScheme scheme2));
-            Assert.AreEqual(1, scheme2.Robots.Count);
+            Assert.IsTrue(_cronScheduler.TryGetProcessGroup("test2", out ProcessGroup scheme2));
+            Assert.AreEqual(1, scheme2.Count());
 
-            Assert.IsTrue(_cronScheduler.TryGetRobotScheme("test3", out RobotScheme scheme3));
-            Assert.AreEqual(2, scheme3.Robots.Count);
+            Assert.IsTrue(_cronScheduler.TryGetProcessGroup("test3", out ProcessGroup scheme3));
+            Assert.AreEqual(2, scheme3.Count());
         }
 
         [TestMethod]
         public void RescheduleRobot_OneRobotChanged_RescheduledRobot()
         {
-            _cronScheduler.ScheduleRobots(new RobotScheme
+            _cronScheduler.ScheduleRobots(new ProcessGroup
             {
                 Enabled = true,
                 FileName = @"c:\tests\test.json",
                 Schedule = "0/6 * * * * ?",
-                Robots =
+                Items =
                 {
-                    new RobotInfo { FileName = "robot-1.exe" },
+                    new ProcessInfo { FileName = "robot-1.exe" },
                 }
             });
 
-            _cronScheduler.ScheduleRobots(new RobotScheme
+            _cronScheduler.ScheduleRobots(new ProcessGroup
             {
                 Enabled = true,
                 FileName = @"c:\tests\test.json",
                 Schedule = "0/7 * * * * ?",
-                Robots =
+                Items =
                 {
-                    new RobotInfo { FileName = "robot-1.exe" },
+                    new ProcessInfo { FileName = "robot-1.exe" },
                 }
             });
 
@@ -127,16 +128,16 @@ namespace Aion.Tests
         {
             var robotConfigs = new[]
             {
-                new RobotScheme
+                new ProcessGroup
                 {
                     Enabled = true,
                     FileName = @"c:\tests\test2.json",
                     Schedule = "0/9 * * * * ?",
-                    Robots =
+                    Items =
                     {
-                        new RobotInfo { FileName = "robot-1.exe" },
-                        new RobotInfo { FileName = "robot-3.exe" },
-                        new RobotInfo { FileName = "robot-2.exe" },
+                        new ProcessInfo { FileName = "robot-1.exe" },
+                        new ProcessInfo { FileName = "robot-3.exe" },
+                        new ProcessInfo { FileName = "robot-2.exe" },
                     }
                 },
             };
@@ -146,16 +147,16 @@ namespace Aion.Tests
 
             var robotConfigsChanged = new[]
             {
-                new RobotScheme
+                new ProcessGroup
                 {
                     Enabled = true,
                     FileName = @"c:\tests\test2.json",
                     Schedule = "0/8 * * * * ?",
-                    Robots =
+                    Items =
                     {
-                        new RobotInfo { FileName = "robot-1.exe" },
-                        new RobotInfo { FileName = "robot-3.exe" },
-                        new RobotInfo { FileName = "robot-2.exe" },
+                        new ProcessInfo { FileName = "robot-1.exe" },
+                        new ProcessInfo { FileName = "robot-3.exe" },
+                        new ProcessInfo { FileName = "robot-2.exe" },
                     }
                 },
             };

@@ -21,7 +21,7 @@ namespace Aion.Jobs
         {
             try
             {
-                var schemes = SchemeReader.ReadSchemes(Program.Configuration.Load<Program, Global>().RobotsDirectoryName).ToArray();
+                var schemes = SchemeReader.ReadProcessGroups(Program.Configuration.Load<Program, Global>().RobotsDirectoryName).ToArray();
                 Scheduler.ScheduleRobots(schemes);
             }
             catch (Exception ex)
