@@ -26,7 +26,7 @@ namespace Aion.Tests
                 Schedule = "0/6 * * * * ? ",
                 Items =
                 {
-                    new ProcessInfo { FileName = "robot-1.exe" }
+                    new Process { FileName = "robot-1.exe" }
                 }
 
             });
@@ -44,9 +44,9 @@ namespace Aion.Tests
                 Schedule = "0/3 * * * * ?",
                 Items =
                 {
-                    new ProcessInfo { FileName = "robot-1.exe" },
-                    new ProcessInfo { FileName = "robot-3.exe" },
-                    new ProcessInfo { FileName = "robot-2.exe" },
+                    new Process { FileName = "robot-1.exe" },
+                    new Process { FileName = "robot-3.exe" },
+                    new Process { FileName = "robot-2.exe" },
                 }
             });
 
@@ -67,7 +67,7 @@ namespace Aion.Tests
                     Schedule = "0/6 * * * * ?",
                     Items =
                     {
-                        new ProcessInfo { FileName = "robot-2.exe" },
+                        new Process { FileName = "robot-2.exe" },
                     }
                 },
                 new ProcessGroup
@@ -77,8 +77,8 @@ namespace Aion.Tests
                     Schedule = "0/6 * * * * ?",
                     Items =
                     {
-                        new ProcessInfo { FileName = "robot-1.exe" },
-                        new ProcessInfo { FileName = "robot-3.exe" },
+                        new Process { FileName = "robot-1.exe" },
+                        new Process { FileName = "robot-3.exe" },
                     }
                 }
             };
@@ -101,7 +101,7 @@ namespace Aion.Tests
                 Schedule = "0/6 * * * * ?",
                 Items =
                 {
-                    new ProcessInfo { FileName = "robot-1.exe" },
+                    new Process { FileName = "robot-1.exe" },
                 }
             });
 
@@ -112,7 +112,7 @@ namespace Aion.Tests
                 Schedule = "0/7 * * * * ?",
                 Items =
                 {
-                    new ProcessInfo { FileName = "robot-1.exe" },
+                    new Process { FileName = "robot-1.exe" },
                 }
             });
 
@@ -135,9 +135,9 @@ namespace Aion.Tests
                     Schedule = "0/9 * * * * ?",
                     Items =
                     {
-                        new ProcessInfo { FileName = "robot-1.exe" },
-                        new ProcessInfo { FileName = "robot-3.exe" },
-                        new ProcessInfo { FileName = "robot-2.exe" },
+                        new Process { FileName = "robot-1.exe" },
+                        new Process { FileName = "robot-3.exe" },
+                        new Process { FileName = "robot-2.exe" },
                     }
                 },
             };
@@ -154,9 +154,9 @@ namespace Aion.Tests
                     Schedule = "0/8 * * * * ?",
                     Items =
                     {
-                        new ProcessInfo { FileName = "robot-1.exe" },
-                        new ProcessInfo { FileName = "robot-3.exe" },
-                        new ProcessInfo { FileName = "robot-2.exe" },
+                        new Process { FileName = "robot-1.exe" },
+                        new Process { FileName = "robot-3.exe" },
+                        new Process { FileName = "robot-2.exe" },
                     }
                 },
             };

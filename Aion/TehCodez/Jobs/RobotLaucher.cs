@@ -12,6 +12,7 @@ using Reusable.Logging;
 using Reusable.Management;
 using System.Management;
 using System.Collections.Generic;
+using Process = Aion.Data.Process;
 
 namespace Aion.Jobs
 {
@@ -47,7 +48,7 @@ namespace Aion.Jobs
             }
         }
 
-        private static void LaunchRobot(string robotsDirectoryName, ProcessInfo processInfo)
+        private static void LaunchRobot(string robotsDirectoryName, Process processInfo)
         {
             var latestVersion =
                 RobotDirectory
@@ -71,7 +72,7 @@ namespace Aion.Jobs
                 throw new InvalidOperationException($"Robot already running '{robotFileName}'.");
             }
 
-            using (var process = Process.Start(new ProcessStartInfo
+            using (var process = System.Diagnostics.Process.Start(new ProcessStartInfo
             {
                 FileName = robotFileName,
                 Arguments = processInfo.Arguments,
