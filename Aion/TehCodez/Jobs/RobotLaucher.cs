@@ -104,10 +104,10 @@ namespace Aion.Jobs
             var commandLines = GetCommandLines(robotFileName).ToList();  // Wmi.GetCommandLines(Path.GetFileName(robotFileName)).ToList();
 
             // Skip the file name.
-            var currentCommandLines = commandLines.Select(x => Reusable.Colin.CommandLineTokenizer.Tokenize(x).Skip(1).OrderBy(y => y)).ToList();
+            var currentCommandLines = commandLines.Select(x => Reusable.Colin.Services.CommandLineTokenizer.Tokenize(x).Skip(1).OrderBy(y => y)).ToList();
             if (!currentCommandLines.Any()) return false;
 
-            var tokens = Reusable.Colin.CommandLineTokenizer.Tokenize(arguments ?? string.Empty).OrderBy(x => x).ToList();
+            var tokens = Reusable.Colin.Services.CommandLineTokenizer.Tokenize(arguments ?? string.Empty).OrderBy(x => x).ToList();
             return currentCommandLines.Any(x => x.SequenceEqual(tokens));
         }
 
