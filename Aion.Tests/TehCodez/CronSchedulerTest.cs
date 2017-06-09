@@ -24,7 +24,7 @@ namespace Aion.Tests
                 Enabled = true,
                 FileName = @"c:\tests\test.exe",
                 Schedule = "0/6 * * * * ? ",
-                Items =
+                Processes =
                 {
                     new Process { FileName = "robot-1.exe" }
                 }
@@ -42,7 +42,7 @@ namespace Aion.Tests
                 Enabled = true,
                 FileName = @"c:\tests\test2.json",
                 Schedule = "0/3 * * * * ?",
-                Items =
+                Processes =
                 {
                     new Process { FileName = "robot-1.exe" },
                     new Process { FileName = "robot-3.exe" },
@@ -65,7 +65,7 @@ namespace Aion.Tests
                     Enabled = true,
                     FileName = @"c:\tests\test2.json",
                     Schedule = "0/6 * * * * ?",
-                    Items =
+                    Processes =
                     {
                         new Process { FileName = "robot-2.exe" },
                     }
@@ -75,7 +75,7 @@ namespace Aion.Tests
                     Enabled = true,
                     FileName = @"c:\tests\test3.json",
                     Schedule = "0/6 * * * * ?",
-                    Items =
+                    Processes =
                     {
                         new Process { FileName = "robot-1.exe" },
                         new Process { FileName = "robot-3.exe" },
@@ -99,7 +99,7 @@ namespace Aion.Tests
                 Enabled = true,
                 FileName = @"c:\tests\test.json",
                 Schedule = "0/6 * * * * ?",
-                Items =
+                Processes =
                 {
                     new Process { FileName = "robot-1.exe" },
                 }
@@ -110,7 +110,7 @@ namespace Aion.Tests
                 Enabled = true,
                 FileName = @"c:\tests\test.json",
                 Schedule = "0/7 * * * * ?",
-                Items =
+                Processes =
                 {
                     new Process { FileName = "robot-1.exe" },
                 }
@@ -133,7 +133,7 @@ namespace Aion.Tests
                     Enabled = true,
                     FileName = @"c:\tests\test2.json",
                     Schedule = "0/9 * * * * ?",
-                    Items =
+                    Processes =
                     {
                         new Process { FileName = "robot-1.exe" },
                         new Process { FileName = "robot-3.exe" },
@@ -152,7 +152,7 @@ namespace Aion.Tests
                     Enabled = true,
                     FileName = @"c:\tests\test2.json",
                     Schedule = "0/8 * * * * ?",
-                    Items =
+                    Processes =
                     {
                         new Process { FileName = "robot-1.exe" },
                         new Process { FileName = "robot-3.exe" },

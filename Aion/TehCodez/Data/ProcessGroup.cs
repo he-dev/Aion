@@ -32,7 +32,7 @@ namespace Aion.Data
         public bool StartImmediately { get; set; }
 
         [JsonRequired]
-        public List<Process> Items { get; set; } = new List<Process>();
+        public List<Process> Processes { get; set; } = new List<Process>();
 
         public override string ToString() => Path.GetFileNameWithoutExtension(FileName);
 
@@ -76,7 +76,7 @@ namespace Aion.Data
             }
         }
 
-        public IEnumerator<Process> GetEnumerator() => Items.GetEnumerator();
+        public IEnumerator<Process> GetEnumerator() => Processes.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
