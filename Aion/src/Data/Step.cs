@@ -20,5 +20,17 @@ namespace Aion.Data
 
         [DefaultValue(ProcessWindowStyle.Hidden)]
         public ProcessWindowStyle WindowStyle { get; set; }
+
+        [DefaultValue(true)]
+        public bool WaitForExit { get; set; }
+
+        [DefaultValue(OnError.Break)]
+        public OnError OnError { get; set; }
+    }
+
+    public enum OnError
+    {
+        Break,
+        Continue
     }
 }

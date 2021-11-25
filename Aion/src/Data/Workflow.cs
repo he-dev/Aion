@@ -32,6 +32,12 @@ namespace Aion.Data
         public List<Step> Steps { get; set; } = new List<Step>();
 
         [JsonIgnore]
+        public JobKey JobKey => new(Name);
+
+        [JsonIgnore]
+        public TriggerKey TriggerKey => new(Name);
+
+        [JsonIgnore]
         public IJobDetail JobDetail =>
             JobBuilder
                 .Create<WorkflowLauncher>()
@@ -47,10 +53,9 @@ namespace Aion.Data
                 .WithCronSchedule(Schedule)
                 .Build();
 
-
         public override string ToString() => Path.GetFileNameWithoutExtension(Name);
 
-        public static implicit operator string(Workflow scheme) => scheme.ToString();
+        public static implicit operator string(Workflow workflow) => workflow.ToString();
 
         #region IEquatable<>
 
@@ -61,9 +66,5 @@ namespace Aion.Data
         public override int GetHashCode() => EqualityComparer<Workflow>.Default.GetHashCode(this);
 
         #endregion
-
-        public static implicit operator JobKey(Workflow configuration) => new(configuration.Name);
-
-        public static implicit operator TriggerKey(Workflow configuration) => new(configuration.Name);
     }
 }

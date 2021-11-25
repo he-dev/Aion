@@ -1,16 +1,17 @@
 ﻿{
+  "Enabled": true,
   "Schedule": "0/12 * * * * ?",
-  "Enabled": true, 
   "StartImmediately": true,
-  "Robots": [
+  "Steps": [
     {
-      "FileName": "Aion.Robots.TestRobot2.exe",
       "Enabled": true,
-      "WindowStyle": "Normal"
+      "FileName": "c:\\temp\\test\\{version}\\Aion.Robots.TestRobot2.exe",
+      "WindowStyle": "Normal",
+      "WaitForExit": true
     },
     {
-      "FileName": "Aion.Robots.TestRobot3.exe",
       "Enabled": true,
+      "Executable": "Aion.Robots.TestRobot3.exe",
       "WindowStyle": "Normal"
     }
   ]

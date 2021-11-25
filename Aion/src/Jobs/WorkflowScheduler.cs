@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Aion.Data;
+using Aion.Services;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -26,9 +27,9 @@ namespace Aion.Jobs
         };
 
         private readonly ILogger<WorkflowScheduler> _logger;
-        private readonly IOptions<WorkflowScheduler.Options> _options;
+        private readonly IOptions<WorkflowService.Options> _options;
 
-        public WorkflowScheduler(ILogger<WorkflowScheduler> logger, IOptions<WorkflowScheduler.Options> options)
+        public WorkflowScheduler(ILogger<WorkflowScheduler> logger, IOptions<WorkflowService.Options> options)
         {
             _logger = logger;
             _options = options;
@@ -36,41 +37,55 @@ namespace Aion.Jobs
 
         public async Task Execute(IJobExecutionContext context)
         {
-            var workflows = GetRobotConfigurations(_options.Value.WorkflowsDirectory).ToDictionary(x => x.Name);
+            var workflows = EnumerateWorkflows(_options.Value.WorkflowsDirectory).ToDictionary(x => x.Name);
 
-            //foreach (var trigger in await GetWorkflowTriggers(context))
-            await foreach (var trigger in GetWorkflowTriggers(context))
+            
+            await foreach (var activeTrigger in GetActiveWorkflowTriggers(context))
             {
-                if (workflows.TryGetValue(trigger.Key.Name, out var other))
+                if (workflows.TryGetValue(activeTrigger.Key.Name, out var other))
                 {
-                    if (trigger is CronTriggerImpl t1 && other.Trigger is CronTriggerImpl t2 && t1.CronExpressionString.Equals(t2.CronExpressionString))
+                    if (!other.Enabled)
                     {
-                        // Nothing has changes.
-                        workflows.Remove(trigger.Key.Name);
+                        // The trigger has been disabled.
+                        await RemoveJob(context, activeTrigger);
+                        workflows.Remove(activeTrigger.Key.Name);
                     }
                     else
                     {
-                        // There are changes that need to be updated.
-                        await UpdateJob(context, other);
-                        workflows.Remove(trigger.Key.Name);
+                        var schedulesMatch =
+                            activeTrigger is CronTriggerImpl t1 &&
+                            other.Trigger is CronTriggerImpl t2 &&
+                            StringComparer.OrdinalIgnoreCase.Equals(t1.CronExpressionString, t2.CronExpressionString);
+
+                        if (schedulesMatch)
+                        {
+                            // There are no changes. Skip further processing.
+                            workflows.Remove(activeTrigger.Key.Name);
+                        }
+                        else
+                        {
+                            // There are changes that need to be updated.
+                            await UpdateJob(context, other);
+                            workflows.Remove(activeTrigger.Key.Name);
+                        }
                     }
                 }
                 else
                 {
                     // The trigger has been removed.
-                    await RemoveJob(context, trigger);
-                    workflows.Remove(trigger.Key.Name);
+                    await RemoveJob(context, activeTrigger);
+                    workflows.Remove(activeTrigger.Key.Name);
                 }
             }
 
-            // What's left is new.
-            foreach (var workflow in workflows.Values)
+            // What's left is new but process only the enabled ones.
+            foreach (var workflow in workflows.Values.Where(w => w.Enabled))
             {
                 await CreateJob(context, workflow);
             }
         }
 
-        private IEnumerable<Workflow> GetRobotConfigurations(string path)
+        private IEnumerable<Workflow> EnumerateWorkflows(string path)
         {
             return
                 Directory
@@ -95,7 +110,12 @@ namespace Aion.Jobs
         {
             await context.Scheduler.ScheduleJob
             (
-                workflow.JobDetail,
+                //workflow.JobDetail,
+                JobBuilder
+                    .Create<WorkflowLauncher>()
+                    .WithIdentity(workflow.Name, nameof(Workflow))
+                    .UsingJobData(nameof(WorkflowService.Options.WorkflowsDirectory), _options.Value.WorkflowsDirectory)
+                    .Build(),
                 workflow.Trigger,
                 context.CancellationToken
             );
@@ -119,32 +139,15 @@ namespace Aion.Jobs
             _logger.LogInformation("Updated job '{Name}' at '{Schedule}'.", workflow.Name, workflow.Schedule);
         }
 
-        //private async Task<IList<ITrigger>> GetWorkflowTriggers(IJobExecutionContext context)
-        private async IAsyncEnumerable<ITrigger> GetWorkflowTriggers(IJobExecutionContext context)
+        private async IAsyncEnumerable<ITrigger> GetActiveWorkflowTriggers(IJobExecutionContext context)
         {
             var jobKeys = await context.Scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(nameof(Workflow)), context.CancellationToken);
-            //var triggers = new List<ITrigger>();
             foreach (var jobKey in jobKeys)
             {
-                //triggers.Add(await context.Scheduler.GetTriggersOfJob(jobKey, context.CancellationToken).ContinueWith(x => x.Result.Single()));
                 yield return await context.Scheduler.GetTriggersOfJob(jobKey, context.CancellationToken).ContinueWith(x => x.Result.Single());
             }
-
-            //return triggers;
         }
 
-        [UsedImplicitly]
-        internal class Options
-        {
-            public string Schedule { get; set; } = null!;
-            public string WorkflowsDirectory { get; set; } = null!;
-        }
-    }
-
-    internal enum TriggerAction
-    {
-        Create,
-        Remove,
-        Update
+        
     }
 }

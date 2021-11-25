@@ -43,12 +43,6 @@
       <DependentUpon>NLog.tt</DependentUpon>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="_AppConfigs\Release.App.config">
-      <SubType>Designer</SubType>
-    </None>
-    <None Update="_AppConfigs\Debug.App.config">
-      <SubType>Designer</SubType>
-    </None>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
