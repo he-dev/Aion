@@ -19,14 +19,14 @@ namespace Aion.Tests
         [TestMethod]
         public void ScheduleRobots_OneRobot_ScheduledOneRobot()
         {
-            _cronScheduler.ScheduleRobots(new ProcessGroup
+            _cronScheduler.ScheduleRobots(new Workflow
             {
                 Enabled = true,
-                FileName = @"c:\tests\test.exe",
+                Name = @"c:\tests\test.exe",
                 Schedule = "0/6 * * * * ? ",
-                Processes =
+                Steps =
                 {
-                    new Process { FileName = "robot-1.exe" }
+                    new Step { FileName = "robot-1.exe" }
                 }
 
             });
@@ -37,20 +37,20 @@ namespace Aion.Tests
         [TestMethod]
         public void ScheduleRobots_RobotSequence_ScheduledFirstRobot()
         {
-            _cronScheduler.ScheduleRobots(new ProcessGroup
+            _cronScheduler.ScheduleRobots(new Workflow
             {
                 Enabled = true,
-                FileName = @"c:\tests\test2.json",
+                Name = @"c:\tests\test2.json",
                 Schedule = "0/3 * * * * ?",
-                Processes =
+                Steps =
                 {
-                    new Process { FileName = "robot-1.exe" },
-                    new Process { FileName = "robot-3.exe" },
-                    new Process { FileName = "robot-2.exe" },
+                    new Step { FileName = "robot-1.exe" },
+                    new Step { FileName = "robot-3.exe" },
+                    new Step { FileName = "robot-2.exe" },
                 }
             });
 
-            Assert.IsTrue(_cronScheduler.TryGetProcessGroup("test2", out ProcessGroup scheme));
+            Assert.IsTrue(_cronScheduler.TryGetProcessGroup("test2", out Workflow scheme));
             Assert.AreEqual(3, scheme.Count());
             Assert.AreEqual("0/3 * * * * ?", _cronScheduler.GetJobSchedules("test2").Single());
         }
@@ -60,59 +60,59 @@ namespace Aion.Tests
         {
             var robotConfigs = new[]
             {
-                new ProcessGroup
+                new Workflow
                 {
                     Enabled = true,
-                    FileName = @"c:\tests\test2.json",
+                    Name = @"c:\tests\test2.json",
                     Schedule = "0/6 * * * * ?",
-                    Processes =
+                    Steps =
                     {
-                        new Process { FileName = "robot-2.exe" },
+                        new Step { FileName = "robot-2.exe" },
                     }
                 },
-                new ProcessGroup
+                new Workflow
                 {
                     Enabled = true,
-                    FileName = @"c:\tests\test3.json",
+                    Name = @"c:\tests\test3.json",
                     Schedule = "0/6 * * * * ?",
-                    Processes =
+                    Steps =
                     {
-                        new Process { FileName = "robot-1.exe" },
-                        new Process { FileName = "robot-3.exe" },
+                        new Step { FileName = "robot-1.exe" },
+                        new Step { FileName = "robot-3.exe" },
                     }
                 }
             };
             _cronScheduler.ScheduleRobots(robotConfigs);
 
-            Assert.IsTrue(_cronScheduler.TryGetProcessGroup("test2", out ProcessGroup scheme2));
+            Assert.IsTrue(_cronScheduler.TryGetProcessGroup("test2", out Workflow scheme2));
             Assert.AreEqual(1, scheme2.Count());
 
-            Assert.IsTrue(_cronScheduler.TryGetProcessGroup("test3", out ProcessGroup scheme3));
+            Assert.IsTrue(_cronScheduler.TryGetProcessGroup("test3", out Workflow scheme3));
             Assert.AreEqual(2, scheme3.Count());
         }
 
         [TestMethod]
         public void RescheduleRobot_OneRobotChanged_RescheduledRobot()
         {
-            _cronScheduler.ScheduleRobots(new ProcessGroup
+            _cronScheduler.ScheduleRobots(new Workflow
             {
                 Enabled = true,
-                FileName = @"c:\tests\test.json",
+                Name = @"c:\tests\test.json",
                 Schedule = "0/6 * * * * ?",
-                Processes =
+                Steps =
                 {
-                    new Process { FileName = "robot-1.exe" },
+                    new Step { FileName = "robot-1.exe" },
                 }
             });
 
-            _cronScheduler.ScheduleRobots(new ProcessGroup
+            _cronScheduler.ScheduleRobots(new Workflow
             {
                 Enabled = true,
-                FileName = @"c:\tests\test.json",
+                Name = @"c:\tests\test.json",
                 Schedule = "0/7 * * * * ?",
-                Processes =
+                Steps =
                 {
-                    new Process { FileName = "robot-1.exe" },
+                    new Step { FileName = "robot-1.exe" },
                 }
             });
 
@@ -128,16 +128,16 @@ namespace Aion.Tests
         {
             var robotConfigs = new[]
             {
-                new ProcessGroup
+                new Workflow
                 {
                     Enabled = true,
-                    FileName = @"c:\tests\test2.json",
+                    Name = @"c:\tests\test2.json",
                     Schedule = "0/9 * * * * ?",
-                    Processes =
+                    Steps =
                     {
-                        new Process { FileName = "robot-1.exe" },
-                        new Process { FileName = "robot-3.exe" },
-                        new Process { FileName = "robot-2.exe" },
+                        new Step { FileName = "robot-1.exe" },
+                        new Step { FileName = "robot-3.exe" },
+                        new Step { FileName = "robot-2.exe" },
                     }
                 },
             };
@@ -147,16 +147,16 @@ namespace Aion.Tests
 
             var robotConfigsChanged = new[]
             {
-                new ProcessGroup
+                new Workflow
                 {
                     Enabled = true,
-                    FileName = @"c:\tests\test2.json",
+                    Name = @"c:\tests\test2.json",
                     Schedule = "0/8 * * * * ?",
-                    Processes =
+                    Steps =
                     {
-                        new Process { FileName = "robot-1.exe" },
-                        new Process { FileName = "robot-3.exe" },
-                        new Process { FileName = "robot-2.exe" },
+                        new Step { FileName = "robot-1.exe" },
+                        new Step { FileName = "robot-3.exe" },
+                        new Step { FileName = "robot-2.exe" },
                     }
                 },
             };

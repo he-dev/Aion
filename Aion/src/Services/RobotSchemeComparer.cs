@@ -9,9 +9,9 @@ namespace Aion.Services
 {
     public static class RobotSchemeComparer
     {
-        private static readonly IEqualityComparer<ProcessGroup> RobotSchemeFileNameComparer = new RobotSchemeFileNameComparer();
+        private static readonly IEqualityComparer<Workflow> RobotSchemeFileNameComparer = new RobotSchemeFileNameComparer();
 
-        public static IEnumerable<(string RobotScheme, ScheduleAction FileAction)> Compare(this ICollection<ProcessGroup> current, ICollection<ProcessGroup> other)
+        public static IEnumerable<(string RobotScheme, ScheduleAction FileAction)> Compare(this ICollection<Workflow> current, ICollection<Workflow> other)
         {
 
             foreach (var item in current)
@@ -40,19 +40,19 @@ namespace Aion.Services
         }
     }
 
-    public class RobotSchemeFileNameComparer : IEqualityComparer<ProcessGroup>
+    public class RobotSchemeFileNameComparer : IEqualityComparer<Workflow>
     {
-        public bool Equals(ProcessGroup x, ProcessGroup y)
+        public bool Equals(Workflow x, Workflow y)
         {
             return
                 !ReferenceEquals(x, null) &&
                 !ReferenceEquals(y, null) &&
-                string.Equals(x.FileName, y.FileName, StringComparison.OrdinalIgnoreCase);
+                string.Equals(x.Name, y.Name, StringComparison.OrdinalIgnoreCase);
         }
 
-        public int GetHashCode(ProcessGroup obj)
+        public int GetHashCode(Workflow obj)
         {
-            return obj.FileName.ToLowerInvariant().GetHashCode();
+            return obj.Name.ToLowerInvariant().GetHashCode();
         }
     }
 

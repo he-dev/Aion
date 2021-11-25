@@ -14,16 +14,16 @@ namespace Aion.Tests.Services
         {
             var current = new[]
             {
-                new ProcessGroup { FileName = "foo", Schedule = "1" },
-                new ProcessGroup { FileName = "bar", Schedule = "2" },
-                new ProcessGroup { FileName = "baz", Schedule = "3" },
+                new Workflow { Name = "foo", Schedule = "1" },
+                new Workflow { Name = "bar", Schedule = "2" },
+                new Workflow { Name = "baz", Schedule = "3" },
             };
 
             var other = new[]
             {
-                new ProcessGroup { FileName = "bar", Schedule = "2" },
-                new ProcessGroup { FileName = "baz", Schedule = "4" },
-                new ProcessGroup { FileName = "qux", Schedule = "5" },
+                new Workflow { Name = "bar", Schedule = "2" },
+                new Workflow { Name = "baz", Schedule = "4" },
+                new Workflow { Name = "qux", Schedule = "5" },
             };
 
             var result = current.Compare(other).ToList();
