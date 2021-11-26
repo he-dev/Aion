@@ -6,8 +6,11 @@
     {
       "Enabled": true,
       "FileName": "c:\\temp\\test\\{version}\\Aion.Robots.TestRobot2.exe",
+      "Arguments": null,
       "WindowStyle": "Normal",
-      "WaitForExit": true
+      "WaitForExit": true,
+      "SingleInstance": true,
+      "OnError": "Break"
     },
     {
       "Enabled": true,

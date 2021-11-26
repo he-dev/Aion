@@ -14,56 +14,55 @@ using Quartz;
 using Quartz.Impl;
 using Quartz.Spi;
 
-namespace Aion
+namespace Aion;
+
+internal static class Program
 {
-    internal class Program
+    private const string Name = "Aion";
+    private const string Version = "5.0.0";
+
+    private static async Task Main(params string[] args)
     {
-        public const string Name = "Aion";
-        public const string Version = "5.0.0";
+        Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
-        private static async Task Main(params string[] args)
+        using var host =
+            Host
+                .CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration(builder =>
+                {
+                    builder
+                        .SetBasePath(Directory.GetCurrentDirectory())
+                        //.AddJsonFile("appsettings.json", optional: false)
+                        .AddEnvironmentVariables();
+                })
+                .UseServiceProviderFactory(new AutofacServiceProviderFactory())
+                .ConfigureServices((context, services) =>
+                {
+                    var schedulerOptions = context.Configuration.GetSection(nameof(WorkflowScheduler));
+                    services.AddQuartz(q =>
+                    {
+                        //q.UseMicrosoftDependencyInjectionJobFactory();
+                        //q.ScheduleJob<WorkflowScheduler>(trigger => { trigger.WithIdentity(nameof(WorkflowScheduler)).WithCronSchedule(schedulerOptions["Schedule"]); });
+                    });
+                    services.AddHostedService<WorkflowService>();
+                    services.Configure<WorkflowService.Options>(context.Configuration.GetSection(nameof(WorkflowService)));
+                }).ConfigureContainer<ContainerBuilder>(builder =>
+                {
+                    builder.RegisterInstance(new StdSchedulerFactory(new NameValueCollection())).As<ISchedulerFactory>().SingleInstance();
+                    builder.RegisterType<AutofacJobFactory>().As<IJobFactory>().SingleInstance();
+                    builder.RegisterType<WorkflowReader>().SingleInstance();
+                    //builder.RegisterType<WorkflowScheduler>();
+                    //builder.RegisterType<RobotLauncher>();
+                })
+                .UseWindowsService(options => { options.ServiceName = $"{Name}-v{Version}"; })
+                .Build();
+
+        await host.RunAsync();
+
+
+        if (Environment.UserInteractive)
         {
-            Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
-
-            using var host =
-                Host
-                    .CreateDefaultBuilder(args)
-                    .ConfigureAppConfiguration(builder =>
-                    {
-                        builder
-                            .SetBasePath(Directory.GetCurrentDirectory())
-                            //.AddJsonFile("appsettings.json", optional: false)
-                            .AddEnvironmentVariables();
-                    })
-                    .UseServiceProviderFactory(new AutofacServiceProviderFactory())
-                    .ConfigureServices((context, services) =>
-                    {
-                        var schedulerOptions = context.Configuration.GetSection(nameof(WorkflowScheduler));
-                        services.AddQuartz(q =>
-                        {
-                            //q.UseMicrosoftDependencyInjectionJobFactory();
-                            //q.ScheduleJob<WorkflowScheduler>(trigger => { trigger.WithIdentity(nameof(WorkflowScheduler)).WithCronSchedule(schedulerOptions["Schedule"]); });
-                        });
-                        services.AddHostedService<WorkflowService>();
-                        services.Configure<WorkflowScheduler.Options>(context.Configuration.GetSection(nameof(WorkflowScheduler)));
-                    }).ConfigureContainer<ContainerBuilder>(builder =>
-                    {
-                        builder.RegisterInstance(new StdSchedulerFactory(new NameValueCollection())).As<ISchedulerFactory>().SingleInstance();
-                        builder.RegisterType<AutofacJobFactory>().As<IJobFactory>().SingleInstance();
-                        builder.RegisterType<WorkflowReader>().SingleInstance();
-                        //builder.RegisterType<WorkflowScheduler>();
-                        //builder.RegisterType<RobotLauncher>();
-                    })
-                    .UseWindowsService(options => { options.ServiceName = $"{Name}-v{Version}"; })
-                    .Build();
-
-            await host.RunAsync();
-
-
-            if (Environment.UserInteractive)
-            {
-                Console.ReadKey();
-            }
+            Console.ReadKey();
         }
     }
 }

@@ -3,7 +3,7 @@
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net6.0-windows</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
   <Choose>
@@ -14,17 +14,6 @@
     </When>
     <Otherwise />
   </Choose>
-  <ItemGroup>
-    <None Update="job_scheduling_data_2_0.xsd">
-      <SubType>Designer</SubType>
-    </None>
-    <Content Include="NLog.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <None Update="NLog.xsd">
-      <SubType>Designer</SubType>
-    </None>
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aion\Aion.csproj" />
   </ItemGroup>

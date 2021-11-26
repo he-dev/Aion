@@ -30,12 +30,18 @@ internal class AutofacJobFactory : IJobFactory
 
         try
         {
-            _logger.LogDebug("Creating job: '{}'", bundle.JobDetail.JobType.ToPrettyString());
-            return (IJob)scope.Resolve(bundle.JobDetail.JobType);
+            try
+            {
+                return (IJob)scope.Resolve(bundle.JobDetail.JobType);
+            }
+            finally
+            {
+                _logger.LogDebug("Created job: {}", bundle.JobDetail.JobType.ToPrettyString());
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError("Error creating job.", ex);
+            _logger.LogError(ex, "Error creating job: {}", bundle.JobDetail.JobType.ToPrettyString());
             throw;
         }
     }

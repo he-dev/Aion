@@ -5,32 +5,34 @@ using System.Linq;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
 
-namespace Aion.Data
+namespace Aion.Data;
+
+[UsedImplicitly]
+public class Step
 {
-    [UsedImplicitly]
-    public class Step
-    {
-        [DefaultValue(true)]
-        public bool Enabled { get; set; }
+    [DefaultValue(true)]
+    public bool Enabled { get; set; }
 
-        [JsonRequired]
-        public string FileName { get; set; }
+    [JsonRequired]
+    public string FileName { get; set; } = null!;
 
-        public string Arguments { get; set; }
+    public string? Arguments { get; set; }
 
-        [DefaultValue(ProcessWindowStyle.Hidden)]
-        public ProcessWindowStyle WindowStyle { get; set; }
+    [DefaultValue(ProcessWindowStyle.Hidden)]
+    public ProcessWindowStyle WindowStyle { get; set; }
 
-        [DefaultValue(true)]
-        public bool WaitForExit { get; set; }
+    [DefaultValue(true)]
+    public bool WaitForExit { get; set; }
+    
+    [DefaultValue(true)]
+    public bool SingleInstance { get; set; }
 
-        [DefaultValue(OnError.Break)]
-        public OnError OnError { get; set; }
-    }
+    [DefaultValue(OnError.Break)]
+    public OnError OnError { get; set; }
+}
 
-    public enum OnError
-    {
-        Break,
-        Continue
-    }
+public enum OnError
+{
+    Break,
+    Continue
 }

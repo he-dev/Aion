@@ -23,6 +23,7 @@ internal class WorkflowReader
         _logger = logger;
     }
 
+    // Reads all workflows in the specified path.
     public IEnumerable<Workflow> ReadWorkflows(string path)
     {
         return
@@ -36,13 +37,14 @@ internal class WorkflowReader
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Error reading robot settings for: {fileName}", x.fileName);
-                        return null!;
+                        _logger.LogError(ex, "Error reading robot settings for: {fileName}", fileName);
+                        return default;
                     }
                 })
-                .Where(Conditional.IsNotNull);
+                .Where(Conditional.IsNotNull)!;
     }
 
+    // Reads only a single workflow.
     public Workflow ReadWorkflow(string fileName)
     {
         var json = File.ReadAllText(fileName);
