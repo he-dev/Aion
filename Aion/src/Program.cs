@@ -38,7 +38,6 @@ internal static class Program
                 .UseServiceProviderFactory(new AutofacServiceProviderFactory())
                 .ConfigureServices((context, services) =>
                 {
-                    var schedulerOptions = context.Configuration.GetSection(nameof(WorkflowScheduler));
                     services.AddQuartz(q =>
                     {
                         //q.UseMicrosoftDependencyInjectionJobFactory();
@@ -58,8 +57,7 @@ internal static class Program
                 .Build();
 
         await host.RunAsync();
-
-
+        
         if (Environment.UserInteractive)
         {
             Console.ReadKey();
