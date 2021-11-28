@@ -12,9 +12,13 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <UseVSHostingProcess>false</UseVSHostingProcess>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <UseVSHostingProcess>true</UseVSHostingProcess>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject>Aion.Program</StartupObject>
@@ -22,32 +26,16 @@
   <ItemGroup>
     <SupportedPlatform Include="Windows" />
   </ItemGroup>
+<!--  <ItemGroup>-->
+<!--    <Reference Include="System.configuration" />-->
+<!--    <Reference Include="System.Configuration.Install" />-->
+<!--    <Reference Include="System.Web.Extensions" />-->
+<!--    <Reference Include="System.ServiceProcess" />-->
+<!--  </ItemGroup>-->
   <ItemGroup>
-    <Reference Include="System.configuration" />
-    <Reference Include="System.Configuration.Install" />
-    <Reference Include="System.Web.Extensions" />
-    <Reference Include="System.ServiceProcess" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Update="TehCodez\Services\CronService.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Update="TehCodez\Services\CronService.Designer.cs">
-      <DependentUpon>CronService.cs</DependentUpon>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="job_scheduling_data_2_0.xsd">
-      <SubType>Designer</SubType>
-    </None>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Update="TehCodez\Services\CronService.resx">
-      <DependentUpon>CronService.cs</DependentUpon>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Autofac" Version="6.3.0" />
