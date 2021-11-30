@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Management;
 using System.Runtime.Versioning;
+using Reusable.Extensions;
 
 namespace Aion.Services;
 
@@ -24,8 +25,11 @@ internal class WindowsManagement
     }
     
     [SupportedOSPlatform("windows")]
-    public static bool IsRunning(string processName, string arguments)
+    public static bool IsRunning(string processName, string? arguments)
     {
-        return GetCommandLines(processName).Any(cl => cl.EndsWith(arguments, StringComparison.OrdinalIgnoreCase));
+        return 
+            string.IsNullOrEmpty(arguments)
+                ? GetCommandLines(processName).Any()
+                : GetCommandLines(processName).Any(cl => cl.EndsWith(arguments, StringComparison.OrdinalIgnoreCase));
     }
 }
