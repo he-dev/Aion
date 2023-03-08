@@ -45,8 +45,7 @@ internal static class Program
                     });
                     services.AddHostedService<WorkflowService>();
                     services.Configure<WorkflowService.Options>(context.Configuration.GetSection(nameof(WorkflowService)));
-                })
-                .ConfigureContainer<ContainerBuilder>(builder =>
+                }).ConfigureContainer<ContainerBuilder>(builder =>
                 {
                     builder.RegisterInstance(new StdSchedulerFactory(new NameValueCollection())).As<ISchedulerFactory>().SingleInstance();
                     builder.RegisterType<AutofacJobFactory>().As<IJobFactory>().SingleInstance();

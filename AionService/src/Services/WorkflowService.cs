@@ -39,7 +39,6 @@ internal class WorkflowService : BackgroundService
         scheduler.JobFactory = _jobFactory;
 
         await scheduler.Start(stoppingToken);
-        
         await scheduler.ScheduleJob
         (
             JobBuilder.Create<WorkflowScheduler>().Build(),

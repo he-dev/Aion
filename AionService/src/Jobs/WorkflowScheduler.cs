@@ -73,7 +73,7 @@ internal class WorkflowScheduler : IJob
     private async Task UpdateJob(IJobExecutionContext context, Workflow workflow)
     {
         _logger.LogInformation("Update job '{Name}' at '{Schedule}'", workflow.Name, workflow.Schedule);
-        
+
         var trigger = workflow.ToTrigger();
         await context.Scheduler.RescheduleJob(trigger.Key, trigger, context.CancellationToken);
     }
