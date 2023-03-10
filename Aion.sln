@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SemanticVersion", "..\reusa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncProcess", "..\reusable\AsyncProcess\AsyncProcess.csproj", "{88815697-2DCB-4E1A-B77F-8B19AE687E74}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wiretap.AspNetCore", "..\reusable\Wiretap.AspNetCore\Wiretap.AspNetCore.csproj", "{DCAAD3B1-FE8E-4A46-9414-B376609E8672}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -93,6 +95,10 @@ Global
 		{88815697-2DCB-4E1A-B77F-8B19AE687E74}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{88815697-2DCB-4E1A-B77F-8B19AE687E74}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{88815697-2DCB-4E1A-B77F-8B19AE687E74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCAAD3B1-FE8E-4A46-9414-B376609E8672}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCAAD3B1-FE8E-4A46-9414-B376609E8672}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCAAD3B1-FE8E-4A46-9414-B376609E8672}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCAAD3B1-FE8E-4A46-9414-B376609E8672}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -107,5 +113,6 @@ Global
 		{88815697-2DCB-4E1A-B77F-8B19AE687E74} = {B441E1AB-6170-41B3-AC80-B75F47DA2D84}
 		{6A725301-4748-4D19-A28E-CC4EC6118374} = {B441E1AB-6170-41B3-AC80-B75F47DA2D84}
 		{78E36AE2-D3B3-4FCA-A0C3-3E722E640864} = {B441E1AB-6170-41B3-AC80-B75F47DA2D84}
+		{DCAAD3B1-FE8E-4A46-9414-B376609E8672} = {B441E1AB-6170-41B3-AC80-B75F47DA2D84}
 	EndGlobalSection
 EndGlobal

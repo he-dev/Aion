@@ -1,55 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using Quartz;
 using System.Threading.Tasks;
 using AionApi.Models;
-using AionApi.Services;
 using AionApi.Utilities;
 using Reusable;
 using Reusable.Wiretap;
 using Reusable.Wiretap.Abstractions;
 
-namespace AionApi.Jobs;
+namespace AionApi.Services;
 
-[DisallowConcurrentExecution]
-public class WorkflowRunner : IJob
+public class WorkflowRunner
 {
-    public WorkflowRunner(ILogger logger, WorkflowStore store, Services.WorkflowScheduler scheduler)
+    public WorkflowRunner(ILogger logger, IAsyncProcess asyncProcess, EnumerateDirectoriesFunc enumerateDirectories)
     {
         Logger = logger;
-        Store = store;
-        Scheduler = scheduler;
+        AsyncProcess = asyncProcess;
+        EnumerateDirectories = enumerateDirectories;
     }
 
     private ILogger Logger { get; }
 
-    private WorkflowStore Store { get; }
+    private IAsyncProcess AsyncProcess { get; }
 
-    private Services.WorkflowScheduler Scheduler { get; }
+    private EnumerateDirectoriesFunc EnumerateDirectories { get; }
 
-    public async Task Execute(IJobExecutionContext context)
-    {
-        var workflowName = context.JobDetail.Key.Name;
-        using var status = Logger.Start("ExecuteJob", new { name = workflowName });
-
-        if (await Store.Get(workflowName) is { } workflow)
-        {
-            await Run(workflow);
-            status.Completed();
-        }
-        // The workflow-file might have been deleted.
-        else
-        {
-            status.Canceled(new { reason = "Workflow not found." });
-
-            await Scheduler.Delete(workflowName);
-            Store.Delete(workflowName);
-        }
-    }
-
-    public async Task<IEnumerable<AsyncProcess.Result>> Run(Workflow workflow)
+    public async Task<IList<AsyncProcess.Result>> Run(Workflow workflow)
     {
         using var status = Logger.Start("RunWorkflow", new { name = workflow.Name });
 
@@ -66,14 +42,14 @@ public class WorkflowRunner : IJob
             }
 
             var fileName = command.FileName;
-            fileName = Placeholder.Resolve(fileName, workflow.Variables);
-            fileName = LatestVersion.Find(fileName, Directory.EnumerateDirectories);
+            fileName = fileName.Format(workflow.Variables);
+            fileName = LatestVersion.Find(fileName, EnumerateDirectories);
 
             status.Running(new { command = i }, fileName);
 
             var result = await AsyncProcess.StartAsync
             (
-                command.FileName,
+                fileName,
                 command.Arguments,
                 command.WorkingDirectory,
                 command.TimeoutMilliseconds

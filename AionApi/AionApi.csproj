@@ -22,6 +22,7 @@
     <ItemGroup>
       <ProjectReference Include="..\..\reusable\AsyncProcess\AsyncProcess.csproj" />
       <ProjectReference Include="..\..\reusable\SemanticVersion\SemanticVersion.csproj" />
+      <ProjectReference Include="..\..\reusable\Wiretap.AspNetCore\Wiretap.AspNetCore.csproj" />
       <ProjectReference Include="..\..\reusable\Wiretap\Wiretap.csproj" />
       <ProjectReference Include="..\..\reusable\Wiretap.Channels.NLog\Wiretap.Channels.NLog.csproj" />
     </ItemGroup>

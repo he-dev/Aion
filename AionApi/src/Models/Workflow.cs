@@ -10,14 +10,14 @@ namespace AionApi.Models;
 public class Workflow
 {
     public bool Enabled { get; set; } = true;
-    
+
     public string Name { get; set; } = default!;
 
     public string Schedule { get; set; } = default!;
 
-    public IDictionary<string, string> Variables { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, object> Variables { get; set; } = new();
 
-    public IEnumerable<Command> Commands { get; set; } = Enumerable.Empty<Command>();
+    public List<Command> Commands { get; set; } = new();
 
     [PublicAPI]
     public class Command
@@ -33,7 +33,7 @@ public class Workflow
         public bool Enabled { get; set; } = true;
 
         public bool DependsOnPrevious { get; set; } = false;
-        
+
         public static implicit operator bool(Command command) => command.Enabled;
     }
 

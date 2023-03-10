@@ -2,14 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AionApi.Jobs;
 using AionApi.Models;
 using AionApi.Services;
 using AionApi.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Reusable;
-using WorkflowScheduler = AionApi.Services.WorkflowScheduler;
 
 namespace AionApi.Controllers;
 
@@ -34,13 +32,14 @@ public class WorkflowsController : ControllerBase
     private IOptions<WorkflowEngineOptions> Options { get; }
 
     [HttpGet("active")]
-    public async Task<IActionResult> GetActiveWorkflows([FromQuery(Name = "order-by")] string? orderBy = default)
+    public async Task<IActionResult> GetWorkflowJobs([FromQuery(Name = "order-by")] string? orderBy = default)
     {
         var utcNow = DateTimeOffset.UtcNow;
         var triggers = await Scheduler.EnumerateActiveWorkflowCronTriggers().ToListAsync();
         var results = triggers.Select(t => new
         {
             name = t.Key.Name,
+            plan = t.CronExpressionString,
             next = t.CronExpressionString!.ToCronExpression().GetTimeAfter(utcNow)
         });
         results = orderBy?.ToLower() switch
@@ -60,8 +59,9 @@ public class WorkflowsController : ControllerBase
         var results = workflows.Select(w => new
         {
             name = w.Name,
-            next = w.Schedule.ToCronExpression().GetTimeAfter(utcNow),
-            isOn = w.Enabled
+            isOn = w.Enabled,
+            plan = w.Schedule,
+            next = w.Schedule.ToCronExpression().GetTimeAfter(utcNow)
         });
         return Ok(results);
     }
@@ -99,7 +99,7 @@ public class WorkflowsController : ControllerBase
     {
         if (Options.Value.UpdaterSchedule.ToCronExpression().GetTimeAfter(DateTimeOffset.UtcNow) is not { } initializationAt)
         {
-            return Problem("Workflow will never be scheduled.");
+            return Problem("Workflow will never be scheduled as the updater is not running.");
         }
 
         if (workflow.Schedule.ToCronExpression().GetTimeAfter(initializationAt) is not { } firstRunAt)

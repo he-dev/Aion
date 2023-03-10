@@ -1,14 +1,18 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using AionApi.Jobs;
 using AionApi.Models;
 using AionApi.Services;
+using AionApi.Utilities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Quartz;
+using Reusable;
 using Reusable.Wiretap.Abstractions;
+using Reusable.Wiretap.AspNetCore;
 using Reusable.Wiretap.Channels;
 using Reusable.Wiretap.Services;
 
@@ -26,26 +30,30 @@ public static class Program
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
-
+        
         builder.Services.AddSingleton<ILogger>(_ => LoggerBuilder.CreateDefault().Use<LogToConsole>().Use<LogToNLog>().Build());
+        builder.Services.AddWiretap();
 
         var workflowEngineSection = builder.Configuration.GetSection("WorkflowEngine");
 
         builder.Services.Configure<WorkflowEngineOptions>(workflowEngineSection);
         builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
         builder.Services.AddSingleton<WorkflowStore>();
-        builder.Services.AddScoped<Services.WorkflowScheduler>();
-        builder.Services.AddScoped<WorkflowRunner>();
+        builder.Services.AddSingleton<WorkflowRunner>();
+        builder.Services.AddScoped<WorkflowScheduler>();
+        builder.Services.AddScoped<WorkflowHandler>();
+        builder.Services.AddSingleton<IAsyncProcess, AsyncProcess>();
+        builder.Services.AddSingleton<EnumerateDirectoriesFunc>(Directory.EnumerateDirectories);
 
         builder.Services.AddQuartz(q =>
         {
             q.UseMicrosoftDependencyInjectionJobFactory();
-            q.ScheduleJob<Jobs.WorkflowScheduler>(trigger =>
+            q.ScheduleJob<WorkflowUpdater>(trigger =>
             {
                 var engineOptions = new WorkflowEngineOptions();
                 workflowEngineSection.Bind(engineOptions);
                 trigger
-                    .WithIdentity("aion-schedule-workflows", nameof(Workflow))
+                    .WithIdentity("aion-update-workflows", nameof(Workflow))
                     .WithCronSchedule(CronScheduleBuilder.CronSchedule(engineOptions.UpdaterSchedule))
                     .StartAt(DateTimeOffset.UtcNow.AddSeconds(engineOptions.UpdaterStartDelay));
             });
@@ -57,7 +65,7 @@ public static class Program
             options.StartDelay = TimeSpan.FromSeconds(10);
         });
         //builder.Services.AddHostedService<>()
-
+        
         var app = builder.Build();
         //var scheduler = await app.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
         //scheduler.ScheduleJob<WorkflowInitializer>(t => )
@@ -71,6 +79,7 @@ public static class Program
 
         app.UseHttpsRedirection();
         app.UseAuthorization();
+        app.UseWiretap();
         app.MapControllers();
         await app.RunAsync();
     }

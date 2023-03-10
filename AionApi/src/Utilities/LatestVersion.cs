@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,9 +6,11 @@ using Reusable;
 
 namespace AionApi.Utilities;
 
+public delegate IEnumerable<string> EnumerateDirectoriesFunc(string path);
+
 public static class LatestVersion
 {
-    public static string? Find(string fileName, Func<string, IEnumerable<string>> directories)
+    public static string? Find(string fileName, EnumerateDirectoriesFunc directories)
     {
         var names = fileName.Split('\\');
         var path = new List<string>();

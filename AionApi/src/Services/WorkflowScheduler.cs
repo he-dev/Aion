@@ -56,7 +56,7 @@ public class WorkflowScheduler
                 return next;
             }
 
-            return await scheduler.ScheduleJob(workflow.ToJobDetail<WorkflowRunner>(), trigger);
+            return await scheduler.ScheduleJob(workflow.ToJobDetail<Jobs.WorkflowHandler>(), trigger);
         }
         catch (Exception ex)
         {
