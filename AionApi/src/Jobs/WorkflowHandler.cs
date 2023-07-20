@@ -30,6 +30,7 @@ public class WorkflowHandler : IJob
         var workflowName = context.JobDetail.Key.Name;
         using var status = Logger.Start("HandleWorkflow", new { name = workflowName });
 
+        
         if (await Store.Get(workflowName) is { } workflow)
         {
             await Runner.Run(workflow);

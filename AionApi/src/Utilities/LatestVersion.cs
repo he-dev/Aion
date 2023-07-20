@@ -22,6 +22,7 @@ public static class LatestVersion
         {
             // https://regex101.com/r/jedbZR/1
             // https://regex101.com/r/F0bKCy/1
+            // https://regex101.com/r/YUT36C/1
             if (Regex.Match(name, @"\{version:(?:(?<latest>latest)|(?:\.?(?<numeric>0|[1-9]\d*)){1,3})\}") is { Success: true } match)
             {
                 var prefix = name[..match.Index];
@@ -69,7 +70,7 @@ public static class LatestVersion
                             .Select(x => x.directory)
                             .FirstOrDefault();
 
-                    if (latest is { })
+                    if (latest is not null)
                     {
                         path.Add(latest);
                         continue;
