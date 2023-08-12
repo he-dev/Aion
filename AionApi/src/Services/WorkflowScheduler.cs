@@ -2,13 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AionApi.Jobs;
 using AionApi.Models;
+using AionApi.Utilities;
 using Quartz;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
+using Reusable.Extensions;
 using Reusable.Wiretap;
 using Reusable.Wiretap.Abstractions;
+using Reusable.Wiretap.Data;
 
 namespace AionApi.Services;
 
@@ -29,7 +31,7 @@ public class WorkflowScheduler
     /// </summary>
     public async Task<DateTimeOffset?> Schedule(Workflow workflow)
     {
-        using var status = Logger.Start("ScheduleWorkflow", new { name = workflow.Name, workflow.Schedule });
+        using var activity = Logger.Begin("ScheduleWorkflow", details: new { name = workflow.Name });
 
         var scheduler = await SchedulerFactory.GetScheduler();
 
@@ -37,59 +39,100 @@ public class WorkflowScheduler
         {
             if (!workflow)
             {
-                var deleted = await scheduler.DeleteJob(new JobKey(workflow.Name, nameof(Workflow)));
-                status.Canceled(new { reason = "Workflow is disabled.", deleted });
+                await scheduler.DeleteJob(workflow.JobKey);
+                activity.LogStop(message: "Workflow is disabled.");
                 return default;
             }
 
-            var trigger = workflow.ToCronTrigger();
-
-            if (await scheduler.GetTrigger(trigger.Key) is CronTriggerImpl current && current.CronExpressionString == workflow.Schedule)
+            if (workflow.IsEmpty)
             {
-                status.Canceled(new { reason = "Workflow schedule did not change." });
-                return current.GetFireTimeAfter(DateTimeOffset.UtcNow);
+                await scheduler.DeleteJob(workflow.JobKey);
+                activity.LogStop(message: "Workflow has no enabled commands.");
+                return default;
             }
 
-            if (await scheduler.RescheduleJob(trigger.Key, trigger) is { } next)
+            var trigger = workflow.CronTrigger;
+
+            if (await scheduler.GetTrigger(trigger.Key) is CronTriggerImpl current)
             {
-                status.Canceled(new { reason = "Workflow rescheduled." });
-                return next;
+                if (current.CronExpressionString?.ToCronExpression().Equals(workflow.Schedule.ToCronExpression()) is true)
+                {
+                    activity.LogNoop(message: "Workflow schedule has not changed.");
+                    return default;
+                }
+
+                if (await scheduler.RescheduleJob(trigger.Key, trigger) is { } next)
+                {
+                    activity.LogEnd(message: "Workflow rescheduled.", details: new { schedule = new { previous = current.CronExpressionString, current = workflow.Schedule, next } });
+                    return next;
+                }
             }
 
-            return await scheduler.ScheduleJob(workflow.ToJobDetail<Jobs.WorkflowHandler>(), trigger);
+            var jobDetail = workflow.JobBuilder.Build();
+            return await scheduler.ScheduleJob(jobDetail, trigger);
         }
         catch (Exception ex)
         {
-            status.Exception(ex);
+            activity.Items.Exception(ex);
         }
 
         return default;
     }
 
-    public async Task<bool> Delete(string workflow)
+    public async Task<bool> Delete(string name)
     {
-        using var status = Logger.Start("DeleteJob", new { name = workflow });
+        using var status = Logger.Begin("DeleteJob", details: new { name });
         var scheduler = await SchedulerFactory.GetScheduler();
-        if (await scheduler.DeleteJob(new JobKey(workflow, nameof(Workflow))))
+        var deleted = await scheduler.DeleteJob(new Workflow { Name = name }.JobKey);
+        try
         {
-            status.Completed();
-            return true;
+            return deleted;
         }
-
-        status.Canceled(new { reason = "Job not found." });
-        return false;
+        finally
+        {
+            status.LogEnd(details: new { deleted });
+        }
     }
 
-    public async IAsyncEnumerable<ICronTrigger> EnumerateActiveWorkflowCronTriggers()
+    public async IAsyncEnumerable<ICronTrigger> EnumerateTriggers(string group)
     {
         var scheduler = await SchedulerFactory.GetScheduler();
-        var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(nameof(Workflow)));
+        var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group));
         foreach (var jobKey in jobKeys)
         {
-            if (await scheduler.GetTriggersOfJob(jobKey).ContinueWith(x => x.Result.Single()) is ICronTrigger trigger)
+            await foreach (var trigger in EnumerateTriggers(jobKey))
             {
                 yield return trigger;
             }
         }
     }
+
+    public async IAsyncEnumerable<ICronTrigger> EnumerateTriggers(JobKey jobKey)
+    {
+        var scheduler = await SchedulerFactory.GetScheduler();
+        foreach (var trigger in (await scheduler.GetTriggersOfJob(jobKey)).Cast<ICronTrigger>())
+        {
+            yield return trigger;
+        }
+    }
+
+    public async IAsyncEnumerable<ScheduleInfo> EnumerateNext(JobKey jobKey, DateTimeOffset afterTimeUtc)
+    {
+        if (await EnumerateTriggers(jobKey).SingleOrDefaultAsync() is { CronExpressionString: { } cronExpressionString })
+        {
+            var schedules =
+                cronExpressionString
+                    .ToCronExpression()
+                    .Generate(first: cron => cron.GetTimeAfter(afterTimeUtc), next: (cron, previous) => cron.GetTimeAfter(previous!.Value))
+                    .Cast<DateTimeOffset>()
+                    .Select(next => new ScheduleInfo(next, next - afterTimeUtc));
+
+            foreach (var schedule in schedules)
+            {
+                yield return schedule;
+            }
+        }
+    }
 }
+
+public record ScheduleInfo(DateTimeOffset Next, TimeSpan Wait);

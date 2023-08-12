@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Linq;
+using System.Threading.Tasks;
 using AionApi.Services;
 using JetBrains.Annotations;
 using Quartz;
@@ -9,9 +10,9 @@ namespace AionApi.Jobs;
 
 [UsedImplicitly]
 [DisallowConcurrentExecution]
-internal class WorkflowUpdater : IJob
+internal class ScheduleUpdater : IJob
 {
-    public WorkflowUpdater(ILogger logger, WorkflowStore store, WorkflowScheduler scheduler)
+    public ScheduleUpdater(ILogger logger, WorkflowStore store, WorkflowScheduler scheduler)
     {
         Logger = logger;
         Store = store;
@@ -26,16 +27,11 @@ internal class WorkflowUpdater : IJob
 
     public async Task Execute(IJobExecutionContext context)
     {
-        using var status = Logger.Start("UpdateWorkflows", new { name = context.JobDetail.Key.Name });
-
-        // It's not necessary to delete jobs here.
-        // The WorkflowRunner & WorkflowScheduler will take care of that if they find the workflow or it's disabled.
-
-        await foreach (var workflow in Store.EnumerateWorkflows())
+        using var status = Logger.Begin("UpdateWorkflows", details: new { name = context.JobDetail.Key.Name });
+        
+        await foreach (var workflow in Store)
         {
             await Scheduler.Schedule(workflow);
         }
-
-        status.Completed();
     }
 }

@@ -22,8 +22,8 @@ public class WorkflowRunnerTest
             .ReturnsAsync(() => new AsyncProcess.Result(1))
             .OccursOnce();
 
-        var runner = new WorkflowRunner(logger, asyncProcess, directories);
-        var results = await runner.Run(new Workflow
+        var runner = new WorkflowProcess(logger, asyncProcess, directories);
+        var results = await runner.Start(new Workflow
         {
             Name = "foo",
             Variables =
@@ -53,8 +53,8 @@ public class WorkflowRunnerTest
             .ReturnsAsync(() => new AsyncProcess.Result(exitCode++))
             .Occurs(2);
 
-        var runner = new WorkflowRunner(logger, asyncProcess, directories);
-        var results = await runner.Run(new Workflow
+        var runner = new WorkflowProcess(logger, asyncProcess, directories);
+        var results = await runner.Start(new Workflow
         {
             Name = "foo",
             Commands =
@@ -83,8 +83,8 @@ public class WorkflowRunnerTest
             .ReturnsAsync(() => new AsyncProcess.Result(exitCode++))
             .Occurs(3);
 
-        var runner = new WorkflowRunner(logger, asyncProcess, directories);
-        var results = await runner.Run(new Workflow
+        var runner = new WorkflowProcess(logger, asyncProcess, directories);
+        var results = await runner.Start(new Workflow
         {
             Name = "foo",
             Commands =

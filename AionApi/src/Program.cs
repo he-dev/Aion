@@ -1,19 +1,23 @@
 using System;
-using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AionApi.Jobs;
 using AionApi.Models;
 using AionApi.Services;
-using AionApi.Utilities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Quartz;
 using Reusable;
+using Reusable.Extensions;
+using Reusable.IO;
+using Reusable.IO.Abstractions;
 using Reusable.Wiretap.Abstractions;
 using Reusable.Wiretap.AspNetCore;
-using Reusable.Wiretap.Channels;
+using Reusable.Wiretap.Modules;
+using Reusable.Wiretap.Modules.Loggers;
 using Reusable.Wiretap.Services;
 
 namespace AionApi;
@@ -30,33 +34,36 @@ public static class Program
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
-        
+
         builder.Services.AddSingleton<ILogger>(_ => LoggerBuilder.CreateDefault().Use<LogToConsole>().Use<LogToNLog>().Build());
         builder.Services.AddWiretap();
 
-        var workflowEngineSection = builder.Configuration.GetSection("WorkflowEngine");
+        var engineOptions = new WorkflowEngineOptions();
+        var workflowEngineSection = builder.Configuration.GetSection("WorkflowEngine").Also(section => section.Bind(engineOptions));
 
         builder.Services.Configure<WorkflowEngineOptions>(workflowEngineSection);
         builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
         builder.Services.AddSingleton<WorkflowStore>();
-        builder.Services.AddSingleton<WorkflowRunner>();
+        builder.Services.AddSingleton<WorkflowProcess>();
         builder.Services.AddScoped<WorkflowScheduler>();
-        builder.Services.AddScoped<WorkflowHandler>();
+        builder.Services.AddScoped<WorkflowLauncher>();
         builder.Services.AddSingleton<IAsyncProcess, AsyncProcess>();
-        builder.Services.AddSingleton<EnumerateDirectoriesFunc>(Directory.EnumerateDirectories);
+        builder.Services.AddSingleton<IDirectoryTree, DirectoryTree>();
+        builder.Services.AddSingleton<WorkflowDirectory>();
 
         builder.Services.AddQuartz(q =>
         {
             q.UseMicrosoftDependencyInjectionJobFactory();
-            q.ScheduleJob<WorkflowUpdater>(trigger =>
+            if (engineOptions.UpdaterEnabled)
             {
-                var engineOptions = new WorkflowEngineOptions();
-                workflowEngineSection.Bind(engineOptions);
-                trigger
-                    .WithIdentity("aion-update-workflows", nameof(Workflow))
-                    .WithCronSchedule(CronScheduleBuilder.CronSchedule(engineOptions.UpdaterSchedule))
-                    .StartAt(DateTimeOffset.UtcNow.AddSeconds(engineOptions.UpdaterStartDelay));
-            });
+                q.ScheduleJob<ScheduleUpdater>(trigger =>
+                {
+                    trigger
+                        .WithIdentity("update-workflows", JobGroupNames.Services)
+                        .WithCronSchedule(CronScheduleBuilder.CronSchedule(engineOptions.UpdaterSchedule))
+                        .StartAt(DateTimeOffset.UtcNow.AddSeconds(engineOptions.UpdaterStartDelay));
+                });
+            }
         });
         builder.Services.AddQuartzServer(options =>
         {
@@ -65,7 +72,7 @@ public static class Program
             options.StartDelay = TimeSpan.FromSeconds(10);
         });
         //builder.Services.AddHostedService<>()
-        
+
         var app = builder.Build();
         //var scheduler = await app.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
         //scheduler.ScheduleJob<WorkflowInitializer>(t => )
@@ -82,5 +89,24 @@ public static class Program
         app.UseWiretap();
         app.MapControllers();
         await app.RunAsync();
+    }
+}
+
+internal static class JobGroupNames
+{
+    public const string Workflows = nameof(Workflows);
+    public const string Services = nameof(Services);
+}
+
+internal static class Extensions
+{
+    public static IEnumerable<DateTimeOffset> ToLocalTime(this IEnumerable<DateTimeOffset> source, bool convert)
+    {
+        return source.Select(x => convert ? x.ToLocalTime() : x);
+    }
+
+    public static IAsyncEnumerable<DateTimeOffset> ToLocalTime(this IAsyncEnumerable<DateTimeOffset> source, bool convert)
+    {
+        return source.Select(x => convert ? x.ToLocalTime() : x);
     }
 }

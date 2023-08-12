@@ -1,0 +1,17 @@
+{
+  "Enabled": false,
+  "Schedule": "0/12 * * * * ?",
+  "Variables": {
+    "Foo": "bar"
+  },
+  "Commands": [
+    {
+      "FileName": "c:\\temp\\test\\app-v{version:latest}\\Aion.Robots.TestRobot2.exe",
+      "Arguments": []
+    },
+    {
+      "FileName": "{foo}\\app-v{latest}\\Aion.Robots.TestRobot2.exe",
+      "Arguments": []
+    }
+  ]
+}
