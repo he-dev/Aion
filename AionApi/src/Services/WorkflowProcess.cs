@@ -12,7 +12,7 @@ namespace AionApi.Services;
 
 public class WorkflowProcess
 {
-    public WorkflowProcess(ILogger logger, IAsyncProcess asyncProcess)
+    public WorkflowProcess(ILogger<WorkflowProcess> logger, IAsyncProcess asyncProcess)
     {
         Logger = logger;
         AsyncProcess = asyncProcess;
@@ -40,14 +40,14 @@ public class WorkflowProcess
             {
                 if (dependsOn.Trim().Equals("$previous", StringComparison.OrdinalIgnoreCase) && results.LastOrDefault() is { Process.Success: false })
                 {
-                    status.LogStop(message: "Command depends on the previous one and it failed.");
+                    status.LogBreak(message: "Command depends on the previous one and it failed.");
                     break;
                 }
                 else
                 {
                     if (results.SingleOrDefault(r => command.DependsOn.Equals(r.Name, StringComparison.OrdinalIgnoreCase)) is null or { Process.Success: false })
                     {
-                        status.LogStop(message: $"Command depends on '{command.DependsOn}' and it was either not executed or it failed.");
+                        status.LogBreak(message: $"Command depends on '{command.DependsOn}' and it was either not executed or it failed.");
                         break;
                     }
                 }

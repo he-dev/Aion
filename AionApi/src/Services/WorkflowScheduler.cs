@@ -11,12 +11,13 @@ using Reusable.Extensions;
 using Reusable.Wiretap;
 using Reusable.Wiretap.Abstractions;
 using Reusable.Wiretap.Data;
+using Reusable.Wiretap.Extensions;
 
 namespace AionApi.Services;
 
 public class WorkflowScheduler
 {
-    public WorkflowScheduler(ILogger logger, ISchedulerFactory schedulerFactory)
+    public WorkflowScheduler(ILogger<WorkflowScheduler> logger, ISchedulerFactory schedulerFactory)
     {
         Logger = logger;
         SchedulerFactory = schedulerFactory;
@@ -31,7 +32,8 @@ public class WorkflowScheduler
     /// </summary>
     public async Task<DateTimeOffset?> Schedule(Workflow workflow)
     {
-        using var activity = Logger.Begin("ScheduleWorkflow", details: new { name = workflow.Name });
+        using var activity = Logger.Begin("ScheduleWorkflow");
+        activity.LogArgs(details: new { workflow = workflow.Name });
 
         var scheduler = await SchedulerFactory.GetScheduler();
 
@@ -40,14 +42,14 @@ public class WorkflowScheduler
             if (!workflow)
             {
                 await scheduler.DeleteJob(workflow.JobKey);
-                activity.LogStop(message: "Workflow is disabled.");
+                activity.LogBreak(message: "Workflow is disabled.");
                 return default;
             }
 
             if (workflow.IsEmpty)
             {
                 await scheduler.DeleteJob(workflow.JobKey);
-                activity.LogStop(message: "Workflow has no enabled commands.");
+                activity.LogBreak(message: "Workflow has no enabled commands.");
                 return default;
             }
 
@@ -63,13 +65,20 @@ public class WorkflowScheduler
 
                 if (await scheduler.RescheduleJob(trigger.Key, trigger) is { } next)
                 {
-                    activity.LogEnd(message: "Workflow rescheduled.", details: new { schedule = new { previous = current.CronExpressionString, current = workflow.Schedule, next } });
+                    activity.LogInfo(details: new { schedule = new { previous = current.CronExpressionString, current = workflow.Schedule } });
+                    activity.LogResult(details: new { next });
+                    activity.LogEnd(message: "Workflow rescheduled.");
                     return next;
                 }
             }
-
-            var jobDetail = workflow.JobBuilder.Build();
-            return await scheduler.ScheduleJob(jobDetail, trigger);
+            else
+            {
+                var jobDetail = workflow.JobBuilder.Build();
+                var next = await scheduler.ScheduleJob(jobDetail, trigger);
+                activity.LogResult(details: new { next });
+                activity.LogEnd();
+                return next;
+            }
         }
         catch (Exception ex)
         {

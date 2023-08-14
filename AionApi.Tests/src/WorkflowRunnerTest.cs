@@ -13,7 +13,7 @@ public class WorkflowRunnerTest
     [Fact]
     public async Task CanInterpolateFileNameVariables()
     {
-        var logger = LoggerBuilder.CreateDefault().Build();
+        var logger = LogActionBuilder.CreateDefault().Build();
         var asyncProcess = Mock.Create<IAsyncProcess>();
         var directories = new EnumerateDirectoriesFunc(_ => new[] { "" });
 
@@ -43,7 +43,7 @@ public class WorkflowRunnerTest
     [Fact]
     public async Task CanBreakWhenOneCommandFails()
     {
-        var logger = LoggerBuilder.CreateDefault().Build();
+        var logger = LogActionBuilder.CreateDefault().Build();
         var asyncProcess = Mock.Create<IAsyncProcess>();
         var directories = new EnumerateDirectoriesFunc(_ => new[] { "" });
 
@@ -73,7 +73,7 @@ public class WorkflowRunnerTest
     [Fact]
     public async Task CanRunAllCommandsDespiteFailure()
     {
-        var logger = LoggerBuilder.CreateDefault().Build();
+        var logger = LogActionBuilder.CreateDefault().Build();
         var asyncProcess = Mock.Create<IAsyncProcess>();
         var directories = new EnumerateDirectoriesFunc(_ => new[] { "" });
 

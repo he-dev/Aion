@@ -12,7 +12,7 @@ namespace AionApi.Jobs;
 [DisallowConcurrentExecution]
 internal class ScheduleUpdater : IJob
 {
-    public ScheduleUpdater(ILogger logger, WorkflowStore store, WorkflowScheduler scheduler)
+    public ScheduleUpdater(ILogger<ScheduleUpdater> logger, WorkflowStore store, WorkflowScheduler scheduler)
     {
         Logger = logger;
         Store = store;
@@ -27,11 +27,15 @@ internal class ScheduleUpdater : IJob
 
     public async Task Execute(IJobExecutionContext context)
     {
-        using var status = Logger.Begin("UpdateWorkflows", details: new { name = context.JobDetail.Key.Name });
-        
+        using var activity = Logger.Begin("UpdateWorkflows");
+        activity.LogArgs(details: new { job = context.JobDetail.Key.Name });
+        activity.LogCaller();
+
         await foreach (var workflow in Store)
         {
             await Scheduler.Schedule(workflow);
         }
+
+        activity.LogEnd();
     }
 }

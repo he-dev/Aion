@@ -12,7 +12,7 @@ namespace AionApi.Jobs;
 [DisallowConcurrentExecution]
 public class WorkflowLauncher : IJob
 {
-    public WorkflowLauncher(ILogger logger, WorkflowStore store, WorkflowScheduler scheduler, WorkflowProcess process)
+    public WorkflowLauncher(ILogger<WorkflowLauncher> logger, WorkflowStore store, WorkflowScheduler scheduler, WorkflowProcess process)
     {
         Logger = logger;
         Store = store;
@@ -45,7 +45,7 @@ public class WorkflowLauncher : IJob
         else
         {
             await Scheduler.Delete(workflowName);
-            status.LogStop(message: "Workflow not found or disabled.");
+            status.LogBreak(message: "Workflow not found or disabled.");
         }
     }
 }

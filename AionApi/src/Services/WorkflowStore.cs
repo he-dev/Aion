@@ -12,7 +12,7 @@ namespace AionApi.Services;
 
 public class WorkflowStore : IAsyncEnumerable<Workflow>
 {
-    public WorkflowStore(ILogger logger, WorkflowDirectory workflowDirectory)
+    public WorkflowStore(ILogger<WorkflowStore> logger, WorkflowDirectory workflowDirectory)
     {
         Logger = logger;
         WorkflowDirectory = workflowDirectory;
@@ -24,22 +24,33 @@ public class WorkflowStore : IAsyncEnumerable<Workflow>
 
     public async Task<Workflow?> GetWorkflow(string name)
     {
+        using var activity = Logger.Begin("GetWorkflow");
+        activity.LogArgs(details: new { name });
+
         var fileName = WorkflowDirectory + name;
-        using var status = Logger.Begin("GetWorkflow", details: new { name });
+
+        activity.LogInfo(details: new { fileName });
+
         if (!File.Exists(fileName))
         {
-            status.LogStop(message: "Workflow not found.", details: new { fileName });
+            activity.LogBreak(message: "Workflow not found.");
             return default;
         }
 
         await using var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
         if (await JsonSerializer.DeserializeAsync<Workflow>(fileStream) is { } workflow)
         {
-            status.LogEnd();
-            return workflow.Also(w => w.Name = name);
+            try
+            {
+                return workflow.Also(w => w.Name = name);
+            }
+            finally
+            {
+                activity.LogEnd();
+            }
         }
 
-        status.LogStop(message: "Workflow is empty.", details: new { fileName });
+        activity.LogBreak(message: "Workflow is empty.");
         return default;
     }
 
@@ -68,7 +79,7 @@ public class WorkflowStore : IAsyncEnumerable<Workflow>
     //     status.Canceled(new { reason = "File not found." });
     //     return false;
     // }
-    
+
     // private void Initialize()
     // {
     //     using var status = Logger.Start("InitializeWorkflowDirectory", attachment: DirectoryName);
@@ -82,7 +93,7 @@ public class WorkflowStore : IAsyncEnumerable<Workflow>
     //         status.Completed();
     //     }
     // }
-    
+
     public async IAsyncEnumerator<Workflow> GetAsyncEnumerator(CancellationToken cancellationToken = new())
     {
         foreach (var fileName in WorkflowDirectory)

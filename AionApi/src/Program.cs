@@ -8,12 +8,14 @@ using AionApi.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Quartz;
 using Reusable;
 using Reusable.Extensions;
 using Reusable.IO;
 using Reusable.IO.Abstractions;
+using Reusable.Wiretap;
 using Reusable.Wiretap.Abstractions;
 using Reusable.Wiretap.AspNetCore;
 using Reusable.Wiretap.Modules;
@@ -35,7 +37,9 @@ public static class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
-        builder.Services.AddSingleton<ILogger>(_ => LoggerBuilder.CreateDefault().Use<LogToConsole>().Use<LogToNLog>().Build());
+        builder.Services.AddSingleton<LogAction>(_ => LogActionBuilder.CreateDefault().Use<LogToConsole>().Use<LogToNLog>().Build());
+        builder.Services.AddSingleton(typeof(LoggerFactory));
+        builder.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
         builder.Services.AddWiretap();
 
         var engineOptions = new WorkflowEngineOptions();
