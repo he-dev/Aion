@@ -31,7 +31,7 @@ public class WorkflowLauncher : IJob
     public async Task Execute(IJobExecutionContext context)
     {
         var workflowName = context.JobDetail.Key.Name;
-        using var status = Logger.Begin("ExecuteSchedule", details: new
+        using var activity = Logger.Begin("ExecuteSchedule", details: new
         {
             workflow = new { name = workflowName, schedule = ((ICronTrigger)context.Trigger).CronExpressionString },
             localNow = DateTime.Now
@@ -40,12 +40,12 @@ public class WorkflowLauncher : IJob
         if (await Store.GetWorkflow(workflowName) is { Enabled: true, IsEmpty: false } workflow)
         {
             await foreach (var _ in Process.Start(workflow)) { }
-            status.LogEnd();
+            activity.LogEnd();
         }
         else
         {
             await Scheduler.Delete(workflowName);
-            status.LogBreak(message: "Workflow not found or disabled.");
+            activity.LogBreak(message: "Workflow not found or disabled.");
         }
     }
 }

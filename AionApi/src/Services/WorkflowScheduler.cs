@@ -32,8 +32,7 @@ public class WorkflowScheduler
     /// </summary>
     public async Task<DateTimeOffset?> Schedule(Workflow workflow)
     {
-        using var activity = Logger.Begin("ScheduleWorkflow");
-        activity.LogArgs(details: new { workflow = workflow.Name });
+        using var activity = Logger.Begin("ScheduleWorkflow").LogArgs(details: new { workflow = workflow.Name });
 
         var scheduler = await SchedulerFactory.GetScheduler();
 
@@ -90,7 +89,7 @@ public class WorkflowScheduler
 
     public async Task<bool> Delete(string name)
     {
-        using var status = Logger.Begin("DeleteJob", details: new { name });
+        using var activity = Logger.Begin("DeleteJob").LogArgs(details: new { name });
         var scheduler = await SchedulerFactory.GetScheduler();
         var deleted = await scheduler.DeleteJob(new Workflow { Name = name }.JobKey);
         try
@@ -99,7 +98,14 @@ public class WorkflowScheduler
         }
         finally
         {
-            status.LogEnd(details: new { deleted });
+            if (deleted)
+            {
+                activity.LogNoop(message: "Job does not exist.");
+            }
+            else
+            {
+                activity.LogEnd();
+            }
         }
     }
 

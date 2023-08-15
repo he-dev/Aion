@@ -27,9 +27,7 @@ internal class ScheduleUpdater : IJob
 
     public async Task Execute(IJobExecutionContext context)
     {
-        using var activity = Logger.Begin("UpdateWorkflows");
-        activity.LogArgs(details: new { job = context.JobDetail.Key.Name });
-        activity.LogCaller();
+        using var activity = Logger.Begin("UpdateWorkflows").LogArgs(details: new { job = context.JobDetail.Key.Name });
 
         await foreach (var workflow in Store)
         {

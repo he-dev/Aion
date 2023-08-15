@@ -24,8 +24,7 @@ public class WorkflowStore : IAsyncEnumerable<Workflow>
 
     public async Task<Workflow?> GetWorkflow(string name)
     {
-        using var activity = Logger.Begin("GetWorkflow");
-        activity.LogArgs(details: new { name });
+        using var activity = Logger.Begin("GetWorkflow").LogArgs(details: new { name });
 
         var fileName = WorkflowDirectory + name;
 
@@ -33,7 +32,7 @@ public class WorkflowStore : IAsyncEnumerable<Workflow>
 
         if (!File.Exists(fileName))
         {
-            activity.LogBreak(message: "Workflow not found.");
+            activity.LogBreak(message: "Workflow does not exist.");
             return default;
         }
 

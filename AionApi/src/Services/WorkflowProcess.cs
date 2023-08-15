@@ -34,38 +34,35 @@ public class WorkflowProcess
             var fileName = command.FileName.Format(workflow.Variables.TryGetValue);
             var arguments = command.Arguments.Select(arg => arg.Format(workflow.Variables.TryGetValue)).ToList();
             var workingDirectory = Environment.ExpandEnvironmentVariables(command.WorkingDirectory);
-            using var status = Logger.Begin("ExecuteCommand", details: new { workflow = workflow.Name, command = new { index, fileName, arguments } });
+            using var activity = Logger.Begin("ExecuteCommand", details: new { workflow = workflow.Name, command = new { index, fileName, arguments } });
 
             if (command.DependsOn is { } dependsOn)
             {
                 if (dependsOn.Trim().Equals("$previous", StringComparison.OrdinalIgnoreCase) && results.LastOrDefault() is { Process.Success: false })
                 {
-                    status.LogBreak(message: "Command depends on the previous one and it failed.");
+                    activity.LogBreak(message: "Command depends on the previous one and it failed.");
                     break;
                 }
-                else
+
+                if (results.SingleOrDefault(r => command.DependsOn.Equals(r.Name, StringComparison.OrdinalIgnoreCase)) is null or { Process.Success: false })
                 {
-                    if (results.SingleOrDefault(r => command.DependsOn.Equals(r.Name, StringComparison.OrdinalIgnoreCase)) is null or { Process.Success: false })
-                    {
-                        status.LogBreak(message: $"Command depends on '{command.DependsOn}' and it was either not executed or it failed.");
-                        break;
-                    }
+                    activity.LogBreak(message: $"Command depends on '{command.DependsOn}' and it was either not executed or it failed.");
+                    break;
                 }
             }
 
-            yield return await AsyncProcess.StartAsync(fileName, arguments, workingDirectory, command.TimeoutMilliseconds).ContinueWith(task =>
+            var result = await AsyncProcess.StartAsync(fileName, arguments, workingDirectory, command.TimeoutMilliseconds);
+            activity.LogResult(attachment: result);
+            if (result)
             {
-                if (task.Result)
-                {
-                    status.LogEnd(attachment: task.Result);
-                }
-                else
-                {
-                    status.LogError(attachment: task.Result);
-                }
+                activity.LogEnd();
+            }
+            else
+            {
+                activity.LogError();
+            }
 
-                return new CommandResult(command.Name, index, command.FileName, command.Arguments, task.Result).Also(results.Add);
-            });
+            yield return new CommandResult(command.Name, index, command.FileName, command.Arguments, result).Also(results.Add);
         }
     }
 
