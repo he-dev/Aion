@@ -4,7 +4,7 @@
   "Variables": {
     "Foo": "bar"
   },
-  "Commands": [
+  "Steps": [
     {
       "FileName": "c:\\temp\\test\\app-v{version:latest}\\Aion.Robots.TestRobot2.exe",
       "Arguments": []
@@ -12,7 +12,7 @@
     {
       "FileName": "{foo}\\app-v{latest}\\Aion.Robots.TestRobot2.exe",
       "Arguments": [],
-      "DependsOn": "foo"
+      "DependsOn": "$previous"
     }
   ]
 }

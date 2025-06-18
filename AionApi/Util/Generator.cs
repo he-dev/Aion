@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using Quartz;
 
-namespace AionApi.Utilities;
+namespace AionApi.Util;
 
 public static class Generator
 {
@@ -30,7 +28,3 @@ public static class Generator
     }
 }
 
-public static class StringExtensions
-{
-    public static CronExpression ToCronExpression(this string source) => new(source);
-}

@@ -15,6 +15,7 @@
       "launchBrowser": false,
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5049",
+      "commandLineArgs": "--app-disable-sync",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace AionApi.Filters;
+namespace AionApi.Util.Mvc;
 
 internal class ValidateArgument : Attribute, IAsyncActionFilter
 {
