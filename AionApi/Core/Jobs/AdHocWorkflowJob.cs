@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AionApi.Utilities;
 using AionApi.Workflows;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -16,19 +18,26 @@ public class AdHocWorkflowJob
     public async Task Execute(IJobExecutionContext context)
     {
         var workflowName = context.JobDetail.Key.Name;
-        logger.LogInformation("Executing workflow {workflow} ad hoc.", workflowName);
+
+        logger.LogInformation("Executing workflow '{workflow}' ad hoc.", workflowName);
 
         // .. The AdHoc mode executes workflows regardless of their Enabled status.
         if (await directory.FindWorkflow(workflowName) is { } workflow)
         {
             if (workflow.Steps.Any(s => s.Enabled))
             {
-                logger.LogInformation("Workflow {workflow} is being executed ad-hoc.", workflowName);
-                await foreach (var _ in process.Start(workflow)) { }
+                var jobVariables = new VariableGroup("job")
+                {
+                    ["name"] = workflowName,
+                    ["start"] = context.Trigger.JobDataMap.GetString("start"),
+                    ["delay"] = context.Trigger.JobDataMap.GetInt("delay"),
+                };
+
+                await foreach (var _ in process.Start(workflow, jobVariables)) { }
             }
             else
             {
-                logger.LogWarning("Workflow {workflow} has no enabled steps.", workflowName);
+                logger.LogWarning("Canceling workflow '{workflow}' because it has no enabled steps.", workflowName);
             }
         }
         else

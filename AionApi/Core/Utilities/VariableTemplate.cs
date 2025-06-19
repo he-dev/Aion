@@ -5,19 +5,36 @@ using Scriban.Runtime;
 
 namespace AionApi.Utilities;
 
+public static class ScriptObjectExtensions
+{
+    public static ScriptObject ImportDictionary(this ScriptObject target, IDictionary<string, object?> source)
+    {
+        target.Import(source);
+        return target;
+    }
+}
+
+public class VariableGroup(string name, IDictionary<string, object?>? values = null)
+    : Dictionary<string, object?>(values ?? new Dictionary<string, object?>())
+{
+    public ScriptObject ToScriptObject() => new() { [name] = new ScriptObject().ImportDictionary(this) };
+}
+
 public static class VariableTemplate
 {
-    public static string Render(string template, IDictionary<string, string> variables, int maxPasses = 3)
+    public static string Render(string template, IEnumerable<VariableGroup> variableGroups)
     {
+        var maxPasses = 3;
+
         var customFunctions = new ScriptObject();
         customFunctions.Import("env", new Func<string, string>(name => Environment.ExpandEnvironmentVariables($"%{name}%")));
 
-        var customVariables = new ScriptObject();
-        customVariables.Import(variables);
-
         var customContext = new TemplateContext();
         customContext.PushGlobal(customFunctions);
-        customContext.PushGlobal(customVariables);
+        foreach (var variableGroup in variableGroups)
+        {
+            customContext.PushGlobal(variableGroup.ToScriptObject());
+        }
 
         var current = template;
         var previous = string.Empty;

@@ -53,6 +53,7 @@ public class AsyncProcess : IAsyncProcess
 
         try
         {
+            var stopwatch = Stopwatch.StartNew();
             if (process.Start())
             {
                 // Reads the output stream first and then waits because deadlocks are possible.
@@ -72,7 +73,8 @@ public class AsyncProcess : IAsyncProcess
                     {
                         Completed = true,
                         Output = outputBuilder.ToString(),
-                        Error = errorBuilder.ToString()
+                        Error = errorBuilder.ToString(),
+                        Elapsed = stopwatch.Elapsed
                     };
                 }
 
@@ -85,7 +87,8 @@ public class AsyncProcess : IAsyncProcess
                         TimedOut = true,
                         Killed = true,
                         Output = outputBuilder.ToString(),
-                        Error = errorBuilder.ToString()
+                        Error = errorBuilder.ToString(),
+                        Elapsed = stopwatch.Elapsed
                     };
                 }
                 catch (Exception ex)
@@ -95,7 +98,8 @@ public class AsyncProcess : IAsyncProcess
                         TimedOut = true,
                         Output = outputBuilder.ToString(),
                         Error = errorBuilder.ToString(),
-                        Exception = ex
+                        Exception = ex,
+                        Elapsed = stopwatch.Elapsed
                     };
                 }
             }
@@ -127,6 +131,7 @@ public class AsyncProcess : IAsyncProcess
         public string? Output { get; init; }
         public string? Error { get; init; }
         public Exception? Exception { get; init; }
+        public TimeSpan Elapsed { get; init; } = TimeSpan.Zero;
 
         public override string ToString()
         {

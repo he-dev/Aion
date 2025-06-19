@@ -17,9 +17,7 @@ public class WorkflowSchedule
 {
     public async Task<SynchronizationResult> Synchronize(Workflow workflow)
     {
-        //using var activity = Logger.Begin("ScheduleWorkflow").LogArgs(details: new { workflow = workflow.Name });
-
-        logger.LogInformation("Synchronizing workflow '{workflow}'.", workflow.Name);
+        logger.LogInformation("Workflow '{workflow}' is being synchronized...", workflow.Name);
 
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -104,6 +102,7 @@ public class WorkflowSchedule
                 .WithIdentity(name, JobGroupNames.Workflows)
                 .StartNow()
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
+                .UsingJobData("start", "now")
                 .Build();
 
         return await scheduler.ScheduleJob(job, trigger);
@@ -126,14 +125,16 @@ public class WorkflowSchedule
                 .WithIdentity(name, JobGroupNames.Workflows)
                 .StartAt(runTime)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
+                .UsingJobData("start", "later")
+                .UsingJobData("delay", delay)
                 .Build();
 
+        logger.LogDebug("Workflow '{name}' will be started in {delay} seconds.'", name, delay);
         return await scheduler.ScheduleJob(job, trigger);
     }
 
     public async Task<DateTimeOffset> Schedule(string name, ITrigger trigger)
     {
-        //var jobDetail = workflow.JobBuilder.Build();
         var jobDetail =
             JobBuilder
                 .Create<Jobs.RegularWorkflowJob>()

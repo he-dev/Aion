@@ -15,5 +15,5 @@ POST http://localhost:5049/api/jobs/Offline/offline.one-step/start
 Accept: application/json
 
 ### Start a workflow 10 sec laater.
-POST http://localhost:5049/api/jobs/Offline/foo/start/10
+POST http://localhost:5049/api/jobs/Offline/offline.one-step/start/10
 Accept: application/json

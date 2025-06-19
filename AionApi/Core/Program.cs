@@ -19,7 +19,7 @@ using Quartz.AspNetCore;
 
 namespace AionApi;
 
-public static class Program
+public class Program
 {
     public static async Task Main(params string[] args)
     {
@@ -49,7 +49,7 @@ public static class Program
         builder.Logging.ClearProviders();
         builder.Host.UseNLog();
 
-        var logger = NLog.LogManager.GetCurrentClassLogger();
+        var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
 
         builder.Services.AddControllers(options =>
         {
@@ -108,9 +108,13 @@ public static class Program
                 }
                 catch (Exception ex)
                 {
-                    logger.Error(ex, "Error scheduling the synchronization job.");
+                    logger.LogError(ex, "Error scheduling the synchronization job.");
                     throw;
                 }
+            }
+            else
+            {
+                logger.LogWarning("Synchronization job disabled.");
             }
         });
 
@@ -135,7 +139,7 @@ public static class Program
         // app.UseWiretap(); // todo: setup later
         app.MapControllers();
 
-        logger.Info("Everything initialized. Starting up...");
+        logger.LogDebug("Everything initialized. Starting up...");
 
         await app.RunAsync();
     }

@@ -17,7 +17,7 @@ public class WorkflowDirectory
     IOptions<WorkflowEngineOptions> options
 ) : IAsyncEnumerable<Workflow>
 {
-    private IDirectoryTree DirectoryTree { get; } = new DirectoryTree(VariableTemplate.Render(options.Value.WorkflowDirectory, new Dictionary<string, string>()));
+    private IDirectoryTree DirectoryTree { get; } = new DirectoryTree(VariableTemplate.Render(options.Value.WorkflowDirectory, []));
 
     public async Task<Workflow?> FindWorkflow(string name)
     {

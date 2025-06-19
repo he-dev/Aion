@@ -4,9 +4,15 @@ variables:
   exe: '{{ env "DEV_HOME" }}\Aion\AionApi.TestApp\bin\Debug\net8.0\AionApi.TestApp.exe'
 
 steps:
-  - script: '{{ exe }}'
+  - script: '{{ var.exe }}'
     args:
-      - '--source one-step'
+      - '--workflow {{ job.name }}'
+      - '--trigger {{ job.start }}'
+      - '--cron {{ job.cron ?? "N/A" }}'
+      - '--step {{ step.name }}'
+      - '--index {{ step.index }}'
       - '--sleep 5'
       - '--exit-code 0'
     windowVisible: true
+    logStdOut: true
+    logStdErr: true

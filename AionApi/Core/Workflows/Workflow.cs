@@ -21,7 +21,7 @@ public record Workflow
     public required string Cron { get; init; }
 
     // .. Variables are optional and can be empty.
-    public Dictionary<string, string> Variables { get; init; } = new();
+    public Dictionary<string, object?> Variables { get; init; } = new();
 
     // .. Workflows without steps don't make sense, so make it a required field.
     public required List<Step> Steps { get; init; } = [];
@@ -127,6 +127,10 @@ public record Workflow
         public int TimeoutMilliseconds { get; init; } = -1;
 
         public bool WindowVisible { get; init; }
+
+        public bool LogStdOut { get; init; }
+
+        public bool LogStdErr { get; init; }
 
         public string? DependsOn { get; init; }
 
