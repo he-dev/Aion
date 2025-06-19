@@ -19,15 +19,11 @@
         <PackageReference Include="Scriban" Version="6.2.1" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.1" />
         <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-        <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+        <PackageReference Include="System.Linq.Async" Version="6.0.3" />
         <PackageReference Include="YamlDotNet" Version="16.3.0" />
     </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\..\reusable\AsyncProcess\AsyncProcess.csproj" />
-      <ProjectReference Include="..\..\reusable\DirectoryTree\DirectoryTree.csproj" />
-      <ProjectReference Include="..\..\reusable\SemanticVersion\SemanticVersion.csproj" />
-    </ItemGroup>
+    
+    
 
     <ItemGroup>
       <Content Update="workflows\foo.yaml">
@@ -38,6 +34,10 @@
       <Content Update="NLog.config">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Core\Utilities\LatestVersion.cs" />
     </ItemGroup>
 
 

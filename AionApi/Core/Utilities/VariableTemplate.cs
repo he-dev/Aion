@@ -37,6 +37,6 @@ public static class VariableTemplate
             throw new Exception($"Variable template did not stabilize after {maxPasses} passes: {current}");
         }
 
-        return Template.Parse(template).Render(customContext);
+        return current;
     }
 }

@@ -4,6 +4,7 @@ using System.CommandLine;
 using System.Linq;
 using System.Threading.Tasks;
 using AionApi.Jobs;
+using AionApi.Util;
 using AionApi.Util.Yaml;
 using AionApi.Workflows;
 using Microsoft.AspNetCore.Builder;
@@ -15,7 +16,6 @@ using NLog;
 using NLog.Web;
 using Quartz;
 using Quartz.AspNetCore;
-using Reusable;
 
 namespace AionApi;
 
@@ -23,7 +23,7 @@ public static class Program
 {
     public static async Task Main(params string[] args)
     {
-        var disableSyncOption = new Option<bool>("--app-disable-sync", "Enable debug mode.") { IsRequired = false };
+        var disableSyncOption = new Option<bool>("--app-disable-sync", "Disable the sync job.") { IsRequired = false };
         var rootCommand = new RootCommand { disableSyncOption };
         var commandLine = rootCommand.Parse(args);
 
@@ -76,8 +76,6 @@ public static class Program
         builder.Services.Configure<SynchronizationJobOptions>(builder.Configuration.GetSection("SynchronizationJob"));
 
         builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
-        builder.Services.AddSingleton<WorkflowName>();
-        builder.Services.AddSingleton<WorkflowDirectoryName>();
         builder.Services.AddSingleton<WorkflowSchedule>();
         builder.Services.AddSingleton<WorkflowSchedule.Collection>();
         builder.Services.AddSingleton<WorkflowProcess>();
@@ -137,7 +135,7 @@ public static class Program
         // app.UseWiretap(); // todo: setup later
         app.MapControllers();
 
-        logger.Info("Starting up...");
+        logger.Info("Everything initialized. Starting up...");
 
         await app.RunAsync();
     }

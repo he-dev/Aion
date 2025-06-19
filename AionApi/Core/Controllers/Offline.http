@@ -1,15 +1,19 @@
-### GET request for all offline workflows
+### Fetch all offline workflows.
 GET http://localhost:5049/api/jobs/Offline
 Accept: application/yaml
 
-### GET requect for a single offline workflow that exists
+### Fetch a single offline workflow that exists.
 GET http://localhost:5049/api/jobs/Offline/foo
 Accept: application/yaml
 
-### GET requect for a single offline workflow that does not exist
+### Fetch a single offline workflow that does not exist.
 GET http://localhost:5049/api/jobs/Offline/baz
 Accept: application/x-yaml
 
-### POST
-POST http://localhost:5049/api/jobs/Pending/sync
+### Start a workflow now.
+POST http://localhost:5049/api/jobs/Offline/offline.one-step/start
+Accept: application/json
+
+### Start a workflow 10 sec laater.
+POST http://localhost:5049/api/jobs/Offline/foo/start/10
 Accept: application/json

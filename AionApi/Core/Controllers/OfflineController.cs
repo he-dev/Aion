@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using AionApi.Util.Quartz;
-using AionApi.Utilities;
 using AionApi.Workflows;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -26,16 +25,18 @@ public class OfflineController
                 .Where(workflow => !workflow.Enabled) // !! Get only disabled workflows here.
                 .SelectAwait(workflow => ValueTask.FromResult(new
                 {
+                    path = workflow.Path,
                     name = workflow.Name,
                     isOn = workflow.Enabled,
                     cron = workflow.Cron,
                     next = workflow.Trigger.FiresAt(DateTimeOffset.UtcNow).Take(3).ToList(),
-                    cmds = workflow.Steps.Count(s => s.Enabled)
+                    jobs = workflow.Steps.Count(s => s.Enabled)
                 }))
                 .OrderBy(item => item.next.FirstOrDefault())
                 .ThenBy(item => item.name)
                 .ToListAsync();
 
+        logger.LogInformation("Found {count} workflows.", results.Count);
         return Ok(results);
     }
 
@@ -46,19 +47,21 @@ public class OfflineController
         {
             return Ok(new
             {
+                path = workflow.Path,
                 name = workflow.Name,
                 isOn = workflow.Enabled,
                 cron = workflow.Cron,
                 next = workflow.Trigger.FiresAt(DateTimeOffset.UtcNow).Take(3).ToList(),
-                cmds = workflow.Steps.Count(s => s.Enabled)
+                jobs = workflow.Steps.Count(s => s.Enabled)
             });
         }
 
+        logger.LogError("Workflow '{name}' not found.", name);
         return NotFound(new { name });
     }
 
-    [HttpPost("{name}/run")]
-    public async Task<IActionResult> Run(string name)
+    [HttpPost("{name}/start/{delay:int?}")]
+    public async Task<IActionResult> Start(string name, int delay = 0)
     {
         if (await workflowDirectory.FindWorkflow(name) is { } workflow)
         {
@@ -68,7 +71,11 @@ public class OfflineController
                 return UnprocessableEntity(new { name });
             }
 
-            var next = await workflowSchedule.StartLater(name, 30);
+            var next =
+                delay <= 0
+                    ? await workflowSchedule.StartNow(name)
+                    : await workflowSchedule.StartLater(name, delay);
+
             return Ok(new { name, next });
         }
 

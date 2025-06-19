@@ -59,26 +59,32 @@ public class PendingController
     {
         if (await workflowDirectory.FindWorkflow(name) is { } workflow)
         {
-            return Ok(new { workflow = name, Next = await workflowSchedule.StartNow(workflow.Name) });
+            return Ok(new
+            {
+                name,
+                next = await workflowSchedule.StartNow(workflow.Name)
+            });
         }
 
-        return NotFound(new { workflow = name });
+        return NotFound(new { name });
     }
 
     [HttpPost("{name}/start/later/{delay:int?}")]
     public async Task<IActionResult> StartLater(string name, int delay = 30)
     {
-        // todo: run the specified workflow; Delayed or immediately?
-
         if (await workflowDirectory.FindWorkflow(name) is { } workflow)
         {
-            return Ok(new { workflow = name, Next = await workflowSchedule.StartLater(workflow.Name, delay) });
+            return Ok(new
+            {
+                name,
+                next = await workflowSchedule.StartLater(workflow.Name, delay)
+            });
         }
 
         return NotFound(new { workflow = name });
     }
 
-    // !! The API needs to be able to reload workflows and reschedule them if necessary.
+    // !! The API needs to be able to synchronize workflows outside its regular schedule.
     [HttpPost("sync")]
     public async Task<IActionResult> Synchronize()
     {

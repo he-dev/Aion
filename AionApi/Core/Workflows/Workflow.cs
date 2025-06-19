@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -8,7 +10,6 @@ using Quartz;
 using YamlDotNet.Serialization.NamingConventions;
 
 namespace AionApi.Workflows;
-
 
 [PublicAPI]
 public record Workflow
@@ -23,7 +24,11 @@ public record Workflow
     public Dictionary<string, string> Variables { get; init; } = new();
 
     // .. Workflows without steps don't make sense, so make it a required field.
-    public required List<Step> Steps { get; init; }
+    public required List<Step> Steps { get; init; } = [];
+
+    // .. The name will be set after loading the config.
+    [JsonIgnore]
+    public string Path { get; init; } = Guid.NewGuid().ToString();
 
     // .. The name will be set after loading the config.
     [JsonIgnore]
@@ -43,31 +48,61 @@ public record Workflow
             .WithCronSchedule(Cron)
             .Build();
 
-    public static async Task<Workflow?> FromFile(string fileName)
+    // !! We need to ensure workflows are unique since we can load them both from JSON, or YAML.
+    public virtual bool Equals(Workflow? other)
+    {
+        return other is not null && StringComparer.OrdinalIgnoreCase.Equals(Name, other.Name);
+    }
+
+    public override int GetHashCode()
+    {
+        return StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
+    }
+
+    public static async Task<Workflow?> FromFile(string path, string workflowDirectoryPath)
     {
         // !! Must not throw exceptions so it can be used in async loops.
 
-        if (!File.Exists(fileName))
+        if (!File.Exists(path))
         {
             return null;
         }
 
-        // await using var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
-        // if (await JsonSerializer.DeserializeAsync<Workflow>(fileStream) is { } workflow)
-        // {
-        //     return workflow with { Name = fileName };
-        // }
+        return System.IO.Path.GetExtension(path).ToLower() switch
+        {
+            ".json" => await FromJson(path, workflowDirectoryPath),
+            ".yaml" => await FromYaml(path, workflowDirectoryPath),
+            _ => throw new InvalidOperationException($"Unknown file extension: {path}")
+        };
+    }
 
-        //var yamlContent = await File.ReadAllTextAsync(fileName);
+    public static async Task<Workflow?> FromJson(string path, string workflowDirectoryPath)
+    {
+        await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (await JsonSerializer.DeserializeAsync<Workflow>(fileStream) is { } workflow)
+        {
+            return workflow with { Path = path, Name = NameFactory.Create(path, workflowDirectoryPath) };
+        }
+
+        return null;
+    }
+
+    public static async Task<Workflow?> FromYaml(string path, string workflowDirectoryPath)
+    {
         var yamlDeserializer = new YamlDotNet.Serialization.DeserializerBuilder()
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
             .Build();
 
-        await using var yamlFileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+        await using var yamlFileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var yamlStreamReader = new StreamReader(yamlFileStream);
         if (yamlDeserializer.Deserialize<Workflow>(yamlStreamReader) is { } workflow)
         {
-            return workflow;
+            return workflow with
+            {
+                Path = path,
+                Name = NameFactory.Create(path, workflowDirectoryPath),
+                Steps = workflow.Steps.Select((step, index) => step with { Index = index }).ToList()
+            };
         }
 
         return null;
@@ -78,19 +113,46 @@ public record Workflow
     {
         public string? Name { get; init; }
 
+        [JsonIgnore]
+        public int Index { get; init; }
+
+        public bool Enabled { get; init; } = true;
+
         public string Script { get; init; } = null!;
 
-        public List<string> Args { get; init; } = new();
+        public List<string> Args { get; init; } = [];
 
         public string? WorkingDirectory { get; init; }
 
         public int TimeoutMilliseconds { get; init; } = -1;
 
-        public bool Enabled { get; init; } = true;
+        public bool WindowVisible { get; init; }
 
         public string? DependsOn { get; init; }
 
+        // !! We need to ensure steps are unique.
+        public virtual bool Equals(Workflow? other)
+        {
+            return other is not null && StringComparer.OrdinalIgnoreCase.Equals(Name, other.Name);
+        }
+
+        public override int GetHashCode()
+        {
+            return Name is null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
+        }
+
         public static implicit operator bool(Step step) => step.Enabled;
+    }
+
+    // !! This class encapsulates the logic for creating workflow names.
+    public static class NameFactory
+    {
+        public static string Create(string path, string workflowDirectoryPath)
+        {
+            // ?? Turns "C:\\foo\\bar\\baz.yaml" to "bar.baz" when the workflow-directory-name is "C:\\foo"
+            var name = path[(workflowDirectoryPath.Length + 1)..].Replace('\\', '.');
+            return name[..^System.IO.Path.GetExtension(path).Length];
+        }
     }
 }
 
