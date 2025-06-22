@@ -8,6 +8,7 @@ using Aion.Core.Utilities;
 using Aion.Util;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Quartz;
 
 namespace Aion.Core.Workflows;
 
@@ -24,12 +25,14 @@ public class WorkflowDirectory
         var paths =
             from branch in DirectoryTree
             from path in branch.Files()
+            // !! Get only workflows with the matching extension.
             where Path.GetExtension(path).Equals($".{options.Value.WorkflowFileType}", StringComparison.OrdinalIgnoreCase)
             select path;
 
         foreach (var path in paths)
         {
-            var workflow = default(Workflow);
+            // ?? This helper is necessary because try/catch does not allow yield.
+            var workflow = default(Workflow)!;
             try
             {
                 workflow = await Workflow.FromFile(path, DirectoryTree.Path);
@@ -37,13 +40,20 @@ public class WorkflowDirectory
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error loading workflow '{workflow}'.", path);
-                continue;
+                workflow = new Workflow
+                {
+                    Enabled = false,
+                    Cron = string.Empty,
+                    Info = new Workflow.Meta
+                    {
+                        Root = DirectoryTree.Path,
+                        Path = path,
+                        Exception = ex
+                    },
+                };
             }
 
-            if (workflow is not null)
-            {
-                yield return workflow;
-            }
+            yield return workflow;
         }
     }
 }
@@ -52,6 +62,6 @@ public static class WorkflowDirectoryExtensions
 {
     public static async Task<Workflow?> FindWorkflow(this WorkflowDirectory source, string name)
     {
-        return await source.FirstOrDefaultAsync(workflow => workflow.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        return await source.FirstOrDefaultAsync(workflow => workflow.Info.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
 }

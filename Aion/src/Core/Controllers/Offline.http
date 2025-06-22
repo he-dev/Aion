@@ -3,7 +3,11 @@
 
 ### Fetch all offline workflows as yaml.
 GET {{offline}}
-Accept: application/yaml
+Accept: application/json
+
+### Fetch the one with invalid cron.
+GET {{offline}}?q=invalid.cron-too-long
+Accept: application/json
 
 ### Fetch all offline workflows as json.
 GET {{offline}}

@@ -1,4 +1,4 @@
 enabled: false
-cron: * 0/15 * * * * ? # too many places
+cron: '* 0/15 * * * * ?' # too many places
 variables:
   exe: '{{ env "DEV_HOME" }}\Aion\Aion.Npc\bin\Debug\net8.0\Aion.Npc.exe'

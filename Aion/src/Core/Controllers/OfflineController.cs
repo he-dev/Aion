@@ -26,15 +26,16 @@ public class OfflineController
         var results =
             await workflowDirectory
                 .Where(workflow => !workflow.Enabled) // !! Get only disabled workflows here.
-                .Where(workflow => filter is null || FileSystemName.MatchesSimpleExpression(filter, workflow.Name))
+                .Where(workflow => filter is null || FileSystemName.MatchesSimpleExpression(filter, workflow.Info.Name))
                 .SelectAwait(workflow => ValueTask.FromResult(new
                 {
-                    path = workflow.Path,
-                    name = workflow.Name,
+                    path = workflow.Info.Path,
+                    name = workflow.Info.Name,
                     isOn = workflow.Enabled,
                     cron = workflow.Cron,
-                    next = workflow.Trigger.FiresAt(utcNow).Take(3).ToList(),
-                    jobs = workflow.Steps.Count(s => s.Enabled)
+                    next = workflow.Info.Exception is not null ? [] : workflow.Trigger.FiresAt(utcNow).Take(3),
+                    jobs = workflow.Steps.Count(s => s.Enabled),
+                    flaw = workflow.Info.Exception?.ToString()
                 }))
                 .OrderBy(item => item.next.FirstOrDefault())
                 .ThenBy(item => item.name)
@@ -61,8 +62,8 @@ public class OfflineController
 
             var next =
                 delay <= 0
-                    ? await workflowSchedule.StartNow(name)
-                    : await workflowSchedule.StartLater(name, delay);
+                    ? await workflowSchedule.StartNow(workflow.Info.Path, name)
+                    : await workflowSchedule.StartLater(workflow.Info.Path, name, delay);
 
             return Ok(new { name, next });
         }

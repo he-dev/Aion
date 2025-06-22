@@ -17,7 +17,7 @@ public class WorkflowSchedule
 {
     public async Task<SynchronizationResult> Synchronize(Workflow workflow)
     {
-        logger.LogInformation("Workflow '{workflow}' is being synchronized...", workflow.Name);
+        logger.LogInformation("Workflow '{workflow}' is being synchronized...", workflow.Info.Name);
 
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -27,24 +27,24 @@ public class WorkflowSchedule
             {
                 if (await scheduler.DeleteJob(workflow.JobKey))
                 {
-                    logger.LogInformation("Workflow '{workflow}' deleted from schedule because it is disabled.", workflow.Name);
-                    return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Deleted };
+                    logger.LogInformation("Workflow '{workflow}' deleted from schedule because it is disabled.", workflow.Info.Name);
+                    return new SynchronizationResult { Name = workflow.Info.Name, Sync = SynchronizationAction.Deleted };
                 }
 
-                logger.LogInformation("Workflow '{workflow}' skipped because it is disabled.", workflow.Name);
-                return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Skipped };
+                logger.LogInformation("Workflow '{workflow}' skipped because it is disabled.", workflow.Info.Name);
+                return new SynchronizationResult { Name = workflow.Info.Name, Sync = SynchronizationAction.Skipped };
             }
 
             if (!workflow.Steps.Any(s => s.Enabled))
             {
                 if (await scheduler.DeleteJob(workflow.JobKey))
                 {
-                    logger.LogInformation("Workflow '{workflow}' deleted from schedule because it has no enabled steps.", workflow.Name);
-                    return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Deleted };
+                    logger.LogInformation("Workflow '{workflow}' deleted from schedule because it has no enabled steps.", workflow.Info.Name);
+                    return new SynchronizationResult { Name = workflow.Info.Name, Sync = SynchronizationAction.Deleted };
                 }
 
-                logger.LogInformation("Workflow '{workflow}' skipped because it has no enabled steps.", workflow.Name);
-                return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Skipped };
+                logger.LogInformation("Workflow '{workflow}' skipped because it has no enabled steps.", workflow.Info.Name);
+                return new SynchronizationResult { Name = workflow.Info.Name, Sync = SynchronizationAction.Skipped };
             }
 
             // .. This might throw when the Cron property is invalid.
@@ -54,30 +54,30 @@ public class WorkflowSchedule
             {
                 if (cron.Equals(trigger.CronExpressionString))
                 {
-                    logger.LogInformation("Workflow '{workflow}' skipped because it is already scheduled.", workflow.Name);
-                    return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Skipped };
+                    logger.LogInformation("Workflow '{workflow}' skipped because it is already scheduled.", workflow.Info.Name);
+                    return new SynchronizationResult { Name = workflow.Info.Name, Sync = SynchronizationAction.Skipped };
                 }
 
                 if (await scheduler.RescheduleJob(trigger.Key, trigger) is { } next)
                 {
-                    logger.LogInformation("Workflow '{workflow}' rescheduled for '{next}'.", workflow.Name, next);
-                    return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Updated, Next = next };
+                    logger.LogInformation("Workflow '{workflow}' rescheduled for '{next}'.", workflow.Info.Name, next);
+                    return new SynchronizationResult { Name = workflow.Info.Name, Sync = SynchronizationAction.Updated, Next = next };
                 }
 
-                logger.LogInformation("Workflow '{workflow}' skipped because it could not be rescheduled.", workflow.Name);
-                return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Skipped };
+                logger.LogInformation("Workflow '{workflow}' skipped because it could not be rescheduled.", workflow.Info.Name);
+                return new SynchronizationResult { Name = workflow.Info.Name, Sync = SynchronizationAction.Skipped };
             }
             else
             {
-                var next = await Schedule(workflow.Name, workflow.Trigger);
-                logger.LogInformation("Workflow '{workflow}' scheduled for '{next}'.", workflow.Name, next);
-                return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Created, Next = next };
+                var next = await Schedule(workflow.Info.Path, workflow.Info.Name, workflow.Trigger);
+                logger.LogInformation("Workflow '{workflow}' scheduled for '{next}'.", workflow.Info.Name, next);
+                return new SynchronizationResult { Name = workflow.Info.Name, Sync = SynchronizationAction.Created, Next = next };
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Workflow '{workflow}' could not be synchronized.", workflow.Name);
-            return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Faulted, Exception = $"{ex.GetType().Name}: {ex.Message}" };
+            logger.LogError(ex, "Workflow '{workflow}' could not be synchronized.", workflow.Info.Name);
+            return new SynchronizationResult { Name = workflow.Info.Name, Sync = SynchronizationAction.Faulted, Exception = $"{ex.GetType().Name}: {ex.Message}" };
         }
     }
 
@@ -86,7 +86,7 @@ public class WorkflowSchedule
     // public async Task<SynchronizationResult> CleanUp(IEnumerable<string> names) { }
 
 
-    public async Task<DateTimeOffset> StartNow(string name)
+    public async Task<DateTimeOffset> StartNow(string path, string name)
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -94,6 +94,7 @@ public class WorkflowSchedule
             JobBuilder
                 .Create<Jobs.AdHocWorkflowJob>()
                 .WithIdentity(name, JobGroupNames.Workflows)
+                .UsingJobData("Path", path)
                 .Build();
 
         var trigger =
@@ -108,7 +109,7 @@ public class WorkflowSchedule
         return await scheduler.ScheduleJob(job, trigger);
     }
 
-    public async Task<DateTimeOffset> StartLater(string name, int delaySeconds)
+    public async Task<DateTimeOffset> StartLater(string path, string name, int delaySeconds)
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -116,6 +117,7 @@ public class WorkflowSchedule
             JobBuilder
                 .Create<Jobs.AdHocWorkflowJob>()
                 .WithIdentity(name, JobGroupNames.Workflows)
+                .UsingJobData("Path", path)
                 .Build();
 
         var runTime = DateBuilder.FutureDate(delaySeconds, IntervalUnit.Second);
@@ -133,12 +135,13 @@ public class WorkflowSchedule
         return await scheduler.ScheduleJob(job, trigger);
     }
 
-    public async Task<DateTimeOffset> Schedule(string name, ITrigger trigger)
+    public async Task<DateTimeOffset> Schedule(string path, string name, ITrigger trigger)
     {
         var jobDetail =
             JobBuilder
                 .Create<Jobs.RegularWorkflowJob>()
                 .WithIdentity(name, JobGroupNames.Workflows)
+                .UsingJobData("Path", path)
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();

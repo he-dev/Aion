@@ -51,7 +51,7 @@ public class PendingController
             return Ok(new
             {
                 name,
-                next = await workflowSchedule.StartNow(workflow.Name)
+                next = await workflowSchedule.StartNow(workflow.Info.Path, workflow.Info.Name)
             });
         }
 
@@ -66,7 +66,7 @@ public class PendingController
             return Ok(new
             {
                 name,
-                next = await workflowSchedule.StartLater(workflow.Name, delaySeconds)
+                next = await workflowSchedule.StartLater(workflow.Info.Path, workflow.Info.Name, delaySeconds)
             });
         }
 

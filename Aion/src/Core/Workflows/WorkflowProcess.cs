@@ -20,7 +20,7 @@ public class WorkflowProcess
         var previousResult = default(AsyncProcess.Result);
         var stopwatch = Stopwatch.StartNew();
 
-        logger.LogInformation("Workflow '{workflow}' starting...", workflow.Name);
+        logger.LogInformation("Workflow '{workflow}' starting...", workflow.Info.Name);
 
         foreach (var step in workflow.Steps)
         {
@@ -28,7 +28,7 @@ public class WorkflowProcess
 
             if (!step.Enabled)
             {
-                logger.LogWarning("Step '{workflow}[{indexOrName}]' skipped because it is disabled.", workflow.Name, indexOrName);
+                logger.LogWarning("Step '{workflow}[{indexOrName}]' skipped because it is disabled.", workflow.Info.Name, indexOrName);
                 continue;
             }
 
@@ -50,7 +50,11 @@ public class WorkflowProcess
             {
                 if (dependsOn.Trim().Equals("$previous", StringComparison.OrdinalIgnoreCase) && previousResult is { ExitCode: not 0 })
                 {
-                    logger.LogWarning("Step '{workflow}[{indexOrName}]' aborted because it depends on the previous one and it failed.", workflow.Name, indexOrName);
+                    logger.LogWarning
+                    (
+                        "Step '{workflow}[{indexOrName}]' aborted because it depends on the previous one and it failed.",
+                        workflow.Info.Name, indexOrName
+                    );
                     break;
                 }
             }
@@ -70,7 +74,7 @@ public class WorkflowProcess
             logger.LogDebug
             (
                 "Step '{workflow}[{indexOrName}]' will run: '{fileName} {arguments}'.",
-                workflow.Name, indexOrName, fileName, arguments
+                workflow.Info.Name, indexOrName, fileName, arguments
             );
 
             var result = await asyncProcess.StartAsync(startInfo, step.TimeoutMilliseconds);
@@ -79,7 +83,7 @@ public class WorkflowProcess
                 logger.LogInformation
                 (
                     "Step '{workflow}[{indexOrName}]' completed in {elapsed}.",
-                    workflow.Name, indexOrName, result.Elapsed
+                    workflow.Info.Name, indexOrName, result.Elapsed
                 );
                 if (step.LogStdOut)
                 {
@@ -92,7 +96,7 @@ public class WorkflowProcess
                 (
                     result.Exception,
                     "Step '{workflow}[{indexOrName}]' failed with exit code {exitCode} in {elapsed}.",
-                    workflow.Name, indexOrName, result.ExitCode, result.Elapsed
+                    workflow.Info.Name, indexOrName, result.ExitCode, result.Elapsed
                 );
                 if (step.LogStdErr)
                 {
@@ -103,6 +107,6 @@ public class WorkflowProcess
             yield return (step, previousResult = result);
         }
 
-        logger.LogInformation("Workflow '{workflow}' completed in {elapsed}.", workflow.Name, stopwatch.Elapsed);
+        logger.LogInformation("Workflow '{workflow}' completed in {elapsed}.", workflow.Info.Name, stopwatch.Elapsed);
     }
 }

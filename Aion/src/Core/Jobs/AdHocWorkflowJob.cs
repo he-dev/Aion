@@ -21,26 +21,31 @@ public class AdHocWorkflowJob
         // .. The AdHoc mode executes workflows regardless of their Enabled status.
         if (await directory.FindWorkflow(workflowName) is { } workflow)
         {
-            if (workflow.Steps.Any(s => s.Enabled))
+            if (workflow.Info.Exception is not null)
             {
-                var jobVariables = new VariableGroup("job")
-                {
-                    ["name"] = workflowName,
-                    ["mode"] = context.Trigger.JobDataMap.GetString("start"),
-                };
-
-                if (context.Trigger.JobDataMap.TryGetIntValue("arguments", out var delay))
-                {
-                    jobVariables["delay"] = delay;
-                }
-
-                logger.LogInformation("Executing workflow '{workflow}' ad hoc.", workflowName);
-                await foreach (var _ in process.Start(workflow, jobVariables)) { }
+                logger.LogError(workflow.Info.Exception, "Canceling workflow '{workflow}' because it has flaws.", workflowName);
+                return;
             }
-            else
+
+            if (!workflow.Steps.Any(s => s.Enabled))
             {
-                logger.LogWarning("Skipping workflow '{workflow}' because it has no enabled steps.", workflowName);
+                logger.LogWarning("Canceling workflow '{workflow}' because it has no enabled steps.", workflowName);
+                return;
             }
+
+            var jobVariables = new VariableGroup("job")
+            {
+                ["name"] = workflowName,
+                ["mode"] = context.Trigger.JobDataMap.GetString("start"),
+            };
+
+            if (context.Trigger.JobDataMap.TryGetIntValue("arguments", out var delay))
+            {
+                jobVariables["delay"] = delay;
+            }
+
+            logger.LogInformation("Executing workflow '{workflow}' ad hoc.", workflowName);
+            await foreach (var _ in process.Start(workflow, jobVariables)) { }
         }
         else
         {

@@ -30,16 +30,23 @@ public class RegularWorkflowJob
 
         if (await directory.FindWorkflow(workflowName) is { } workflow)
         {
+            if (workflow.Info.Exception is not null)
+            {
+                logger.LogError(workflow.Info.Exception, "Unscheduling workflow '{workflow}' because it has flaws.", workflowName);
+                await scheduler.Delete(workflowName);
+                return;
+            }
+
             if (!workflow.Enabled)
             {
-                logger.LogWarning("Canceling workflow '{workflow}' because it is disabled.", workflowName);
+                logger.LogWarning("Unscheduling workflow '{workflow}' because it is disabled.", workflowName);
                 await scheduler.Delete(workflowName);
                 return;
             }
 
             if (!workflow.Steps.Any(s => s.Enabled))
             {
-                logger.LogWarning("Canceling workflow '{workflow}' because it has no enabled steps.", workflowName);
+                logger.LogWarning("Unscheduling workflow '{workflow}' because it has no enabled steps.", workflowName);
                 await scheduler.Delete(workflowName);
                 return;
             }
