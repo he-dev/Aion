@@ -8,6 +8,8 @@
         <IsPackable>false</IsPackable>
 
         <LangVersion>default</LangVersion>
+
+        <RootNamespace>AionApi.Tests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

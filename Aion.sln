@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26228.9
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AionApi", "AionApi\AionApi.csproj", "{EC210B79-71C5-4E49-80F8-5E65551EE298}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AionApi", "Aion\Aion.csproj", "{EC210B79-71C5-4E49-80F8-5E65551EE298}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AionApi.Tests", "AionApi.Tests\AionApi.Tests.csproj", "{1D3FCFFE-8A2B-41E4-84DD-7F2A8C9093CC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aion.Tests", "Aion.Tests\Aion.Tests.csproj", "{1D3FCFFE-8A2B-41E4-84DD-7F2A8C9093CC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AionApi.TestApp", "AionApi.TestApp\AionApi.TestApp.csproj", "{2EB39EC4-F4C4-4E32-BBCB-5561D3D8EF44}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aion.Npc", "Aion.Npc\Aion.Npc.csproj", "{2EB39EC4-F4C4-4E32-BBCB-5561D3D8EF44}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

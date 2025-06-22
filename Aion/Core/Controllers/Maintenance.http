@@ -1,0 +1,16 @@
+@host=http://localhost:5049
+@maintenance={{host}}/api/jobs/Maintenance
+
+### Fetch all pending tokens.
+GET {{maintenance}}
+Accept: application/yaml
+
+### POST fasdf
+POST {{maintenance}}/start
+Content-Type: application/json
+
+{
+    "filter": "one-step",
+    "delayMinutes": 3,
+    "skipTriggerCheck": true
+}
