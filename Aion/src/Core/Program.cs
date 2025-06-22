@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.CommandLine;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Jobs;
+using Aion.Core.Jobs;
+using Aion.Core.Utilities;
+using Aion.Core.Workflows;
 using Aion.Util;
 using Aion.Util.Yaml;
-using Aion.Utilities;
-using Aion.Workflows;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +18,7 @@ using NLog.Web;
 using Quartz;
 using Quartz.AspNetCore;
 
-namespace Aion;
+namespace Aion.Core;
 
 public class Program
 {

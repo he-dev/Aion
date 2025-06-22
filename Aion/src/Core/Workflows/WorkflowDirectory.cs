@@ -4,12 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Aion.Core.Utilities;
 using Aion.Util;
-using Aion.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Workflows;
+namespace Aion.Core.Workflows;
 
 public class WorkflowDirectory
 (

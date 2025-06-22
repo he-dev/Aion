@@ -2,11 +2,11 @@ using System;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Utilities;
-using Aion.Workflows;
+using Aion.Core.Utilities;
+using Aion.Core.Workflows;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Aion.Controllers;
+namespace Aion.Core.Controllers;
 
 [ApiController]
 [Route("api/jobs/[controller]")]

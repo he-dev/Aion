@@ -1,4 +1,4 @@
-namespace Aion.Workflows;
+namespace Aion.Core.Workflows;
 
 public record WorkflowEngineOptions
 {

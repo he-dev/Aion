@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Aion.Core.Utilities;
 using Aion.Util;
-using Aion.Utilities;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Workflows;
+namespace Aion.Core.Workflows;
 
 public class WorkflowProcess
 (

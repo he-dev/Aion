@@ -1,4 +1,4 @@
-namespace Aion.Jobs;
+namespace Aion.Core.Jobs;
 
 public record SynchronizationJobOptions
 {

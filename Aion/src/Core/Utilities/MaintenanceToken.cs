@@ -11,7 +11,7 @@ using Aion.Util;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Utilities;
+namespace Aion.Core.Utilities;
 
 public record MaintenanceTokenOptions
 {

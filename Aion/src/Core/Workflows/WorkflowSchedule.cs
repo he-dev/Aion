@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Impl.Matchers;
 
-namespace Aion.Workflows;
+namespace Aion.Core.Workflows;
 
 public class WorkflowSchedule
 (

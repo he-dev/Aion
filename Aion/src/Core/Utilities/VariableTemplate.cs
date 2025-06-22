@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Scriban;
 using Scriban.Runtime;
 
-namespace Aion.Utilities;
+namespace Aion.Core.Utilities;
 
 public static class ScriptObjectExtensions
 {

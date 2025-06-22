@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Threading.Tasks;
+using Aion.Core.Workflows;
 using Aion.Util.Quartz;
-using Aion.Workflows;
 using Microsoft.AspNetCore.Mvc;
 using Quartz;
 
-namespace Aion.Controllers;
+namespace Aion.Core.Controllers;
 
 [ApiController]
 [Route("api/jobs/[controller]")]

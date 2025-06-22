@@ -38,11 +38,16 @@
 
     <ItemGroup>
       <Compile Remove="Core\Utilities\LatestVersion.cs" />
+      <Compile Remove="src\Core\Utilities\LatestVersion.cs" />
     </ItemGroup>
 
     <ItemGroup>
       <_ContentIncludedByDefault Remove="workflows\offline\one-step.json" />
       <_ContentIncludedByDefault Remove="workflows\sub\qux.json" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="src\" />
     </ItemGroup>
 
 

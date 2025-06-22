@@ -30,4 +30,8 @@
       <ProjectReference Include="..\AionApi\AionApi.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="src\" />
+    </ItemGroup>
+
 </Project>

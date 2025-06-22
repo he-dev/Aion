@@ -1,10 +1,10 @@
 ﻿using System.Threading.Tasks;
-using Aion.Workflows;
+using Aion.Core.Workflows;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Jobs;
+namespace Aion.Core.Jobs;
 
 [UsedImplicitly]
 [DisallowConcurrentExecution]

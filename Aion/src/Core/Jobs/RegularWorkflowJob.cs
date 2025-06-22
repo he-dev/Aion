@@ -1,12 +1,11 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading.Tasks;
-using Aion.Utilities;
-using Aion.Workflows;
+using Aion.Core.Utilities;
+using Aion.Core.Workflows;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Jobs;
+namespace Aion.Core.Jobs;
 
 [DisallowConcurrentExecution]
 public class RegularWorkflowJob

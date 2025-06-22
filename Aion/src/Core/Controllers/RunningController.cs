@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Aion.Controllers;
+namespace Aion.Core.Controllers;
 
 [ApiController]
 [Route("api/jobs/[controller]")]

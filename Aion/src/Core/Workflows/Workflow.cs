@@ -9,7 +9,7 @@ using JetBrains.Annotations;
 using Quartz;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace Aion.Workflows;
+namespace Aion.Core.Workflows;
 
 [PublicAPI]
 public record Workflow
