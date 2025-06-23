@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Threading.Tasks;
+using Aion.Core.Jobs;
 using Aion.Core.Workflows;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +17,8 @@ public class PendingController
 (
     WorkflowDirectory workflowDirectory,
     WorkflowSchedule workflowSchedule,
-    WorkflowSchedule.Collection workflowSchedules
+    WorkflowSchedule.Collection workflowSchedules,
+    ISchedulerFactory schedulerFactory
 ) : ControllerBase
 {
     [HttpGet]
@@ -51,7 +53,7 @@ public class PendingController
             return Ok(new
             {
                 name,
-                next = await workflowSchedule.StartNow(workflow.Info.Path, workflow.Info.Name)
+                next = await workflowSchedule.StartNow(workflow)
             });
         }
 
@@ -66,7 +68,7 @@ public class PendingController
             return Ok(new
             {
                 name,
-                next = await workflowSchedule.StartLater(workflow.Info.Path, workflow.Info.Name, delaySeconds)
+                next = await workflowSchedule.StartLater(workflow, delaySeconds)
             });
         }
 
@@ -77,15 +79,12 @@ public class PendingController
     [HttpPost("sync")]
     public async Task<IActionResult> Synchronize()
     {
-        var results = new List<WorkflowSchedule.SynchronizationResult>();
-        await foreach (var workflow in workflowDirectory)
-        {
-            if (await workflowSchedule.Synchronize(workflow) is { } result)
-            {
-                results.Add(result);
-            }
-        }
+        var scheduler = await schedulerFactory.GetScheduler();
+        await scheduler.ScheduleJob(
+            SynchronizationJob.CreateJobDetail(),
+            TriggerBuilder.Create().StartNow().Build()
+        );
 
-        return Ok(results);
+        return Ok();
     }
 }

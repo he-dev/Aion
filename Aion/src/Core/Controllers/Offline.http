@@ -40,3 +40,7 @@ Accept: application/json
 ### Start a workflow.
 POST {{offline}}/has-no-steps/start
 Accept: application/json
+
+### Fails to start the workflow due to missing env-var.
+POST {{offline}}/invalid.env-var-missing/start
+Accept: application/json

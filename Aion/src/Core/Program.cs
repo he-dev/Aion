@@ -94,19 +94,22 @@ public class Program
         {
             if (commandLine.GetValueForOption(disableSyncOption) is false)
             {
+                // ?? Use the same job but with two triggers so they don't run at the same time.
+                var jobDetail = SynchronizationJob.CreateJobDetail();
+
                 try
                 {
                     q.ScheduleJob<SynchronizationJob>(trigger =>
                     {
                         trigger
-                            .WithIdentity("workflow-synchronization-cron", JobGroupNames.Services)
+                            .ForJob(jobDetail)
                             .WithCronSchedule(CronScheduleBuilder.CronSchedule(synchronizationJobOptions.Cron));
                     });
 
                     q.ScheduleJob<SynchronizationJob>(trigger =>
                     {
                         trigger
-                            .WithIdentity("workflow-synchronization-start-now", JobGroupNames.Services)
+                            .ForJob(jobDetail)
                             .StartNow();
                     });
                 }

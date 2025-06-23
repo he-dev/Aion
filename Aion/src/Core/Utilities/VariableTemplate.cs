@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Scriban;
+using Scriban.Parsing;
 using Scriban.Runtime;
+using Scriban.Syntax;
 
 namespace Aion.Core.Utilities;
 
@@ -24,12 +26,15 @@ public static class VariableTemplate
 {
     public static string Render(string template, IEnumerable<VariableGroup> variableGroups)
     {
-        var maxPasses = 3;
 
         var customFunctions = new ScriptObject();
-        customFunctions.Import("env", new Func<string, string>(name => Environment.ExpandEnvironmentVariables($"%{name}%")));
+        customFunctions.Import("env", EnvironmentVariables.Get);
 
-        var customContext = new TemplateContext();
+        var customContext = new TemplateContext
+        {
+            // !! Make sure no missing variable goes unnoticed.
+            StrictVariables = true
+        };
         customContext.PushGlobal(customFunctions);
         foreach (var variableGroup in variableGroups)
         {
@@ -39,6 +44,8 @@ public static class VariableTemplate
         var current = template;
         var previous = string.Empty;
         var passes = 0;
+
+        var maxPasses = 3;
 
         // !! Ensure we also render nested variables but don't fall into an infinite loop.
         while (current != previous && passes < maxPasses)
@@ -55,5 +62,18 @@ public static class VariableTemplate
         }
 
         return current;
+    }
+}
+
+public static class EnvironmentVariables
+{
+    public static string Get(TemplateContext context, SourceSpan span, string name)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        if (string.IsNullOrEmpty(value))
+        {
+            throw new ScriptRuntimeException(span, $"Environment variable '{name}' not defined.");
+        }
+        return value;
     }
 }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Aion.Util;
 using JetBrains.Annotations;
 using Quartz;
 using YamlDotNet.Serialization.NamingConventions;
@@ -24,87 +25,96 @@ public record Workflow
     public Dictionary<string, object?> Variables { get; init; } = new();
 
     // .. Workflows without steps don't make sense, so make it a required field.
-    public List<Step> Steps { get; init; } = [];
+    public required List<Step> Steps { get; init; } = [];
 
-    // .. The name will be set after loading the config.
-    //[JsonIgnore]
-    //public string Path { get; init; } = Guid.NewGuid().ToString();
+    #region Meta
 
-    // .. The name will be set after loading the config.
-    //[JsonIgnore]
-    //public string Name { get; init; } = Guid.NewGuid().ToString();
+    // .. A couple of extra fields that are being set after the workflow has been loaded.
 
     [JsonIgnore]
-    public Meta Info { get; init; } = null!;
+    public string Root { get; init; } = string.Empty;
 
     [JsonIgnore]
-    public JobKey JobKey => new(Info.Name, JobGroupNames.Workflows);
+    public string Path { get; init; } = string.Empty;
 
-    public static implicit operator bool(Workflow workflow)
+    [JsonIgnore]
+    public string Name
     {
-        return workflow.Enabled && workflow.Steps.Any(s => s.Enabled) && workflow.Info.Exception is not null;
+        // .. I don't know how to make it lazy, cached, or calculated only once without dirty tricks.
+        get
+        {
+            // !! Use the names that remain after dropping the root as the name.
+            var name = Path[(Root.Length + 1)..].Replace('\\', '.');
+            return name[..^System.IO.Path.GetExtension(Path).Length];
+        }
     }
+
+    [JsonIgnore]
+    public JobKey JobKey => new(Name, JobGroupNames.Workflows);
 
     // !! Catch this property as it might throw when the Cron property is invalid.
     [JsonIgnore]
     public ICronTrigger Trigger =>
         (ICronTrigger)TriggerBuilder
             .Create()
-            .WithIdentity(Info.Name, JobGroupNames.Workflows)
+            .WithIdentity(Name, JobGroupNames.Workflows)
+            .UsingJobData(nameof(Root), Root)
+            .UsingJobData(nameof(Path), Path)
             .WithCronSchedule(Cron)
             .Build();
+
+    #endregion
+
 
     // !! We need to ensure workflows are unique since we can load them both from JSON, or YAML.
     public virtual bool Equals(Workflow? other)
     {
-        return other is not null && StringComparer.OrdinalIgnoreCase.Equals(Info.Name, other.Info.Name);
+        return other is not null && StringComparer.OrdinalIgnoreCase.Equals(Name, other.Name);
     }
 
     public override int GetHashCode()
     {
-        return StringComparer.OrdinalIgnoreCase.GetHashCode(Info.Name);
+        return StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
     }
 
-    public static async Task<Workflow> FromFile(string path, string root)
+    public static async Task<Either<Workflow, Issue>> FromFile(string path, string root)
     {
-        // !! Do not handle exception here because there is no logger. Let the caller deal with them.
-
-        if (!File.Exists(path))
+        try
         {
-            throw new FileNotFoundException($"Workflow '{path}' not found.", fileName: path);
-        }
+            if (!File.Exists(path))
+            {
+                throw new FileNotFoundException($"Workflow '{path}' not found.", fileName: path);
+            }
 
-        var workflow = Path.GetExtension(path).ToLower() switch
-        {
-            ".json" => await FromJson(path),
-            ".yaml" => await FromYaml(path),
-            _ => throw new InvalidOperationException($"Unknown file extension: {path}")
-        } ?? throw new InvalidOperationException($"Error loading workflow '{path}'.");
+            var workflow = System.IO.Path.GetExtension(path).ToLower() switch
+            {
+                ".json" => await FromJson(path),
+                ".yaml" => await FromYaml(path),
+                _ => throw new InvalidOperationException($"Unknown file extension: {path}")
+            } ?? throw new WorkflowException($"Workflow '{path}' is null.");
 
-        workflow = workflow with
-        {
-            Info = new Meta
+            workflow = workflow with
             {
                 Root = root,
-                Path = path
-            },
-            Steps = workflow.Steps.Select((step, index) => step with { Index = index }).ToList()
-        };
+                Path = path,
+                Steps = workflow.Steps.Select((step, index) => step with { Index = index }).ToList()
+            };
 
-        // .. Now, initialize properties that require the Info property to exist.
-        return workflow with
+            // .. This might throw when the Cron property is invalid.
+            _ = workflow.Trigger;
+
+            return new Either<Workflow, Issue>.InL(workflow);
+        }
+        catch (Exception ex)
         {
-            Info = workflow.Info with
+            var issue = new Issue
             {
-                // ?? Create the trigger eagerly so that cron expression exceptions can be thrown early.
-                Trigger =
-                TriggerBuilder
-                    .Create()
-                    .WithIdentity(workflow.Info.Name, JobGroupNames.Workflows)
-                    .WithCronSchedule(workflow.Cron)
-                    .Build() as ICronTrigger
-            }
-        };
+                Path = path,
+                Exception = ex
+            };
+
+            return new Either<Workflow, Issue>.InR(issue);
+        }
     }
 
     public static async Task<Workflow?> FromJson(string path)
@@ -151,9 +161,9 @@ public record Workflow
         public string? DependsOn { get; init; }
 
         // !! We need to ensure steps are unique.
-        public virtual bool Equals(Workflow? other)
+        public virtual bool Equals(Step? other)
         {
-            return other is not null && StringComparer.OrdinalIgnoreCase.Equals(Name, other.Info.Name);
+            return other is not null && StringComparer.OrdinalIgnoreCase.Equals(Name, other.Name);
         }
 
         public override int GetHashCode()
@@ -164,28 +174,16 @@ public record Workflow
         public static implicit operator bool(Step step) => step.Enabled;
     }
 
-    public record Meta
+    public record Issue
     {
-        public required string Root { get; init; }
         public required string Path { get; init; }
 
-        public string Name
-        {
-            get
-            {
-                // !! Use the names that remain after dropping the root as the name.
-                var name = Path[(Root.Length + 1)..].Replace('\\', '.');
-                return name[..^System.IO.Path.GetExtension(Path).Length];
-            }
-        }
-
-        public Exception? Exception { get; init; }
-
-        public JobKey JobKey => new(Name, JobGroupNames.Workflows);
-
-        public ICronTrigger? Trigger { get; init; }
+        public required Exception Exception { get; init; }
     }
 }
+
+public class WorkflowException(string message) : Exception(message);
+
 
 // public class WorkflowBinder : IModelBinder
 // {

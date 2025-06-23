@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Aion.Core.Workflows;
+using Aion.Util;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -18,9 +19,15 @@ internal class SynchronizationJob
     public async Task Execute(IJobExecutionContext context)
     {
         logger.LogInformation("Synchronizing workflows.");
-        await foreach (var workflow in directory)
+        await foreach (var workflow in directory.InLsAsync())
         {
             await scheduler.Synchronize(workflow);
         }
     }
+
+    public static IJobDetail CreateJobDetail() =>
+        JobBuilder
+            .Create<SynchronizationJob>()
+            .WithIdentity("workflow-synchronization", JobGroupNames.Services)
+            .Build();
 }

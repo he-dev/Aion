@@ -22,3 +22,20 @@ public static class TriggerExtensions
         }
     }
 }
+
+public static class JobDataMapExtensions
+{
+    public static T Get<T>(this JobDataMap data, string key)
+    {
+        if (data.TryGetValue(key, out var value))
+        {
+            if (value is null)
+            {
+                throw new NullReferenceException($"Key {key} has a null value.");
+            }
+            return (T)value;
+        }
+
+        throw new KeyNotFoundException($"Key '{key}' not found in JobDataMap");
+    }
+}

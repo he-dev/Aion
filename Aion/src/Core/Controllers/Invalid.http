@@ -1,0 +1,6 @@
+@host=http://localhost:5049
+@invalid={{host}}/api/jobs/Invalid
+
+### Fetch all offline workflows as yaml.
+GET {{invalid}}/issues
+Accept: application/json

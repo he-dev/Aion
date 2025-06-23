@@ -3,6 +3,7 @@ using System.IO.Enumeration;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Workflows;
+using Aion.Util;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -24,19 +25,18 @@ public class OfflineController
         var utcNow = DateTimeOffset.UtcNow;
 
         var results =
-            await workflowDirectory
+            await workflowDirectory.InLsAsync()
                 .Where(workflow => !workflow.Enabled) // !! Get only disabled workflows here.
-                .Where(workflow => filter is null || FileSystemName.MatchesSimpleExpression(filter, workflow.Info.Name))
-                .SelectAwait(workflow => ValueTask.FromResult(new
+                .Where(workflow => filter is null || FileSystemName.MatchesSimpleExpression(filter, workflow.Name))
+                .Select(workflow => new
                 {
-                    path = workflow.Info.Path,
-                    name = workflow.Info.Name,
+                    path = workflow.Path,
+                    name = workflow.Name,
                     isOn = workflow.Enabled,
                     cron = workflow.Cron,
-                    next = workflow.Info.Exception is not null ? [] : workflow.Trigger.FiresAt(utcNow).Take(3),
-                    jobs = workflow.Steps.Count(s => s.Enabled),
-                    flaw = workflow.Info.Exception?.ToString()
-                }))
+                    next = workflow.Trigger.FiresAt(utcNow).Take(3),
+                    jobs = workflow.Steps.Count(s => s.Enabled)
+                })
                 .OrderBy(item => item.next.FirstOrDefault())
                 .ThenBy(item => item.name)
                 .ToListAsync();
@@ -62,8 +62,8 @@ public class OfflineController
 
             var next =
                 delay <= 0
-                    ? await workflowSchedule.StartNow(workflow.Info.Path, name)
-                    : await workflowSchedule.StartLater(workflow.Info.Path, name, delay);
+                    ? await workflowSchedule.StartNow(workflow)
+                    : await workflowSchedule.StartLater(workflow, delay);
 
             return Ok(new { name, next });
         }
