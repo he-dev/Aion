@@ -1,14 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-using Aion.Util;
 using JetBrains.Annotations;
 using Quartz;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace Aion.Core.Workflows;
 
@@ -65,7 +59,6 @@ public record Workflow
 
     #endregion
 
-
     // !! We need to ensure workflows are unique since we can load them both from JSON, or YAML.
     public virtual bool Equals(Workflow? other)
     {
@@ -75,63 +68,6 @@ public record Workflow
     public override int GetHashCode()
     {
         return StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
-    }
-
-    public static async Task<Either<Workflow, Issue>> FromFile(string path, string root)
-    {
-        try
-        {
-            if (!File.Exists(path))
-            {
-                throw new FileNotFoundException($"Workflow '{path}' not found.", fileName: path);
-            }
-
-            var workflow = System.IO.Path.GetExtension(path).ToLower() switch
-            {
-                ".json" => await FromJson(path),
-                ".yaml" => await FromYaml(path),
-                _ => throw new InvalidOperationException($"Unknown file extension: {path}")
-            } ?? throw new WorkflowException($"Workflow '{path}' is null.");
-
-            workflow = workflow with
-            {
-                Root = root,
-                Path = path,
-                Steps = workflow.Steps.Select((step, index) => step with { Index = index }).ToList()
-            };
-
-            // .. This might throw when the Cron property is invalid.
-            _ = workflow.Trigger;
-
-            return new Either<Workflow, Issue>.InL(workflow);
-        }
-        catch (Exception ex)
-        {
-            var issue = new Issue
-            {
-                Path = path,
-                Exception = ex
-            };
-
-            return new Either<Workflow, Issue>.InR(issue);
-        }
-    }
-
-    public static async Task<Workflow?> FromJson(string path)
-    {
-        await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return await JsonSerializer.DeserializeAsync<Workflow>(fileStream);
-    }
-
-    public static async Task<Workflow?> FromYaml(string path)
-    {
-        var yamlDeserializer = new YamlDotNet.Serialization.DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .Build();
-
-        await using var yamlFileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        using var yamlStreamReader = new StreamReader(yamlFileStream);
-        return yamlDeserializer.Deserialize<Workflow>(yamlStreamReader);
     }
 
     [PublicAPI]
@@ -181,8 +117,6 @@ public record Workflow
         public required Exception Exception { get; init; }
     }
 }
-
-public class WorkflowException(string message) : Exception(message);
 
 
 // public class WorkflowBinder : IModelBinder

@@ -12,12 +12,13 @@ namespace Aion.Core.Workflows;
 
 public class WorkflowDirectory
 (
-    IOptions<WorkflowEngineOptions> options
-) : IAsyncEnumerable<Either<Workflow, Workflow.Issue>>
+    IOptions<WorkflowEngineOptions> options,
+    WorkflowFile workflowFile
+) : IAsyncEnumerable<Result<Workflow, Workflow.Issue>>
 {
     private IDirectoryTree DirectoryTree { get; } = new DirectoryTree(VariableTemplate.Render(options.Value.WorkflowDirectory, []));
 
-    public async IAsyncEnumerator<Either<Workflow, Workflow.Issue>> GetAsyncEnumerator(CancellationToken cancellationToken = new())
+    public async IAsyncEnumerator<Result<Workflow, Workflow.Issue>> GetAsyncEnumerator(CancellationToken cancellationToken = new())
     {
         var paths =
             from branch in DirectoryTree
@@ -28,20 +29,20 @@ public class WorkflowDirectory
 
         foreach (var path in paths)
         {
-            yield return await Workflow.FromFile(path, DirectoryTree.Path);
+            yield return await workflowFile.Load(path, DirectoryTree.Path);
         }
     }
 }
 
 public static class WorkflowDirectoryExtensions
 {
-    public static async Task<Workflow?> FindWorkflow(this WorkflowDirectory workflows, string name)
+    public static async Task<Workflow?> Find(this WorkflowDirectory workflows, string name)
     {
         await foreach (var either in workflows)
         {
             switch (either)
             {
-                case Either<Workflow, Workflow.Issue>.InL { Value: var workflow } when workflow.Name.Equals(name, StringComparison.OrdinalIgnoreCase):
+                case Result<Workflow, Workflow.Issue>.Success { Value: var workflow } when workflow.Name.Equals(name, StringComparison.OrdinalIgnoreCase):
                     return workflow;
             }
         }

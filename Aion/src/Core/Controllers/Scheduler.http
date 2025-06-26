@@ -1,0 +1,11 @@
+@host=http://localhost:5049
+@scheduler={{host}}/api/scheduler
+
+
+### Fetch scheduled jobs; 200 OK
+GET {{scheduler}}/jobs?q={filter}&orderBy=next&orderBy=name
+
+### Fetch running jobs; 200 OK
+GET {{scheduler}}/jobs?status=running&status=pending&type=regular&type=adHoc
+
+

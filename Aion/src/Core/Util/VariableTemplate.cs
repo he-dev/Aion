@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Scriban;
 using Scriban.Parsing;
 using Scriban.Runtime;
@@ -7,33 +9,39 @@ using Scriban.Syntax;
 
 namespace Aion.Core.Utilities;
 
-public static class ScriptObjectExtensions
-{
-    public static IScriptObject ImportDictionary(this IScriptObject target, IDictionary<string, object?> source)
-    {
-        target.Import(source);
-        return target;
-    }
-}
+// https://github.com/scriban/scriban/tree/master/doc
 
-public class VariableGroup(string name, IDictionary<string, object?>? values = null)
-    : Dictionary<string, object?>(values ?? new Dictionary<string, object?>())
+// !! Make code for creating variable groups reusable.
+public abstract class VariableGroup(string name) : IEnumerable<KeyValuePair<string, object?>>
 {
-    public ScriptObject ToScriptObject() => new() { [name] = new ScriptObject().ImportDictionary(this) };
+    private static IEqualityComparer<string> Comparer => StringComparer.OrdinalIgnoreCase;
+
+    public ScriptObject ToScriptObject()
+    {
+        var members = new ScriptObject(Comparer);
+        members.Import(this.ToDictionary(Comparer));
+        return new ScriptObject(Comparer) { [name] = members };
+    }
+
+    public abstract IEnumerator<KeyValuePair<string, object?>> GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
 }
 
 public static class VariableTemplate
 {
     public static string Render(string template, IEnumerable<VariableGroup> variableGroups)
     {
-
-        var customFunctions = new ScriptObject();
+        var customFunctions = new ScriptObject(StringComparer.OrdinalIgnoreCase);
         customFunctions.Import("env", EnvironmentVariables.Get);
 
         var customContext = new TemplateContext
         {
             // !! Make sure no missing variable goes unnoticed.
-            StrictVariables = true
+            StrictVariables = true,
         };
         customContext.PushGlobal(customFunctions);
         foreach (var variableGroup in variableGroups)
@@ -67,6 +75,8 @@ public static class VariableTemplate
 
 public static class EnvironmentVariables
 {
+    // !! The template engine should throw an exception when the variable is missing, or empty.
+    // ?? Custom function lets us do that.
     public static string Get(TemplateContext context, SourceSpan span, string name)
     {
         var value = Environment.GetEnvironmentVariable(name);
@@ -74,6 +84,7 @@ public static class EnvironmentVariables
         {
             throw new ScriptRuntimeException(span, $"Environment variable '{name}' not defined.");
         }
+
         return value;
     }
 }

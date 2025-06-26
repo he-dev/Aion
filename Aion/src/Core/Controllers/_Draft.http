@@ -1,12 +1,11 @@
 @host=http://localhost:5049
-@maintenance={{host}}/api/jobs/Maintenance
-
+@offline={{host}}/api/jobs/Offline
 
 ### Fetch all active maintenance tokens; 200 OK
-GET {{maintenance}}?q={filter}&orderBy=createdOn&orderBy=expiresIn
+GET /api/maintenance?q={filter}&orderBy=createdOn&orderBy=expiresIn
 
 ### Start maintenance relative from now; 201 Created or an error when period in the past; include location header pointing to the new location
-POST {{maintenance}}/{name}:startIn
+POST /api/maintenance/{name}:startIn
 Content-Type: application/json
 
 {
@@ -16,7 +15,7 @@ Content-Type: application/json
 }
 
 ### Start maintenance at the specified time.
-POST {{maintenance}}/{name}:startAt
+POST /api/maintenance/{name}:startAt
 Content-Type: application/json
 
 {
@@ -26,5 +25,5 @@ Content-Type: application/json
 }
 
 ### End maintenance before it expires; 204 No Content
-DELETE {{maintenance}}/{name}
+DELETE /api/maintenance/{name}
 Content-Type: application/json

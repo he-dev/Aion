@@ -1,0 +1,38 @@
+@host=http://localhost:5049
+@workflows={{host}}/api/workflows
+
+### Fetch all workflows or by filter and/or other parameters.
+GET {{workflows}}/api/workflows?q={filter}&enabled={enabled}
+
+### Fetch all workflows or by filter and/or other parameters.
+GET {{workflows}}/_routes
+
+### Synchronize workflows with the scheduler.
+POST {{workflows}}:sync
+
+### Start a workflow now only once; 202 Accepted
+POST {{workflows}}/says-hallo:startNow
+
+### Start a workflow with a delay once; 202 Accepted
+POST {{workflows}}/says-hallo:startIn
+Content-Type: application/json
+
+{
+    "wait": "00:00:05"
+}
+
+### Start a workflow at the specified time; 202 Accepted
+POST {{workflows}}/says-hallo:startAt
+Content-Type: application/json
+
+{
+    "when": "2026-07-01T22:00Z"
+}
+
+### Start a workflow at the specified time; 400 Bad Request because in the past.
+POST {{workflows}}/says-hallo-2:startAt
+Content-Type: application/json
+
+{
+    "when": "2020-07-01T22:00Z"
+}

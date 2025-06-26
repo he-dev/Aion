@@ -9,6 +9,8 @@ using Quartz.Impl.Matchers;
 
 namespace Aion.Core.Workflows;
 
+// https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
+
 public class WorkflowSchedule
 (
     ILogger<WorkflowSchedule> logger,
@@ -110,7 +112,7 @@ public class WorkflowSchedule
         return await scheduler.ScheduleJob(job, trigger);
     }
 
-    public async Task<DateTimeOffset> StartLater(Workflow workflow, int delaySeconds)
+    public async Task<DateTimeOffset> StartAt(Workflow workflow, DateTimeOffset startAt)
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -122,18 +124,16 @@ public class WorkflowSchedule
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
 
-        var runTime = DateBuilder.FutureDate(delaySeconds, IntervalUnit.Second);
         var trigger =
             TriggerBuilder
                 .Create()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
-                .StartAt(runTime)
+                .StartAt(startAt)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
-                .UsingJobData("start", "later")
-                .UsingJobData("delay", delaySeconds)
+                .UsingJobData("start", "at")
                 .Build();
 
-        logger.LogDebug("Workflow '{name}' will be started in {delay} seconds.'", workflow.Name, delaySeconds);
+        //logger.LogDebug("Workflow '{name}' will be started in {delay} seconds.'", workflow.Name, startAt);
         return await scheduler.ScheduleJob(job, trigger);
     }
 

@@ -1,14 +1,15 @@
 using System;
-using System.Collections.Generic;
 using System.CommandLine;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Jobs;
+using Aion.Core.Util.Mvc;
 using Aion.Core.Utilities;
 using Aion.Core.Workflows;
 using Aion.Util;
 using Aion.Util.Yaml;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -56,6 +57,7 @@ public class Program
         {
             options.InputFormatters.Insert(0, new YamlInputFormatter());
             options.OutputFormatters.Insert(0, new YamlOutputFormatter());
+            //options.Conventions.Add(new ColonRouteConvention());
         });
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -81,14 +83,18 @@ public class Program
         builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
         builder.Services.AddSingleton<WorkflowSchedule>();
         builder.Services.AddSingleton<WorkflowSchedule.Collection>();
-        builder.Services.AddSingleton<WorkflowProcess>();
+        builder.Services.AddSingleton<WorkflowExecution>();
         builder.Services.AddSingleton<IAsyncProcess, AsyncProcess>();
         builder.Services.AddSingleton<WorkflowDirectory>();
+        builder.Services.AddSingleton<WorkflowFile>();
         builder.Services.AddSingleton<MaintenanceToken>();
 
         builder.Services.AddScoped<RegularWorkflowJob>();
         builder.Services.AddScoped<AdHocWorkflowJob>();
         builder.Services.AddScoped<SynchronizationJob>();
+
+        builder.Services.AddScoped<EnsureWorkflowExistsAttribute>();
+        builder.Services.AddScoped<EnsureWorkflowNotEmptyAttribute>();
 
         builder.Services.AddQuartz(q =>
         {
@@ -144,6 +150,16 @@ public class Program
         app.UseHttpsRedirection();
         app.UseAuthorization();
         // app.UseWiretap(); // todo: setup later
+        // app.UseRouting();
+        // app.UseEndpoints(endpoints =>
+        // {
+        //     // matches POST /api/Workflows:sync → WorkflowsController.Sync()
+        //     endpoints.MapControllerRoute(
+        //         name: "colonSync",
+        //         pattern: "api/{controller}:{action}");
+        //     // then fallback to your normal attribute-routed controllers
+        //     //endpoints.MapControllers();
+        // });
         app.MapControllers();
 
         logger.LogDebug("Everything initialized. Starting up...");
@@ -157,23 +173,44 @@ public class Program
     }
 }
 
+public class ColonRouteConvention : IApplicationModelConvention
+{
+    public void Apply(ApplicationModel application)
+    {
+        foreach (var controller in application.Controllers)
+        {
+            // find the [Route("api/[controller]")] template
+            var controllerRoute =
+                controller
+                    .Selectors
+                    .Select(s => s.AttributeRouteModel)
+                    .FirstOrDefault(m => m != null && !m.Template!.Contains("{"))?
+                    .Template;
+
+            if (controllerRoute == null)
+                continue;
+
+            foreach (var action in controller.Actions)
+            {
+                foreach (var selector in action.Selectors)
+                {
+                    var arm = selector.AttributeRouteModel;
+                    if (arm != null && arm.Template!.Contains(":"))
+                    {
+                        // splice it on without the slash
+                        // e.g. "api/workflows" + ":sync" => "api/workflows:sync"
+                        //arm.Template = controllerRoute + arm.Template;
+                    }
+                }
+            }
+        }
+    }
+}
+
 internal static class JobGroupNames
 {
     public const string Workflows = nameof(Workflows);
     public const string Services = nameof(Services);
-}
-
-internal static class Extensions
-{
-    public static IEnumerable<DateTimeOffset> ToLocalTime(this IEnumerable<DateTimeOffset> source, bool convert)
-    {
-        return source.Select(x => convert ? x.ToLocalTime() : x);
-    }
-
-    public static IAsyncEnumerable<DateTimeOffset> ToLocalTime(this IAsyncEnumerable<DateTimeOffset> source, bool convert)
-    {
-        return source.Select(x => convert ? x.ToLocalTime() : x);
-    }
 }
 
 public record QuartzServerOptions

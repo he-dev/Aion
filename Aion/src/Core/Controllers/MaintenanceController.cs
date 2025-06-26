@@ -1,23 +1,26 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Utilities;
 using Aion.Core.Workflows;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace Aion.Core.Controllers;
 
 [ApiController]
 [Route("api/jobs/[controller]")]
-public class MaintenanceController
-(
-    WorkflowSchedule.Collection workflowSchedules,
-    MaintenanceToken maintenanceToken
-) : ControllerBase
+public class MaintenanceController(ILogger<MaintenanceController> logger) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Get()
+    public async Task<IActionResult> Get
+    (
+        [FromServices] WorkflowSchedule.Collection workflowSchedules,
+        [FromServices] MaintenanceToken maintenanceToken
+    )
     {
         // !! Get not only pending triggers, but also jobs they match.
         var pending = await maintenanceToken.Pending();
@@ -34,7 +37,12 @@ public class MaintenanceController
     }
 
     [HttpPost("start")]
-    public async Task<IActionResult> Start([FromBody] MaintenanceTokenBody tokenCookie)
+    public async Task<IActionResult> Start
+    (
+        [FromServices] WorkflowSchedule.Collection workflowSchedules,
+        [FromServices] MaintenanceToken maintenanceToken,
+        [FromBody] MaintenanceTokenBody tokenCookie
+    )
     {
         if (!tokenCookie.SkipTriggerCheck)
         {
@@ -66,6 +74,41 @@ public class MaintenanceController
         public bool Matches(string value)
         {
             return Filter is null || FileSystemName.MatchesSimpleExpression(Filter, value);
+        }
+    }
+
+    public record StartInBody : IValidatableObject
+    {
+        public TimeSpan Wait { get; init; }
+
+        public TimeSpan Duration { get; init; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if(Duration == TimeSpan.Zero)
+            {
+                yield return new ValidationResult("Maintenance must take some time.", [nameof(Duration)]);
+            }
+        }
+    }
+
+    public record StartAtBody : IValidatableObject
+    {
+        public DateTimeOffset From { get; init; }
+
+        public DateTimeOffset To { get; init; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (From < DateTimeOffset.UtcNow)
+            {
+                yield return new ValidationResult($"Maintenance must start in the future.", [nameof(From)]);
+            }
+
+            if (To < From)
+            {
+                yield return new ValidationResult($"Maintenance period must be positive.", [nameof(From), nameof(To)]);
+            }
         }
     }
 }

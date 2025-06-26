@@ -19,9 +19,17 @@ internal class SynchronizationJob
     public async Task Execute(IJobExecutionContext context)
     {
         logger.LogInformation("Synchronizing workflows.");
-        await foreach (var workflow in directory.InLsAsync())
+        await foreach (var result in directory)
         {
-            await scheduler.Synchronize(workflow);
+            switch (result)
+            {
+                case Result<Workflow, Workflow.Issue>.Success { Value: var workflow }:
+                    await scheduler.Synchronize(workflow);
+                    break;
+                case Result<Workflow, Workflow.Issue>.Failure { Value: var workflowIssue }:
+                    // !! Just ignore them.
+                    break;
+            }
         }
     }
 
