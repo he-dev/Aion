@@ -1,6 +1,6 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Utilities;
+using Aion.Core.Util;
 using Aion.Core.Workflows;
 using Aion.Util;
 using Microsoft.Extensions.Logging;

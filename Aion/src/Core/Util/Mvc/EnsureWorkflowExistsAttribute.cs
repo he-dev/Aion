@@ -30,16 +30,18 @@ public class EnsureWorkflowExistsAttribute
                     .Parameters
                     .FirstOrDefault(p => p.ParameterType == typeof(Workflow));
 
-            if (workflowParam is null)
+            if (workflowParam is not null)
+            {
+                // ?? Inject workflow into action arguments.
+                context.ActionArguments[workflowParam.Name] = workflow;
+                await next();
+            }
+            else
             {
                 var controllerName = context.ActionDescriptor.RouteValues["controller"];
                 var actionName = context.ActionDescriptor.RouteValues["action"];
-                throw new InvalidOperationException($"Action '{controllerName}.{actionName}' requires a parameter of type {nameof(Workflow)}.");
+                //throw new InvalidOperationException($"Action '{controllerName}.{actionName}' requires a parameter of type {nameof(Workflow)}.");
             }
-
-            // ?? Inject workflow into action arguments.
-            context.ActionArguments[workflowParam.Name] = workflow;
-            await next();
         }
         else
         {

@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Aion.Core.Utilities;
+using Aion.Core.Util;
 using Aion.Util;
 using Microsoft.Extensions.Options;
 

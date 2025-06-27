@@ -7,7 +7,7 @@ using Scriban.Parsing;
 using Scriban.Runtime;
 using Scriban.Syntax;
 
-namespace Aion.Core.Utilities;
+namespace Aion.Core.Util;
 
 // https://github.com/scriban/scriban/tree/master/doc
 

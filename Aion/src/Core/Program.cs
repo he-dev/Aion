@@ -3,8 +3,8 @@ using System.CommandLine;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Jobs;
+using Aion.Core.Util;
 using Aion.Core.Util.Mvc;
-using Aion.Core.Utilities;
 using Aion.Core.Workflows;
 using Aion.Util;
 using Aion.Util.Yaml;
@@ -95,6 +95,7 @@ public class Program
 
         builder.Services.AddScoped<EnsureWorkflowExistsAttribute>();
         builder.Services.AddScoped<EnsureWorkflowNotEmptyAttribute>();
+        builder.Services.AddScoped<WorkflowMatcherAttribute>();
 
         builder.Services.AddQuartz(q =>
         {
@@ -217,3 +218,4 @@ public record QuartzServerOptions
 {
     public int StartDelaySeconds { get; init; }
 }
+

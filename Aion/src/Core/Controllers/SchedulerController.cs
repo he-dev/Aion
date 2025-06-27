@@ -1,8 +1,7 @@
 using System;
-using System.IO.Enumeration;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Jobs;
+using Aion.Core.Util;
 using Aion.Core.Workflows;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
@@ -12,55 +11,58 @@ using Quartz;
 namespace Aion.Core.Controllers;
 
 [ApiController]
-[Route("api/jobs/[controller]")]
+[Route("api")]
 public class SchedulerController(ILogger<SchedulerController> logger) : ControllerBase
 {
-    [HttpGet]
+    [HttpGet("[controller]/jobs")]
+    [ServiceFilter<WorkflowMatcherAttribute>]
     public async Task<IActionResult> Get
     (
-        [FromServices] WorkflowDirectory workflowDirectory,
-        [FromServices] WorkflowSchedule workflowSchedule,
         [FromServices] WorkflowSchedule.Collection workflowSchedules,
-        [FromQuery(Name = "q")] string? filter
+        WorkflowMatcher matcher,
+        [FromQuery(Name = "q")] string? filter = null,
+        [FromQuery] OrderBy orderBy = OrderBy.Next,
+        [FromQuery] Status status = Status.Pending
     )
     {
         var utcNow = DateTimeOffset.UtcNow;
 
-        var results =
-            await workflowSchedules
-                .Where(trigger => filter is null || FileSystemName.MatchesSimpleExpression(filter, trigger.JobKey.Name))
+        var query =
+            workflowSchedules
+                .Where(trigger => matcher.Matches(trigger.JobKey.Name))
                 .Select(trigger => new
                 {
                     name = trigger.JobKey.Name,
+                    path = trigger.JobDataMap.GetString(nameof(Workflow.Path))!,
                     cron = ((ICronTrigger)trigger).CronExpressionString,
                     next = ((ICronTrigger)trigger).FiresAt(utcNow).Take(3)
-                })
-                .OrderBy(next => next.next.FirstOrDefault())
-                .ThenBy(item => item.name)
-                .ToListAsync();
+                });
 
-        return
-            results.Any()
-                ? Ok(results)
-                : NotFound(new { filter });
+        query = orderBy switch
+        {
+            OrderBy.Name => query.OrderBy(item => item.name),
+            OrderBy.Path => query.OrderBy(item => item.path),
+            OrderBy.Cron => query.OrderBy(item => item.cron),
+            OrderBy.Next => query.OrderBy(item => item.next.FirstOrDefault()),
+            _ => query,
+        };
+
+        var result = await query.ToListAsync(); // ?? For easier debugging.
+        logger.LogDebug("Found {count} jobs.", result.Count);
+        return Ok(result);
     }
 
+    public enum OrderBy
+    {
+        Name,
+        Path,
+        Cron,
+        Next
+    }
 
-    // [HttpPost("{name}/start/{delaySeconds:int?}")]
-    // public async Task<IActionResult> Start(string name, int delaySeconds = 0)
-    // {
-    //     if (await workflowDirectory.Find(name) is { } workflow)
-    //     {
-    //         var next =
-    //             delaySeconds <= 0
-    //                 ? await workflowSchedule.StartNow(workflow)
-    //                 : await workflowSchedule.StartLater(workflow, delaySeconds);
-    //
-    //         return Ok(new { name, next });
-    //     }
-    //
-    //     logger.LogDebug("Workflow '{name}' not found.", name);
-    //
-    //     return NotFound(new { name });
-    // }
+    public enum Status
+    {
+        Pending,
+        Running,
+    }
 }

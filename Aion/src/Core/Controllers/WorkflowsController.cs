@@ -16,10 +16,13 @@ using Quartz;
 namespace Aion.Core.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class WorkflowsController(ILogger<WorkflowsController> logger) : ControllerBase
+[Route("api")]
+public class WorkflowsController
+(
+    ILogger<WorkflowsController> logger
+) : ControllerBase
 {
-    [HttpGet]
+    [HttpGet("[controller]")]
     public async Task<IActionResult> Get
     (
         [FromServices] WorkflowDirectory workflowDirectory,
@@ -63,7 +66,7 @@ public class WorkflowsController(ILogger<WorkflowsController> logger) : Controll
     }
 
     // !! The API needs to be able to synchronize workflows outside its regular schedule.
-    [HttpPost("/api/[controller]:sync")]
+    [HttpPost("[controller]:sync")]
     public async Task<IActionResult> Synchronize
     (
         [FromServices] ISchedulerFactory schedulerFactory
@@ -78,7 +81,7 @@ public class WorkflowsController(ILogger<WorkflowsController> logger) : Controll
         return Ok();
     }
 
-    [HttpPost("/api/[controller]/{name}:startNow")]
+    [HttpPost("[controller]/{name}:startNow")]
     [ServiceFilter<EnsureWorkflowExistsAttribute>]
     [ServiceFilter<EnsureWorkflowNotEmptyAttribute>]
     public async Task<IActionResult> StartNow
@@ -92,69 +95,34 @@ public class WorkflowsController(ILogger<WorkflowsController> logger) : Controll
         return Ok(new { name, next });
     }
 
-    [HttpPost("/api/[controller]/{name}:startIn")]
+    [HttpPost("[controller]/{name}:startIn")]
+    [ServiceFilter<EnsureWorkflowExistsAttribute>]
+    [ServiceFilter<EnsureWorkflowNotEmptyAttribute>]
     public async Task<IActionResult> StartIn
     (
-        [FromServices] WorkflowDirectory workflowDirectory,
         [FromServices] WorkflowSchedule workflowSchedule,
         [FromBody] StartInBody body,
-        string name
+        string name,
+        Workflow workflow
     )
     {
-        if (await workflowDirectory.Find(name) is { } workflow)
-        {
-            if (!workflow.Steps.Any(s => s.Enabled))
-            {
-                logger.LogWarning("Workflow '{name}' has no enabled steps or is empty.", name);
-                return UnprocessableEntity(new { name, messsage = "Workflow has no enabled steps or is empty." });
-            }
-
-            var next = await workflowSchedule.StartAt(workflow, DateTimeOffset.UtcNow + body.Wait);
-            return Ok(new { name, next });
-        }
-
-        logger.LogDebug("Workflow '{name}' not found.", name);
-
-        return NotFound(new { name });
+        var next = await workflowSchedule.StartAt(workflow, DateTimeOffset.UtcNow + body.Wait);
+        return Ok(new { name, next });
     }
 
-    [HttpPost("/api/[controller]/{name}:startAt")]
+    [HttpPost("[controller]/{name}:startAt")]
+    [ServiceFilter<EnsureWorkflowExistsAttribute>]
+    [ServiceFilter<EnsureWorkflowNotEmptyAttribute>]
     public async Task<IActionResult> StartAt
     (
-        [FromServices] WorkflowDirectory workflowDirectory,
         [FromServices] WorkflowSchedule workflowSchedule,
         [FromBody] StartAtBody body,
-        string name
+        string name,
+        Workflow workflow
     )
     {
-        if (await workflowDirectory.Find(name) is { } workflow)
-        {
-            if (!workflow.Steps.Any(s => s.Enabled))
-            {
-                logger.LogWarning("Workflow '{name}' has no enabled steps or is empty.", name);
-                return UnprocessableEntity(new { name, messsage = "Workflow has no enabled steps or is empty." });
-            }
-
-            var next = await workflowSchedule.StartAt(workflow, body.When);
-            return Ok(new { name, next });
-        }
-
-        logger.LogDebug("Workflow '{name}' not found.", name);
-
-        return NotFound(new { name });
-    }
-
-    [HttpGet("_routes")]
-    public IActionResult Routes
-    (
-        [FromServices] IEnumerable<Microsoft.AspNetCore.Routing.EndpointDataSource> sources
-    )
-    {
-        var patterns = sources
-            .SelectMany(ds => ds.Endpoints)
-            .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
-            .Select(e => e.RoutePattern.RawText);
-        return Ok(patterns);
+        var next = await workflowSchedule.StartAt(workflow, body.When);
+        return Ok(new { name, next });
     }
 
     public record StartInBody

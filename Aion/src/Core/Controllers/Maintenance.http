@@ -1,5 +1,5 @@
 @host=http://localhost:5049
-@maintenance={{host}}/api/jobs/Maintenance
+@maintenance={{host}}/api/maintenance
 
 
 ### Fetch all active maintenance tokens; 200 OK

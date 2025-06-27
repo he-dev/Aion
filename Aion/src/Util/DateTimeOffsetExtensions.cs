@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Aion.Core;
+namespace Aion.Util;
 
 internal static class DateTimeOffsetExtensions
 {

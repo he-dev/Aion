@@ -4,7 +4,8 @@ using System.ComponentModel.DataAnnotations;
 using System.IO.Enumeration;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Utilities;
+using Aion.Core.Util;
+using Aion.Core.Util.Mvc;
 using Aion.Core.Workflows;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -12,10 +13,11 @@ using Microsoft.Extensions.Logging;
 namespace Aion.Core.Controllers;
 
 [ApiController]
-[Route("api/jobs/[controller]")]
+[Route("api")]
 public class MaintenanceController(ILogger<MaintenanceController> logger) : ControllerBase
 {
-    [HttpGet]
+    [HttpGet("[controller]")]
+    [ServiceFilter<WorkflowMatcherAttribute>]
     public async Task<IActionResult> Get
     (
         [FromServices] WorkflowSchedule.Collection workflowSchedules,
@@ -36,12 +38,13 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
         }));
     }
 
-    [HttpPost("start")]
-    public async Task<IActionResult> Start
+    [HttpPost("[controller]:startIn")]
+    [ServiceFilter<EnsureWorkflowExistsAttribute>]
+    public async Task<IActionResult> StartIn
     (
         [FromServices] WorkflowSchedule.Collection workflowSchedules,
         [FromServices] MaintenanceToken maintenanceToken,
-        [FromBody] MaintenanceTokenBody tokenCookie
+        [FromBody] StartInBody body
     )
     {
         if (!tokenCookie.SkipTriggerCheck)
@@ -65,27 +68,36 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
         return Ok(token);
     }
 
-    public record MaintenanceTokenBody
+    [HttpPost("[controller]:startAt")]
+    [ServiceFilter<EnsureWorkflowExistsAttribute>]
+    public async Task<IActionResult> StartAt
+    (
+        [FromServices] WorkflowSchedule.Collection workflowSchedules,
+        [FromServices] MaintenanceToken maintenanceToken,
+        [FromBody] StartAtBody body,
+        string name
+    )
     {
-        public string? Filter { get; init; }
-        public int DelayMinutes { get; init; }
-        public bool SkipTriggerCheck { get; init; }
+        return Ok();
+    }
 
-        public bool Matches(string value)
-        {
-            return Filter is null || FileSystemName.MatchesSimpleExpression(Filter, value);
-        }
+    [HttpDelete("[controller]")]
+    public async Task<IActionResult> Delete()
+    {
+        return Ok();
     }
 
     public record StartInBody : IValidatableObject
     {
+        public string Filter { get; init; } = null!;
+
         public TimeSpan Wait { get; init; }
 
         public TimeSpan Duration { get; init; }
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            if(Duration == TimeSpan.Zero)
+            if (Duration == TimeSpan.Zero)
             {
                 yield return new ValidationResult("Maintenance must take some time.", [nameof(Duration)]);
             }
@@ -94,6 +106,8 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
 
     public record StartAtBody : IValidatableObject
     {
+        public string Filter { get; init; } = null!;
+
         public DateTimeOffset From { get; init; }
 
         public DateTimeOffset To { get; init; }

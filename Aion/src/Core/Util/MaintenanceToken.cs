@@ -11,7 +11,7 @@ using Aion.Util;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Utilities;
+namespace Aion.Core.Util;
 
 public record MaintenanceTokenOptions
 {
@@ -158,23 +158,30 @@ public class MaintenanceToken(ILogger<MaintenanceToken> logger, IOptions<Mainten
 
     public record Data
     {
-        public string? Filter { get; init; }
+        [JsonIgnore]
+        public string Name { get; init; } = null!;
+
+        public string Filter { get; init; } = null!;
+
+        public DateTimeOffset StartsOnUtc { get; init; } = DateTimeOffset.UtcNow;
         public DateTimeOffset ExpiresOnUtc { get; init; }
         public DateTimeOffset CreatedOnUtc { get; init; } = DateTimeOffset.UtcNow;
-        public TimeSpan Length => ExpiresOnUtc - CreatedOnUtc;
+
+        public TimeSpan Length => ExpiresOnUtc - StartsOnUtc;
+
+        [JsonIgnore]
         public TimeSpan Remaining => ExpiresOnUtc - DateTimeOffset.UtcNow;
 
         [JsonIgnore]
-        public bool IsPending => ExpiresOnUtc > DateTimeOffset.UtcNow;
+        public bool IsActive => StartsOnUtc <= DateTimeOffset.UtcNow && ExpiresOnUtc > DateTimeOffset.UtcNow;
 
         [JsonIgnore]
-        public bool IsExpired => !IsPending;
+        public bool IsExpired => ExpiresOnUtc > DateTimeOffset.UtcNow;
 
         public bool Matches(string value)
         {
-            return Filter is null || FileSystemName.MatchesSimpleExpression(Filter, value);
+            var matcher = new WorkflowMatcher(Filter);
+            return matcher.Matches(value);
         }
-
-        public static implicit operator bool(Data data) => data.IsPending;
     }
 }
