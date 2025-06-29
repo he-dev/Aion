@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Impl.Matchers;
 
-namespace Aion.Core.Workflows;
+namespace Aion.Core.Modules;
 
 // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
 

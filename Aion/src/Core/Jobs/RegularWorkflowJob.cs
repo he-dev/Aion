@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Util;
-using Aion.Core.Workflows;
+using Aion.Core.Maintenance;
+using Aion.Core.Modules;
 using Aion.Util;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -12,7 +12,7 @@ namespace Aion.Core.Jobs;
 public class RegularWorkflowJob
 (
     ILogger<RegularWorkflowJob> logger,
-    MaintenanceToken maintenanceToken,
+    MaintenanceDirectory maintenanceDirectory,
     WorkflowFile workflowFile,
     WorkflowSchedule scheduler,
     WorkflowExecution execution
@@ -22,7 +22,7 @@ public class RegularWorkflowJob
     {
         var workflowName = context.JobDetail.Key.Name;
 
-        var pendingTokens = await maintenanceToken.Pending();
+        var pendingTokens = await maintenanceDirectory.Pending();
         if (pendingTokens.FirstOrDefault(t => t.Matches(workflowName)) is { } token)
         {
             logger.LogWarning

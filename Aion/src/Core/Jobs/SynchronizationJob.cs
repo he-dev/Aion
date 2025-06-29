@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using Aion.Core.Workflows;
+using Aion.Core.Modules;
 using Aion.Util;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;

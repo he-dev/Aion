@@ -1,6 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Workflows;
+using Aion.Core.Modules;
 using Aion.Util;
 using Microsoft.Extensions.Logging;
 using Quartz;

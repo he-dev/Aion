@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.IO.Enumeration;
 using System.Linq;
 using System.Threading.Tasks;
+using Aion.Core.Maintenance;
+using Aion.Core.Modules;
 using Aion.Core.Util;
 using Aion.Core.Util.Mvc;
-using Aion.Core.Workflows;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -21,11 +21,11 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
     public async Task<IActionResult> Get
     (
         [FromServices] WorkflowSchedule.Collection workflowSchedules,
-        [FromServices] MaintenanceToken maintenanceToken
+        [FromServices] MaintenanceDirectory maintenanceDirectory
     )
     {
         // !! Get not only pending triggers, but also jobs they match.
-        var pending = await maintenanceToken.Pending();
+        var pending = await maintenanceDirectory.Pending();
         var triggers = await workflowSchedules.ToListAsync();
         return Ok(pending.Select(p => new
         {
@@ -43,7 +43,7 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
     public async Task<IActionResult> StartIn
     (
         [FromServices] WorkflowSchedule.Collection workflowSchedules,
-        [FromServices] MaintenanceToken maintenanceToken,
+        [FromServices] MaintenanceDirectory maintenanceDirectory,
         [FromBody] StartInBody body
     )
     {
@@ -64,7 +64,7 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
             }
         }
 
-        var token = await maintenanceToken.Create(tokenCookie.Filter, DateTimeOffset.UtcNow.AddMinutes(tokenCookie.DelayMinutes));
+        var token = await maintenanceDirectory.Create(tokenCookie.Filter, DateTimeOffset.UtcNow.AddMinutes(tokenCookie.DelayMinutes));
         return Ok(token);
     }
 
@@ -73,7 +73,7 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
     public async Task<IActionResult> StartAt
     (
         [FromServices] WorkflowSchedule.Collection workflowSchedules,
-        [FromServices] MaintenanceToken maintenanceToken,
+        [FromServices] MaintenanceDirectory maintenanceDirectory,
         [FromBody] StartAtBody body,
         string name
     )

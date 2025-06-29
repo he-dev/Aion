@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using JetBrains.Annotations;
 using Quartz;
 
-namespace Aion.Core.Workflows;
+namespace Aion.Core.Modules;
 
 [PublicAPI]
 public record Workflow

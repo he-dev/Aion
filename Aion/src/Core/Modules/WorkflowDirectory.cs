@@ -4,11 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Aion.Core.Util;
 using Aion.Util;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Workflows;
+namespace Aion.Core.Modules;
 
 public class WorkflowDirectory
 (
@@ -16,7 +15,7 @@ public class WorkflowDirectory
     WorkflowFile workflowFile
 ) : IAsyncEnumerable<Result<Workflow, Workflow.Issue>>
 {
-    private IDirectoryTree DirectoryTree { get; } = new DirectoryTree(VariableTemplate.Render(options.Value.WorkflowDirectory, []));
+    private IDirectoryTree DirectoryTree { get; } = new DirectoryTree(options.Value.WorkflowDirectory);
 
     public async IAsyncEnumerator<Result<Workflow, Workflow.Issue>> GetAsyncEnumerator(CancellationToken cancellationToken = new())
     {

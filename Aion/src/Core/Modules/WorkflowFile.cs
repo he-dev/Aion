@@ -7,7 +7,7 @@ using Aion.Util;
 using Microsoft.Extensions.Logging;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace Aion.Core.Workflows;
+namespace Aion.Core.Modules;
 
 // ?? Using a custom class allows it to receive a logger.
 public class WorkflowFile(ILogger<WorkflowFile> logger)

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Core.Util;
+namespace Aion.Core.Modules;
 
 public class WorkflowMatcher
 {

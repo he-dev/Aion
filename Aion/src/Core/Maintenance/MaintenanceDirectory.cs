@@ -1,42 +1,32 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.IO;
-using System.IO.Enumeration;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Aion.Core.Util;
 using Aion.Util;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Util;
+namespace Aion.Core.Maintenance;
 
-public record MaintenanceTokenOptions
-{
-    public string PendingPath { get; init; } = null!;
-
-    public string? ExpiredPath { get; init; }
-};
-
-public class MaintenanceToken(ILogger<MaintenanceToken> logger, IOptions<MaintenanceTokenOptions> options)
+public class MaintenanceDirectory(ILogger<MaintenanceDirectory> logger, IOptions<MaintenanceTokenOptions> options)
 {
     private SemaphoreSlim Gate { get; } = new(initialCount: 1, maxCount: 1);
 
-    private DirectoryTree MaintenanceDirectory { get; } = new(VariableTemplate.Render(options.Value.PendingPath, []));
+    private DirectoryTree DirectoryTree { get; } = new(VariableTemplate.Render(options.Value.PendingPath, []));
 
     /// <summary>
     /// Sets or clears the pause expiry for a job.
     /// </summary>
-    /// <param name="filter">The unique name of the job.</param>
-    /// <param name="expiresOnUtc">The UTC timestamp when the pause expires, or null to unpause the job.</param>
-    /// <returns>True if the operation was successful, false otherwise.</returns>
-    public async Task<Data> Create(string? filter, DateTimeOffset expiresOnUtc)
+    public async Task<MaintenanceToken> Create(string? filter, DateTimeOffset startsOnUtc, DateTimeOffset expiresOnUtc)
     {
-        var token = new Data
+        var token = new MaintenanceToken
         {
-            Filter = filter,
+            Filter = filter ?? "*",
+            StartsOnUtc = startsOnUtc,
             ExpiresOnUtc = expiresOnUtc,
         };
 
@@ -45,13 +35,14 @@ public class MaintenanceToken(ILogger<MaintenanceToken> logger, IOptions<Mainten
             throw new ArgumentException("Maintenance token expiry must be in the future.", nameof(expiresOnUtc));
         }
 
+        var startsOnStr = token.StartsOnUtc.ToString("yyyyMMdd_HHmm", System.Globalization.CultureInfo.InvariantCulture);
+        var expiresOnStr = token.ExpiresOnUtc.ToString("yyyyMMdd_HHmm", System.Globalization.CultureInfo.InvariantCulture);
+        var fileName = $"maintenance_between_{startsOnStr}_{expiresOnStr}.json";
+        var filePath = Path.Join(DirectoryTree.Path, fileName);
+
         try
         {
-            Directory.CreateDirectory(MaintenanceDirectory.Path);
-
-            var expiresOn = token.ExpiresOnUtc.ToString("yyyyMMdd_HHmm", System.Globalization.CultureInfo.InvariantCulture);
-            var fileName = $"maintenance_until_{expiresOn}.json";
-            var filePath = Path.Join(MaintenanceDirectory.Path, fileName);
+            Directory.CreateDirectory(DirectoryTree.Path);
 
             // .. Atomic-write: first use the temp-file, then replace the original.
             // ?? Use a block-using so that the file-stream is released for the move. Otherwise, it remains locked and fails.
@@ -62,11 +53,12 @@ public class MaintenanceToken(ILogger<MaintenanceToken> logger, IOptions<Mainten
 
             File.Move(filePath + ".tmp", filePath, overwrite: true);
 
-            logger.LogInformation("Maintenance token '{name}' expires in {expiresIn:N1} minutes.", filter, token.Remaining.TotalMinutes);
+            logger.LogDebug("Created maintenance token '{filter}' at '{filePath}'.", token.Filter, filePath);
+            logger.LogInformation("Maintenance token '{filter}' starts at {startsOnUtc} and expires at {expiresOnUtc} minutes.", token.Filter, startsOnUtc, expiresOnUtc);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creating maintenance token '{name}'.", filter);
+            logger.LogError(ex, "Error creating maintenance token '{filter}' at '{filePath}'.", token.Filter, filePath);
             throw;
         }
 
@@ -76,9 +68,7 @@ public class MaintenanceToken(ILogger<MaintenanceToken> logger, IOptions<Mainten
     /// <summary>
     /// Gets the pause expiry timestamp for a specific job.
     /// </summary>
-    /// <param name="name">The unique name of the job.</param>
-    /// <returns>The DateTimeOffset (UTC) when the job is paused until, or null if not paused or an error occurs.</returns>
-    public async Task<IImmutableList<Data>> Pending()
+    public async Task<IImmutableList<MaintenanceToken>> Pending()
     {
         // !! Let only a single caller at a time search for tokens.
         await Gate.WaitAsync();
@@ -88,12 +78,12 @@ public class MaintenanceToken(ILogger<MaintenanceToken> logger, IOptions<Mainten
                 ? VariableTemplate.Render(options.Value.ExpiredPath, [])
                 : null;
 
-        var pendingTokens = ImmutableList<Data>.Empty;
+        var pendingTokens = ImmutableList<MaintenanceToken>.Empty;
 
         try
         {
             // .. Check all tokens in that directory.
-            foreach (var filePath in MaintenanceDirectory.First().Files())
+            foreach (var filePath in DirectoryTree.First().Files())
             {
                 if (!File.Exists(filePath))
                 {
@@ -103,7 +93,7 @@ public class MaintenanceToken(ILogger<MaintenanceToken> logger, IOptions<Mainten
 
                 try
                 {
-                    if (await ReadToken(filePath) is { } token)
+                    if (await FromFile(filePath) is { } token)
                     {
                         if (token.IsExpired)
                         {
@@ -123,15 +113,14 @@ public class MaintenanceToken(ILogger<MaintenanceToken> logger, IOptions<Mainten
                         }
                         else
                         {
-                            // .. Keep pending tokens.
-                            logger.LogDebug("Pending maintenance token '{name}' expires in {remaining}.", token.Filter, token.Remaining);
+                            // .. Collect pending tokens.
                             pendingTokens = pendingTokens.Add(token);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error reading maintenance token '{name}'.", filePath);
+                    logger.LogError(ex, "Error reading maintenance token '{filePath}'.", filePath);
                 }
             }
         }
@@ -150,38 +139,10 @@ public class MaintenanceToken(ILogger<MaintenanceToken> logger, IOptions<Mainten
 
     // !! Release file handles so it can be moved when expired.
     // ?? With this helper method we can avoid spaghetti helper variables elsewhere.
-    private static async Task<Data?> ReadToken(string filePath)
+    private static async Task<MaintenanceToken?> FromFile(string filePath)
     {
         await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return await JsonSerializer.DeserializeAsync<Data>(fileStream);
+        return await JsonSerializer.DeserializeAsync<MaintenanceToken>(fileStream);
     }
 
-    public record Data
-    {
-        [JsonIgnore]
-        public string Name { get; init; } = null!;
-
-        public string Filter { get; init; } = null!;
-
-        public DateTimeOffset StartsOnUtc { get; init; } = DateTimeOffset.UtcNow;
-        public DateTimeOffset ExpiresOnUtc { get; init; }
-        public DateTimeOffset CreatedOnUtc { get; init; } = DateTimeOffset.UtcNow;
-
-        public TimeSpan Length => ExpiresOnUtc - StartsOnUtc;
-
-        [JsonIgnore]
-        public TimeSpan Remaining => ExpiresOnUtc - DateTimeOffset.UtcNow;
-
-        [JsonIgnore]
-        public bool IsActive => StartsOnUtc <= DateTimeOffset.UtcNow && ExpiresOnUtc > DateTimeOffset.UtcNow;
-
-        [JsonIgnore]
-        public bool IsExpired => ExpiresOnUtc > DateTimeOffset.UtcNow;
-
-        public bool Matches(string value)
-        {
-            var matcher = new WorkflowMatcher(Filter);
-            return matcher.Matches(value);
-        }
-    }
 }

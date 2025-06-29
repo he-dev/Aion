@@ -3,9 +3,10 @@ using System.CommandLine;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Jobs;
+using Aion.Core.Maintenance;
+using Aion.Core.Modules;
 using Aion.Core.Util;
 using Aion.Core.Util.Mvc;
-using Aion.Core.Workflows;
 using Aion.Util;
 using Aion.Util.Yaml;
 using Microsoft.AspNetCore.Builder;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NLog;
 using NLog.Web;
 using Quartz;
@@ -80,6 +82,9 @@ public class Program
         builder.Services.Configure<SynchronizationJobOptions>(builder.Configuration.GetSection("SynchronizationJob"));
         builder.Services.Configure<MaintenanceTokenOptions>(builder.Configuration.GetSection("MaintenanceToken"));
 
+        builder.Services.AddSingleton<IPostConfigureOptions<WorkflowEngineOptions>, WorkflowEnginePostConfigure>();
+
+
         builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
         builder.Services.AddSingleton<WorkflowSchedule>();
         builder.Services.AddSingleton<WorkflowSchedule.Collection>();
@@ -87,7 +92,7 @@ public class Program
         builder.Services.AddSingleton<IAsyncProcess, AsyncProcess>();
         builder.Services.AddSingleton<WorkflowDirectory>();
         builder.Services.AddSingleton<WorkflowFile>();
-        builder.Services.AddSingleton<MaintenanceToken>();
+        builder.Services.AddSingleton<MaintenanceDirectory>();
 
         builder.Services.AddScoped<RegularWorkflowJob>();
         builder.Services.AddScoped<AdHocWorkflowJob>();

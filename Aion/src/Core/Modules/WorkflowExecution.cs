@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Aion.Util;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Core.Workflows;
+namespace Aion.Core.Modules;
 
 // Executes workflow's enabled steps.
 public class WorkflowExecution

@@ -2,7 +2,7 @@
 using System.Linq;
 using Aion.Core.Util;
 
-namespace Aion.Core.Workflows;
+namespace Aion.Core.Modules;
 
 public static class WorkflowExtensions
 {
