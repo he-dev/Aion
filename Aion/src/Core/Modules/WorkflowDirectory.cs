@@ -35,13 +35,13 @@ public class WorkflowDirectory
 
 public static class WorkflowDirectoryExtensions
 {
-    public static async Task<Workflow?> Find(this WorkflowDirectory workflows, string name)
+    public static async Task<Workflow?> Find(this WorkflowDirectory workflows, string filter)
     {
         await foreach (var either in workflows)
         {
             switch (either)
             {
-                case Result<Workflow, Workflow.Issue>.Success { Value: var workflow } when workflow.Name.Equals(name, StringComparison.OrdinalIgnoreCase):
+                case Result<Workflow, Workflow.Issue>.Success { Value: var workflow } when workflow.Name.IsLike(filter):
                     return workflow;
             }
         }

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
 using Aion.Core.Util;
+using Aion.Util;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -15,11 +16,9 @@ namespace Aion.Core.Controllers;
 public class SchedulerController(ILogger<SchedulerController> logger) : ControllerBase
 {
     [HttpGet("[controller]/jobs")]
-    [ServiceFilter<WorkflowMatcherAttribute>]
     public async Task<IActionResult> Get
     (
         [FromServices] WorkflowSchedule.Collection workflowSchedules,
-        WorkflowMatcher matcher,
         [FromQuery(Name = "q")] string? filter = null,
         [FromQuery] OrderBy orderBy = OrderBy.Next,
         [FromQuery] Status status = Status.Pending
@@ -29,7 +28,7 @@ public class SchedulerController(ILogger<SchedulerController> logger) : Controll
 
         var query =
             workflowSchedules
-                .Where(trigger => matcher.Matches(trigger.JobKey.Name))
+                .Where(trigger => trigger.JobKey.Name.IsLike(filter))
                 .Select(trigger => new
                 {
                     name = trigger.JobKey.Name,

@@ -29,12 +29,6 @@ public record Standby
     [YamlDotNet.Serialization.YamlIgnore]
     public bool IsExpired => EndsOnUtc < DateTimeOffset.UtcNow;
 
-    public bool Matches(string value)
-    {
-        var matcher = new WorkflowMatcher(Filter);
-        return matcher.Matches(value);
-    }
-
     public static Standby Schedule(string filter, DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc)
     {
         if (startsOnUtc > endsOnUtc)
@@ -55,6 +49,14 @@ public record Standby
         };
     }
 
+    public static Standby Schedule(string filter, TimeSpan wait, TimeSpan length)
+    {
+        var startsOnUtc = DateTimeOffset.UtcNow.Add(wait);
+        var endsOnUtc = startsOnUtc.Add(length);
+        
+        return Schedule(filter, startsOnUtc, endsOnUtc);
+    }
+
     public static async Task<Standby> FromFile(string path)
     {
         using var _ = await KeyLock.AcquireAsync(path);
@@ -69,7 +71,7 @@ public record Standby
         return yamlDeserializer.Deserialize<Standby>(yamlStreamReader) with { Path = path };
     }
 
-    public async Task SaveTo(string path)
+    public async Task<Standby> SaveTo(string path)
     {
         var startsOnStr = StartsOnUtc.ToString("yyyyMMdd_HHmm", System.Globalization.CultureInfo.InvariantCulture);
         var expiresOnStr = EndsOnUtc.ToString("yyyyMMdd_HHmm", System.Globalization.CultureInfo.InvariantCulture);
@@ -85,6 +87,8 @@ public record Standby
         await using var writer = new StreamWriter(path, false, System.Text.Encoding.UTF8);
         serializer.Serialize(writer, this);
         await writer.FlushAsync();
+
+        return this with { Path = path };
     }
 
     public async Task Delete()

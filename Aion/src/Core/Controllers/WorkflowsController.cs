@@ -96,18 +96,26 @@ public class WorkflowsController
     }
 
     [HttpPost("[controller]/{name}:startIn")]
-    [ServiceFilter<EnsureWorkflowExistsAttribute>]
-    [ServiceFilter<EnsureWorkflowNotEmptyAttribute>]
     public async Task<IActionResult> StartIn
     (
+        [FromServices] WorkflowDirectory workflowDirectory,
         [FromServices] WorkflowSchedule workflowSchedule,
-        [FromBody] StartInBody body,
-        string name,
-        Workflow workflow
+        [FromRoute] string name,
+        [FromBody] StartInBody body
     )
     {
-        var next = await workflowSchedule.StartAt(workflow, DateTimeOffset.UtcNow + body.Wait);
-        return Ok(new { name, next });
+        switch (await workflowDirectory.Find(name))
+        {
+            case null:
+                return NotFound($"Workflow '{name}' not found");
+            case var workflow when !workflow.Steps.Any(s => s.Enabled):
+                return BadRequest($"Workflow '{name}' has no enabled steps.");
+            case var workflow:
+            {
+                var next = await workflowSchedule.StartAt(workflow, DateTimeOffset.UtcNow + body.Wait);
+                return Ok(new { name, next });
+            }
+        }
     }
 
     [HttpPost("[controller]/{name}:startAt")]
@@ -117,8 +125,8 @@ public class WorkflowsController
     (
         [FromServices] WorkflowSchedule workflowSchedule,
         [FromBody] StartAtBody body,
-        string name,
-        Workflow workflow
+        [FromRoute] string name,
+        [FromServices] Workflow workflow
     )
     {
         var next = await workflowSchedule.StartAt(workflow, body.When);

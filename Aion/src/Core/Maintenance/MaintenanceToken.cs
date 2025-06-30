@@ -24,9 +24,4 @@ public record MaintenanceToken
     [JsonIgnore]
     public bool IsExpired => ExpiresOnUtc < DateTimeOffset.UtcNow;
 
-    public bool Matches(string value)
-    {
-        var matcher = new WorkflowMatcher(Filter);
-        return matcher.Matches(value);
-    }
 }

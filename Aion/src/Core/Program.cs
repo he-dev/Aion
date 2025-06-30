@@ -74,9 +74,9 @@ public class Program
 
         // .. There's no way these settings are missing so suppress the null warnings.
         var workflowEngineOptions = builder.Configuration.GetRequiredSection("WorkflowEngine").Get<WorkflowEngineOptions>()!;
+        var standbyEngineOptions = builder.Configuration.GetRequiredSection("StandbyEngine").Get<StandbyEngineOptions>()!;
         var synchronizationJobOptions = builder.Configuration.GetRequiredSection("SynchronizationJob").Get<SynchronizationJobOptions>()!;
         var quartzServerOptions = builder.Configuration.GetRequiredSection("QuartzServer").Get<QuartzServerOptions>()!;
-        var maintenanceTokenOptions = builder.Configuration.GetRequiredSection("QuartzServer").Get<MaintenanceTokenOptions>()!;
 
         builder.Services.Configure<WorkflowEngineOptions>(builder.Configuration.GetSection("WorkflowEngine"));
         builder.Services.Configure<SynchronizationJobOptions>(builder.Configuration.GetSection("SynchronizationJob"));
@@ -92,7 +92,8 @@ public class Program
         builder.Services.AddSingleton<IAsyncProcess, AsyncProcess>();
         builder.Services.AddSingleton<WorkflowDirectory>();
         builder.Services.AddSingleton<WorkflowFile>();
-        builder.Services.AddSingleton<MaintenanceDirectory>();
+
+        builder.Services.AddSingleton<StandbyDirectory>();
 
         builder.Services.AddScoped<RegularWorkflowJob>();
         builder.Services.AddScoped<AdHocWorkflowJob>();
@@ -100,7 +101,7 @@ public class Program
 
         builder.Services.AddScoped<EnsureWorkflowExistsAttribute>();
         builder.Services.AddScoped<EnsureWorkflowNotEmptyAttribute>();
-        builder.Services.AddScoped<WorkflowMatcherAttribute>();
+        //builder.Services.AddScoped<WorkflowMatcherAttribute>();
 
         builder.Services.AddQuartz(q =>
         {

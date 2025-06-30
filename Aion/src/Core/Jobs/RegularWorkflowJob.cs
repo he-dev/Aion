@@ -12,7 +12,7 @@ namespace Aion.Core.Jobs;
 public class RegularWorkflowJob
 (
     ILogger<RegularWorkflowJob> logger,
-    MaintenanceDirectory maintenanceDirectory,
+    StandbyDirectory standbyDirectory,
     WorkflowFile workflowFile,
     WorkflowSchedule scheduler,
     WorkflowExecution execution
@@ -22,13 +22,13 @@ public class RegularWorkflowJob
     {
         var workflowName = context.JobDetail.Key.Name;
 
-        var pendingTokens = await maintenanceDirectory.Pending();
-        if (pendingTokens.FirstOrDefault(t => t.Matches(workflowName)) is { } token)
+        var standbys = await standbyDirectory.Where(s => s.IsActive).ToListAsync();
+        if (standbys.FirstOrDefault(s => workflowName.IsLike(s.Filter)) is { } standby)
         {
             logger.LogWarning
             (
-                "Canceling workflow '{workflow}' because maintenance token '{token}' is pending. Remaining time: {remaining}",
-                workflowName, token.Filter, token.Remaining
+                "Canceling workflow '{workflow}' because maintenance '{token}' is pending. Remaining time: {remaining}",
+                workflowName, standby.Filter, standby.Remaining
             );
             return;
         }
