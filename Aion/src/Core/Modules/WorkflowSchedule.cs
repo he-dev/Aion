@@ -90,13 +90,17 @@ public class WorkflowSchedule
 
     public async Task<DateTimeOffset> StartNow(Workflow workflow)
     {
+        if (workflow.Steps.All(s => !s.Enabled))
+        {
+            logger.LogWarning("Workflow '{workflow}' has no enabled steps.", workflow.Name);
+        }
+
         var scheduler = await schedulerFactory.GetScheduler();
 
         var job =
             JobBuilder
                 .Create<Jobs.AdHocWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
-                .UsingJobData(nameof(Workflow.Root), workflow.Root)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
 
@@ -114,13 +118,17 @@ public class WorkflowSchedule
 
     public async Task<DateTimeOffset> StartAt(Workflow workflow, DateTimeOffset startAt)
     {
+        if (workflow.Steps.All(s => !s.Enabled))
+        {
+            logger.LogWarning("Workflow '{workflow}' has no enabled steps.", workflow.Name);
+        }
+
         var scheduler = await schedulerFactory.GetScheduler();
 
         var job =
             JobBuilder
                 .Create<Jobs.AdHocWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
-                .UsingJobData(nameof(Workflow.Root), workflow.Root)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
 
@@ -135,6 +143,11 @@ public class WorkflowSchedule
 
         //logger.LogDebug("Workflow '{name}' will be started in {delay} seconds.'", workflow.Name, startAt);
         return await scheduler.ScheduleJob(job, trigger);
+    }
+
+    public async Task<DateTimeOffset> StartIn(Workflow workflow, TimeSpan delay)
+    {
+        return await StartAt(workflow, DateTimeOffset.UtcNow + delay);
     }
 
     public async Task<DateTimeOffset> Schedule(string path, string name, ITrigger trigger)

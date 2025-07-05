@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
-using Aion.Core.Util;
 using Aion.Util;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;

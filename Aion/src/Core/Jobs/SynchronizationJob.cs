@@ -1,6 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Aion.Core.Modules;
-using Aion.Util;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -18,17 +18,18 @@ internal class SynchronizationJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        logger.LogInformation("Synchronizing workflows.");
-        await foreach (var result in directory)
+        logger.LogInformation("Synchronizing workflows...");
+
+        foreach (var workflowPath in directory.FindFiles(FileFilter.Any, FileExtension.Json))
         {
-            switch (result)
+            try
             {
-                case Result<Workflow, Workflow.Issue>.Success { Value: var workflow }:
-                    await scheduler.Synchronize(workflow);
-                    break;
-                case Result<Workflow, Workflow.Issue>.Failure { Value: var workflowIssue }:
-                    // !! Just ignore them.
-                    break;
+                var workflow = await Workflow.FromFile(workflowPath);
+                await scheduler.Synchronize(workflow);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error synchronizing workflow '{workflowPath}'.", workflowPath);
             }
         }
     }

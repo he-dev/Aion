@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations;
-using System.IO.Enumeration;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Jobs;
 using Aion.Core.Modules;
-using Aion.Core.Util.Mvc;
-using Aion.Util;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -23,46 +21,42 @@ public class WorkflowsController
 ) : ControllerBase
 {
     [HttpGet("[controller]")]
-    public async Task<IActionResult> Get
+    public async Task<IActionResult> Get2
     (
         [FromServices] WorkflowDirectory workflowDirectory,
         [FromQuery(Name = "q")] string? filter,
         [FromQuery] bool? enabled = null
     )
     {
-        var utcNow = DateTimeOffset.UtcNow; // ?? Keeps the timestamp stable for all items.
-        var workflows = await workflowDirectory.ClusterAsync();
-        var response = new
+        var workflows = ImmutableList<Workflow>.Empty;
+        var errors = ImmutableList<object>.Empty;
+        foreach (var path in workflowDirectory.FindFiles(filter ?? FileFilter.Any, FileExtension.Json))
         {
-            result =
-                workflows
-                    .SuccessResults
-                    .Where(workflow => enabled is null || workflow.Enabled == enabled) // !! Get only disabled workflows here.
-                    .Where(workflow => filter is null || FileSystemName.MatchesSimpleExpression(filter, workflow.Name))
-                    .Select(workflow => new
-                    {
-                        path = workflow.Path,
-                        name = workflow.Name,
-                        isOn = workflow.Enabled,
-                        cron = workflow.Cron,
-                        next = workflow.Trigger.FiresAt(utcNow).Take(3),
-                        jobs = workflow.Steps.Count(s => s.Enabled)
-                    })
-                    .OrderBy(item => item.next.FirstOrDefault())
-                    .ThenBy(item => item.name)
-                    .ToList(),
-            errors =
-                workflows
-                    .FailureResults
-                    .Select(issue => new
-                    {
-                        path = issue.Path,
-                        flaw = issue.Exception.ToString()
-                    })
-        };
+            try
+            {
+                workflows = workflows.Add(await Workflow.FromFile(path));
+            }
+            catch (Exception ex)
+            {
+                errors = errors.Add(new { path, exception = ex.ToString() });
+            }
+        }
 
-        logger.LogDebug("Found {count} workflows.", response.result.Count);
-        return Ok(response);
+        var utcNow = DateTimeOffset.UtcNow; // ?? Keeps the timestamp stable for all items.
+        var result =
+            from workflow in workflows
+            let next = workflow.Trigger.FiresAt(utcNow).Take(3)
+            orderby next.FirstOrDefault().Value, workflow.Name
+            select new
+            {
+                path = workflow.Path,
+                isOn = workflow.Enabled,
+                cron = workflow.Cron,
+                next = next,
+                cmds = workflow.Steps.Count(s => s.Enabled),
+            };
+
+        return Ok(new { result, errors });
     }
 
     // !! The API needs to be able to synchronize workflows outside its regular schedule.
@@ -73,26 +67,43 @@ public class WorkflowsController
     )
     {
         var scheduler = await schedulerFactory.GetScheduler();
-        await scheduler.ScheduleJob(
+        var startsAt = await scheduler.ScheduleJob(
             SynchronizationJob.CreateJobDetail(),
             TriggerBuilder.Create().StartNow().Build()
         );
 
-        return Ok();
+        return Ok(new { startsAt });
     }
 
     [HttpPost("[controller]/{name}:startNow")]
-    [ServiceFilter<EnsureWorkflowExistsAttribute>]
-    [ServiceFilter<EnsureWorkflowNotEmptyAttribute>]
     public async Task<IActionResult> StartNow
     (
+        [FromServices] WorkflowDirectory workflowDirectory,
         [FromServices] WorkflowSchedule workflowSchedule,
-        string name,
-        Workflow workflow
+        string name
     )
     {
-        var next = await workflowSchedule.StartNow(workflow);
-        return Ok(new { name, next });
+        try
+        {
+            if (workflowDirectory.FindFile(name, FileExtension.Json) is { } fileName)
+            {
+                var workflow = await Workflow.FromFile(fileName);
+                var next = await workflowSchedule.StartNow(workflow);
+                return Ok(new { name, next });
+            }
+
+            return NotFound(new { name });
+        }
+        catch (Exception ex)
+        {
+            return Problem
+            (
+                detail: ex.ToString(),
+                title: $"Unable to schedule workflow '{name}'.",
+                statusCode: 500,
+                instance: Request.Path
+            );
+        }
     }
 
     [HttpPost("[controller]/{name}:startIn")]
@@ -104,33 +115,59 @@ public class WorkflowsController
         [FromBody] StartInBody body
     )
     {
-        switch (await workflowDirectory.Find(name))
+        try
         {
-            case null:
-                return NotFound($"Workflow '{name}' not found");
-            case var workflow when !workflow.Steps.Any(s => s.Enabled):
-                return BadRequest($"Workflow '{name}' has no enabled steps.");
-            case var workflow:
+            if (workflowDirectory.FindFile(name, FileExtension.Json) is { } fileName)
             {
-                var next = await workflowSchedule.StartAt(workflow, DateTimeOffset.UtcNow + body.Wait);
+                var workflow = await Workflow.FromFile(fileName);
+                var next = await workflowSchedule.StartIn(workflow, body.Wait);
                 return Ok(new { name, next });
             }
+
+            return NotFound(new { name });
+        }
+        catch (Exception ex)
+        {
+            return Problem
+            (
+                detail: ex.ToString(),
+                title: $"Unable to schedule workflow '{name}'.",
+                statusCode: 500,
+                instance: Request.Path
+            );
         }
     }
 
     [HttpPost("[controller]/{name}:startAt")]
-    [ServiceFilter<EnsureWorkflowExistsAttribute>]
-    [ServiceFilter<EnsureWorkflowNotEmptyAttribute>]
     public async Task<IActionResult> StartAt
     (
+        [FromServices] WorkflowDirectory workflowDirectory,
         [FromServices] WorkflowSchedule workflowSchedule,
         [FromBody] StartAtBody body,
-        [FromRoute] string name,
-        [FromServices] Workflow workflow
+        [FromRoute] string name
     )
     {
-        var next = await workflowSchedule.StartAt(workflow, body.When);
-        return Ok(new { name, next });
+        try
+        {
+            if (workflowDirectory.FindFile(name, FileExtension.Json) is { } fileName)
+            {
+                var workflow = await Workflow.FromFile(fileName);
+                var next = await workflowSchedule.StartAt(workflow, body.When);
+                return Ok(new { name, next });
+            }
+
+            return NotFound(new { name });
+        }
+        catch (Exception ex)
+        {
+            return Problem
+            (
+                detail: ex.ToString(),
+                title: $"Unable to schedule workflow '{name}'.",
+                statusCode: 500,
+                instance: Request.Path
+            );
+        }
     }
 
     public record StartInBody

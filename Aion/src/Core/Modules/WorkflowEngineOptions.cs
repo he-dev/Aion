@@ -6,9 +6,6 @@ namespace Aion.Core.Modules;
 public record WorkflowEngineOptions
 {
     public string WorkflowDirectory { get; set; } = null!;
-
-    // todo: this could be an enum
-    public string WorkflowFileType { get; init; } = null!;
 }
 
 public class WorkflowEnginePostConfigure : IPostConfigureOptions<WorkflowEngineOptions>

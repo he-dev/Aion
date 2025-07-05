@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Quartz;
 
@@ -25,23 +29,9 @@ public record Workflow
 
     // .. A couple of extra fields that are being set after the workflow has been loaded.
 
-    [JsonIgnore]
-    public string Root { get; init; } = string.Empty;
-
-    [JsonIgnore]
     public string Path { get; init; } = string.Empty;
 
-    [JsonIgnore]
-    public string Name
-    {
-        // .. I don't know how to make it lazy, cached, or calculated only once without dirty tricks.
-        get
-        {
-            // !! Use the names that remain after dropping the root as the name.
-            var name = Path[(Root.Length + 1)..].Replace('\\', '.');
-            return name[..^System.IO.Path.GetExtension(Path).Length];
-        }
-    }
+    public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
 
     [JsonIgnore]
     public JobKey JobKey => new(Name, JobGroupNames.Workflows);
@@ -52,7 +42,6 @@ public record Workflow
         (ICronTrigger)TriggerBuilder
             .Create()
             .WithIdentity(Name, JobGroupNames.Workflows)
-            .UsingJobData(nameof(Root), Root)
             .UsingJobData(nameof(Path), Path)
             .WithCronSchedule(Cron)
             .Build();
@@ -110,14 +99,41 @@ public record Workflow
         public static implicit operator bool(Step step) => step.Enabled;
     }
 
-    public record Issue
+    public static async Task<Workflow> FromFile(string path)
     {
-        public required string Path { get; init; }
+        // todo: check path for characters that are illegal in http urls
 
-        public required Exception Exception { get; init; }
+        if (!File.Exists(path))
+        {
+            // This is pretty unlikely, but who knows...
+            throw new FileNotFoundException($"Workflow '{path}' not found.", fileName: path);
+        }
+
+        var workflow = await FromJson(path) ?? throw new WorkflowNullException(path);
+
+        // .. Update meta-properties.
+        workflow = workflow with
+        {
+            Path = path,
+            Steps = workflow.Steps.Select((step, index) => step with { Index = index }).ToList()
+        };
+
+        workflow.EnsureRenderable();
+        workflow.EnsureSchedulable();
+
+        return workflow;
     }
 
+    public static async Task<Workflow?> FromJson(string path)
+    {
+        await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return await JsonSerializer.DeserializeAsync<Workflow>(fileStream);
+    }
 }
+
+public class WorkflowNullException(string path) : Exception($"Workflow '{path}' is null.");
+
+
 
 
 // public class WorkflowBinder : IModelBinder

@@ -3,12 +3,8 @@ using System.CommandLine;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Jobs;
-using Aion.Core.Maintenance;
 using Aion.Core.Modules;
-using Aion.Core.Util;
-using Aion.Core.Util.Mvc;
 using Aion.Util;
-using Aion.Util.Yaml;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.Extensions.Configuration;
@@ -57,10 +53,11 @@ public class Program
 
         builder.Services.AddControllers(options =>
         {
-            options.InputFormatters.Insert(0, new YamlInputFormatter());
-            options.OutputFormatters.Insert(0, new YamlOutputFormatter());
+            //options.InputFormatters.Insert(0, new YamlInputFormatter());
+            //options.OutputFormatters.Insert(0, new YamlOutputFormatter());
             //options.Conventions.Add(new ColonRouteConvention());
         });
+        //.AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new WorkflowIssueConverter()); });
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
@@ -73,17 +70,15 @@ public class Program
         // builder.Services.AddWiretap();
 
         // .. There's no way these settings are missing so suppress the null warnings.
-        var workflowEngineOptions = builder.Configuration.GetRequiredSection("WorkflowEngine").Get<WorkflowEngineOptions>()!;
-        var standbyEngineOptions = builder.Configuration.GetRequiredSection("StandbyEngine").Get<StandbyEngineOptions>()!;
+        //var workflowEngineOptions = builder.Configuration.GetRequiredSection("WorkflowEngine").Get<WorkflowEngineOptions>()!;
+        //var standbyEngineOptions = builder.Configuration.GetRequiredSection("StandbyEngine").Get<StandbyEngineOptions>()!;
         var synchronizationJobOptions = builder.Configuration.GetRequiredSection("SynchronizationJob").Get<SynchronizationJobOptions>()!;
         var quartzServerOptions = builder.Configuration.GetRequiredSection("QuartzServer").Get<QuartzServerOptions>()!;
 
         builder.Services.Configure<WorkflowEngineOptions>(builder.Configuration.GetSection("WorkflowEngine"));
         builder.Services.Configure<SynchronizationJobOptions>(builder.Configuration.GetSection("SynchronizationJob"));
-        builder.Services.Configure<MaintenanceTokenOptions>(builder.Configuration.GetSection("MaintenanceToken"));
 
         builder.Services.AddSingleton<IPostConfigureOptions<WorkflowEngineOptions>, WorkflowEnginePostConfigure>();
-
 
         builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
         builder.Services.AddSingleton<WorkflowSchedule>();
@@ -91,17 +86,12 @@ public class Program
         builder.Services.AddSingleton<WorkflowExecution>();
         builder.Services.AddSingleton<IAsyncProcess, AsyncProcess>();
         builder.Services.AddSingleton<WorkflowDirectory>();
-        builder.Services.AddSingleton<WorkflowFile>();
+        builder.Services.AddSingleton<WorkflowMaintenance>();
 
-        builder.Services.AddSingleton<StandbyDirectory>();
 
         builder.Services.AddScoped<RegularWorkflowJob>();
         builder.Services.AddScoped<AdHocWorkflowJob>();
         builder.Services.AddScoped<SynchronizationJob>();
-
-        builder.Services.AddScoped<EnsureWorkflowExistsAttribute>();
-        builder.Services.AddScoped<EnsureWorkflowNotEmptyAttribute>();
-        //builder.Services.AddScoped<WorkflowMatcherAttribute>();
 
         builder.Services.AddQuartz(q =>
         {
@@ -224,4 +214,3 @@ public record QuartzServerOptions
 {
     public int StartDelaySeconds { get; init; }
 }
-

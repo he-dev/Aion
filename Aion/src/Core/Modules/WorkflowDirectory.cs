@@ -2,50 +2,62 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Aion.Util;
+using Microsoft.Extensions.FileSystemGlobbing;
+using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Aion.Core.Modules;
 
-public class WorkflowDirectory
-(
-    IOptions<WorkflowEngineOptions> options,
-    WorkflowFile workflowFile
-) : IAsyncEnumerable<Result<Workflow, Workflow.Issue>>
+public class WorkflowDirectory(IOptions<WorkflowEngineOptions> options)
 {
-    private IDirectoryTree DirectoryTree { get; } = new DirectoryTree(options.Value.WorkflowDirectory);
-
-    public async IAsyncEnumerator<Result<Workflow, Workflow.Issue>> GetAsyncEnumerator(CancellationToken cancellationToken = new())
+    public IEnumerable<string> FindFiles(string fileNameFilter, FileExtension extension)
     {
-        var paths =
-            from branch in DirectoryTree
-            from path in branch.Files()
-            // !! Get only workflows with the matching extension.
-            where Path.GetExtension(path).Equals($".{options.Value.WorkflowFileType}", StringComparison.OrdinalIgnoreCase)
-            select path;
+        if (string.IsNullOrEmpty(fileNameFilter)) throw new ArgumentException("Value cannot be null or empty.", nameof(fileNameFilter));
 
-        foreach (var path in paths)
+        var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
+        matcher.AddInclude($"**\\{fileNameFilter}.{extension}");
+
+        return
+            from path in matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(options.Value.WorkflowDirectory))).Files
+            select Path.Join(options.Value.WorkflowDirectory, path.Path);
+    }
+
+    public string? FindFile(string fileNameFilter, FileExtension extension)
+    {
+        using var enumerator = FindFiles(fileNameFilter, extension).GetEnumerator();
+
+        if (!enumerator.MoveNext())
         {
-            yield return await workflowFile.Load(path, DirectoryTree.Path);
+            return null; // No match.
         }
+
+        var first = enumerator.Current;
+
+        if (enumerator.MoveNext())
+        {
+            // Multiple matches.
+            throw new AmbiguousFilterException(fileNameFilter, first, enumerator.Current);
+        }
+
+        return first;
     }
 }
 
-public static class WorkflowDirectoryExtensions
+public record FileExtension(string Name)
 {
-    public static async Task<Workflow?> Find(this WorkflowDirectory workflows, string filter)
-    {
-        await foreach (var either in workflows)
-        {
-            switch (either)
-            {
-                case Result<Workflow, Workflow.Issue>.Success { Value: var workflow } when workflow.Name.IsLike(filter):
-                    return workflow;
-            }
-        }
+    public static readonly FileExtension Json = new("json");
+    public static readonly FileExtension Lock = new("lock");
 
-        return null;
-    }
+    public static implicit operator string(FileExtension extension) => extension.Name;
 }
+
+public record FileFilter(string Value)
+{
+    public static readonly FileFilter Any = new("*");
+
+    public static implicit operator string(FileFilter filter) => filter.Value;
+}
+
+public class AmbiguousFilterException(string fileNameFilter, params string[] fileNames) : Exception($"Multiple workflows match filter '{fileNameFilter}': {string.Join(',', fileNames)}.");
+
+public class WorkflowNotFoundException(string filter) : Exception($"Filter '{filter}' does not match any workflows.");

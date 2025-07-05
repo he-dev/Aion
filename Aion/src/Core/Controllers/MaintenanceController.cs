@@ -1,9 +1,8 @@
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
-using Aion.Core.Util.Mvc;
-using Aion.Util;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -16,128 +15,103 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
     [HttpGet("[controller]")]
     public async Task<IActionResult> Get
     (
-        [FromServices] WorkflowSchedule.Collection workflowSchedules,
-        [FromServices] StandbyDirectory standbyDirectory
+        [FromServices] WorkflowDirectory workflowDirectory
     )
     {
-        // !! Get not only pending triggers, but also jobs they match.
-        var pending = await standbyDirectory.ToListAsync();
-        var triggers = await workflowSchedules.ToListAsync();
+        var lockFileNames = workflowDirectory.FindFiles(null, FileExtension.Lock);
+        var locks = ImmutableList<WorkflowLock>.Empty;
+        foreach (var lockFileName in lockFileNames)
+        {
+            try
+            {
+                if (await WorkflowLock.FromFile(lockFileName) is { } lockFile)
+                {
+                    await using (lockFile)
+                    {
+                        if (lockFile.Remaining > TimeSpan.Zero)
+                        {
+                            locks = locks.Add(lockFile);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unable to load lock file '{lock}'.", lockFileName);
+            }
+        }
+
         var query =
-            from s in pending
-            orderby s.EndsOnUtc descending
+            from s in locks
+            orderby s.Remaining descending
             select new
             {
-                s.Filter,
+                s.FileName,
                 s.CreatedOnUtc,
                 s.StartsOnUtc,
                 s.EndsOnUtc,
                 s.Length,
                 s.Remaining,
-                triggers = triggers.Where(t => t.JobKey.Name.IsLike(s.Filter)).ToList()
+                s.IsPending
             };
 
         return Ok(query.ToList());
     }
 
     [HttpPost("[controller]:startIn")]
-    [ServiceFilter<EnsureWorkflowExistsAttribute>]
     public async Task<IActionResult> StartIn
     (
-        [FromServices] WorkflowSchedule.Collection workflowSchedules,
-        [FromServices] StandbyEngineOptions standbyOptions,
+        [FromServices] WorkflowMaintenance workflowMaintenance,
         [FromBody] StartInBody body
     )
     {
-        if (!body.SkipTriggerCheck)
+        try
         {
-            var triggers =
-                await workflowSchedules
-                    .Where(trigger => trigger.JobKey.Name.IsLike(body.Filter))
-                    .ToListAsync();
-
-            if (!triggers.Any())
-            {
-                return BadRequest(new
-                {
-                    body.Filter,
-                    Message = "Adjust the filter to match a workflow or set 'SkipTriggerCheck' to true."
-                });
-            }
+            var lockNames = await workflowMaintenance.Schedule(body.Filter, body.Wait, body.Duration);
+            return Ok(new { lockNames });
         }
-
-        var standby = body.ToStandby().SaveTo(standbyOptions.PendingPath);
-        return Ok(standby);
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unable to schedule maintenance for '{filter}'.", body.Filter);
+            return Problem(detail: ex.ToString(), statusCode: 500);
+        }
     }
 
     [HttpPost("[controller]:startAt")]
-    [ServiceFilter<EnsureWorkflowExistsAttribute>]
     public async Task<IActionResult> StartAt
     (
-        [FromServices] WorkflowSchedule.Collection workflowSchedules,
-        [FromServices] StandbyEngineOptions standbyOptions,
+        [FromServices] WorkflowMaintenance workflowMaintenance,
         [FromBody] StartAtBody body,
         string name
     )
     {
-        if (!body.SkipTriggerCheck)
+        try
         {
-            var triggers =
-                await workflowSchedules
-                    .Where(trigger => trigger.JobKey.Name.IsLike(body.Filter))
-                    .ToListAsync();
-
-            if (!triggers.Any())
-            {
-                return BadRequest(new
-                {
-                    body.Filter,
-                    Message = "Adjust the filter to match a workflow or set 'SkipTriggerCheck' to true."
-                });
-            }
+            var lockNames = await workflowMaintenance.Schedule(body.Filter, body.StartsOnUtc, body.EndsOnUtc);
+            return Ok(new { lockNames });
         }
-
-        var standby = await body.ToStandby().SaveTo(standbyOptions.PendingPath);
-        return Ok(standby);
-    }
-
-    [HttpDelete("[controller]")]
-    public async Task<IActionResult> Delete
-    (
-        [FromServices] StandbyDirectory standbyDirectory
-    )
-    {
-        var expired = await standbyDirectory.Where(s => s.IsExpired).ToListAsync();
-        foreach (var standby in expired)
+        catch (Exception ex)
         {
-            await standby.Delete();
+            logger.LogError(ex, "Unable to schedule maintenance for '{filter}'.", body.Filter);
+            return Problem(detail: ex.ToString(), statusCode: 500);
         }
-        return Ok();
     }
 
     public record StartInBody
     {
-        public bool SkipTriggerCheck { get; init; }
-
         public string Filter { get; init; } = null!;
 
         public TimeSpan Wait { get; init; }
 
         public TimeSpan Duration { get; init; }
-
-        public Standby ToStandby() => Standby.Schedule(Filter, Wait, Duration);
     }
 
     public record StartAtBody
     {
-        public bool SkipTriggerCheck { get; init; }
-
         public string Filter { get; init; } = null!;
 
         public DateTimeOffset StartsOnUtc { get; init; }
 
         public DateTimeOffset EndsOnUtc { get; init; }
-
-        public Standby ToStandby() => Standby.Schedule(Filter, StartsOnUtc, EndsOnUtc);
     }
 }

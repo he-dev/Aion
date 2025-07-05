@@ -1,8 +1,7 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Maintenance;
 using Aion.Core.Modules;
-using Aion.Util;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
@@ -12,8 +11,6 @@ namespace Aion.Core.Jobs;
 public class RegularWorkflowJob
 (
     ILogger<RegularWorkflowJob> logger,
-    StandbyDirectory standbyDirectory,
-    WorkflowFile workflowFile,
     WorkflowSchedule scheduler,
     WorkflowExecution execution
 ) : IJob
@@ -21,44 +18,65 @@ public class RegularWorkflowJob
     public async Task Execute(IJobExecutionContext context)
     {
         var workflowName = context.JobDetail.Key.Name;
+        var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
 
-        var standbys = await standbyDirectory.Where(s => s.IsActive).ToListAsync();
-        if (standbys.FirstOrDefault(s => workflowName.IsLike(s.Filter)) is { } standby)
+        if (await IsLocked(workflowName, workflowPath))
         {
-            logger.LogWarning
-            (
-                "Canceling workflow '{workflow}' because maintenance '{token}' is pending. Remaining time: {remaining}",
-                workflowName, standby.Filter, standby.Remaining
-            );
             return;
         }
 
-        var root = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Root))!;
-        var path = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
-
-        switch (await workflowFile.Load(path, root))
+        try
         {
-            case Result<Workflow, Workflow.Issue>.Failure { Value: var issue }:
-                logger.LogError(issue.Exception, "Unscheduling workflow '{workflow}' because it has flaws.", workflowName);
-                await scheduler.Delete(workflowName);
-                break;
-            case Result<Workflow, Workflow.Issue>.Success { Value.Enabled: false }:
-                logger.LogWarning("Unscheduling workflow '{workflow}' because it is disabled.", workflowName);
-                await scheduler.Delete(workflowName);
-                break;
-            case Result<Workflow, Workflow.Issue>.Success { Value: var workflow } when !workflow.Steps.Any(s => s.Enabled):
-                logger.LogWarning("Unscheduling workflow '{workflow}' because it has no enabled steps.", workflowName);
-                await scheduler.Delete(workflowName);
-                break;
-            case Result<Workflow, Workflow.Issue>.Success { Value: var workflow }:
-                logger.LogInformation("Executing workflow '{workflow}' on schedule.", workflowName);
-                await execution.Start(workflow, new WorkflowVariableGroup
-                {
-                    Name = workflowName,
-                    Mode = "cron",
-                    Cron = ((ICronTrigger)context.Trigger).CronExpressionString,
-                });
-                break;
+            switch (await Workflow.FromFile(workflowPath))
+            {
+                case { Enabled: false }:
+                    logger.LogWarning("Unscheduling workflow '{workflow}' because it is disabled.", workflowName);
+                    await scheduler.Delete(workflowName);
+                    break;
+                case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
+                    logger.LogWarning("Unscheduling workflow '{workflow}' because it has no enabled steps.", workflowName);
+                    await scheduler.Delete(workflowName);
+                    break;
+                case var workflow:
+                    logger.LogInformation("Executing workflow '{workflow}' on schedule '{cron}'.", workflowName, workflow.Trigger.CronExpressionString);
+                    await execution.Start(workflow, new WorkflowVariableGroup
+                    {
+                        Name = workflowName,
+                        Mode = "cron",
+                        Cron = ((ICronTrigger)context.Trigger).CronExpressionString,
+                    });
+                    break;
+            }
         }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unscheduling workflow '{workflow}' because it could not be loaded.", workflowPath);
+            await scheduler.Delete(workflowName);
+        }
+    }
+
+    private async Task<bool> IsLocked(string workflowName, string workflowPath)
+    {
+        try
+        {
+            if (await WorkflowLock.FromFile(workflowPath) is { } workflowLock)
+            {
+                await using (workflowLock)
+                {
+                    logger.LogWarning
+                    (
+                        "Workflow '{workflow}' is locked for {remaining} minutes until {expiresOnUtc}.",
+                        workflowName, workflowLock.Remaining, workflowLock.EndsOnUtc
+                    );
+                    return workflowLock.IsPending;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error checking if workflow '{workflow}' is locked.", workflowPath);
+        }
+
+        return false;
     }
 }

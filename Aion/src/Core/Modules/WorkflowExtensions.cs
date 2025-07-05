@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Aion.Core.Util;
 
@@ -15,7 +16,30 @@ public static class WorkflowExtensions
             WorkingDirectory = VariableTemplate.Render(step.WorkingDirectory ?? string.Empty, variableGroups)
         };
     }
+
+    public static void EnsureRenderable(this Workflow workflow)
+    {
+        // !! Ensure that the steps can be rendered.
+        // ?? Use fake values for testing.
+        foreach (var step in workflow.Steps)
+        {
+            step.RenderVariables([
+                new LocalVariableGroup(workflow.Variables),
+                new WorkflowVariableGroup { Name = "test", Mode = "test", Cron = "0 0 0 * * ?" },
+                new StepVariableGroup { Name = "test", Index = 0 }
+            ]);
+        }
+    }
+
+    public static void EnsureSchedulable(this Workflow workflow)
+    {
+        // !! Ensure that the trigger can be created.
+        // ?? Using the property creates a new trigger each time.
+        workflow.Trigger.GetFireTimeAfter(DateTimeOffset.UtcNow);
+    }
 }
+
+
 
 public class ApplicationVariableGroup() : VariableGroup("App")
 {
