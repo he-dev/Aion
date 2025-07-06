@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Aion.Head;
 using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Impl.Matchers;
@@ -11,13 +12,14 @@ namespace Aion.Core.Modules;
 
 // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
 
+// role: This class provides convenient scheduling methods to other modules.
 public class WorkflowSchedule
 (
     ILogger<WorkflowSchedule> logger,
     ISchedulerFactory schedulerFactory
 )
 {
-    public async Task<SynchronizationResult> Synchronize(Workflow workflow)
+    public async Task<(SynchronizationAction Action, DateTimeOffset? Next)> Synchronize(Workflow workflow)
     {
         logger.LogInformation("Workflow '{workflow}' is being synchronized...", workflow.Name);
 
@@ -30,11 +32,11 @@ public class WorkflowSchedule
                 if (await scheduler.DeleteJob(workflow.JobKey))
                 {
                     logger.LogInformation("Workflow '{workflow}' deleted from schedule because it is disabled.", workflow.Name);
-                    return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Deleted };
+                    return (SynchronizationAction.Deleted, null);
                 }
 
                 logger.LogInformation("Workflow '{workflow}' skipped because it is disabled.", workflow.Name);
-                return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Skipped };
+                return (SynchronizationAction.Skipped, null);
             }
 
             if (!workflow.Steps.Any(s => s.Enabled))
@@ -42,11 +44,11 @@ public class WorkflowSchedule
                 if (await scheduler.DeleteJob(workflow.JobKey))
                 {
                     logger.LogInformation("Workflow '{workflow}' deleted from schedule because it has no enabled steps.", workflow.Name);
-                    return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Deleted };
+                    return (SynchronizationAction.Deleted, null);
                 }
 
                 logger.LogInformation("Workflow '{workflow}' skipped because it has no enabled steps.", workflow.Name);
-                return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Skipped };
+                return (SynchronizationAction.Skipped, null);
             }
 
             // .. This might throw when the Cron property is invalid.
@@ -57,36 +59,31 @@ public class WorkflowSchedule
                 if (cron.Equals(trigger.CronExpressionString))
                 {
                     logger.LogInformation("Workflow '{workflow}' skipped because it is already scheduled.", workflow.Name);
-                    return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Skipped };
+                    return (SynchronizationAction.Skipped, null);
                 }
 
                 if (await scheduler.RescheduleJob(trigger.Key, trigger) is { } next)
                 {
                     logger.LogInformation("Workflow '{workflow}' rescheduled for '{next}'.", workflow.Name, next);
-                    return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Updated, Next = next };
+                    return (SynchronizationAction.Updated, null);
                 }
 
                 logger.LogInformation("Workflow '{workflow}' skipped because it could not be rescheduled.", workflow.Name);
-                return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Skipped };
+                return (SynchronizationAction.Skipped, null);
             }
             else
             {
                 var next = await Schedule(workflow.Path, workflow.Name, workflow.Trigger);
                 logger.LogInformation("Workflow '{workflow}' scheduled for '{next}'.", workflow.Name, next);
-                return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Created, Next = next };
+                return (SynchronizationAction.Created, null);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Workflow '{workflow}' could not be synchronized.", workflow.Name);
-            return new SynchronizationResult { Name = workflow.Name, Sync = SynchronizationAction.Faulted, Exception = $"{ex.GetType().Name}: {ex.Message}" };
+            throw;
         }
     }
-
-    // .. Workflows might get removed from the configuration directory.
-    // !! It needs to be possible to unschedule removed workflows.
-    // public async Task<SynchronizationResult> CleanUp(IEnumerable<string> names) { }
-
 
     public async Task<DateTimeOffset> StartNow(Workflow workflow)
     {
@@ -193,14 +190,6 @@ public class WorkflowSchedule
         Updated,
         Deleted,
         Faulted
-    }
-
-    public record SynchronizationResult
-    {
-        public required string Name { get; init; }
-        public DateTimeOffset? Next { get; init; }
-        public required SynchronizationAction Sync { get; init; }
-        public string? Exception { get; init; }
     }
 
     public class Collection

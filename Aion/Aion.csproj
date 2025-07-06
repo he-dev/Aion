@@ -47,10 +47,6 @@
       <_ContentIncludedByDefault Remove="workflows\sub\qux.json" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="src\" />
-    </ItemGroup>
-
 
 
 </Project>

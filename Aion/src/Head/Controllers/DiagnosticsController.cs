@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Core.Controllers;
+namespace Aion.Head.Controllers;
 
 [ApiController]
 [Route("api")]

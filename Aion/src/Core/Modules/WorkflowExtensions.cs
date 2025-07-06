@@ -16,11 +16,15 @@ public static class WorkflowExtensions
             WorkingDirectory = VariableTemplate.Render(step.WorkingDirectory ?? string.Empty, variableGroups)
         };
     }
+}
 
+// role: This class provides extensions that allow us to validate workflows before they are even scheduled.
+public static class WorkflowTemplateValidation
+{
     public static void EnsureRenderable(this Workflow workflow)
     {
-        // !! Ensure that the steps can be rendered.
-        // ?? Use fake values for testing.
+        // role: Ensures that templates in each step can be rendered.
+        // code: Use fake values for testing.
         foreach (var step in workflow.Steps)
         {
             step.RenderVariables([
@@ -33,13 +37,11 @@ public static class WorkflowExtensions
 
     public static void EnsureSchedulable(this Workflow workflow)
     {
-        // !! Ensure that the trigger can be created.
-        // ?? Using the property creates a new trigger each time.
+        // role: Ensures that the trigger can actually be created from its cron.
+        // code: Using the property creates a new trigger each time that would throw an exception if it's invalid.
         workflow.Trigger.GetFireTimeAfter(DateTimeOffset.UtcNow);
     }
 }
-
-
 
 public class ApplicationVariableGroup() : VariableGroup("App")
 {

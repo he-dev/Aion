@@ -4,14 +4,13 @@ using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Jobs;
 using Aion.Core.Modules;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Controllers;
+namespace Aion.Head.Controllers;
 
 [ApiController]
 [Route("api")]
@@ -63,16 +62,47 @@ public class WorkflowsController
     [HttpPost("[controller]:sync")]
     public async Task<IActionResult> Synchronize
     (
+        [FromServices] WorkflowDirectory workflowDirectory,
+        [FromServices] WorkflowSchedule workflowSchedule,
         [FromServices] ISchedulerFactory schedulerFactory
     )
     {
-        var scheduler = await schedulerFactory.GetScheduler();
-        var startsAt = await scheduler.ScheduleJob(
-            SynchronizationJob.CreateJobDetail(),
-            TriggerBuilder.Create().StartNow().Build()
-        );
+        // !! Does not start the synchronization-job here because we want to see the results immediately.
 
-        return Ok(new { startsAt });
+        var result = ImmutableList<object>.Empty;
+        var errors = ImmutableList<object>.Empty;
+
+        foreach (var path in workflowDirectory.FindFiles(FileFilter.Any, FileExtension.Json))
+        {
+            try
+            {
+                if (await Workflow.FromFile(path) is { } workflow)
+                {
+                    var (sync, next) = await workflowSchedule.Synchronize(workflow);
+                    result = result.Add(new
+                    {
+                        path,
+                        sync,
+                        next
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unable to synchronize workflow '{workflow}'.", path);
+                errors = errors.Add(new
+                {
+                    path,
+                    exception = ex.ToString()
+                });
+            }
+        }
+
+        return Ok(new
+        {
+            result,
+            errors
+        });
     }
 
     [HttpPost("[controller]/{name}:startNow")]
@@ -152,7 +182,7 @@ public class WorkflowsController
             if (workflowDirectory.FindFile(name, FileExtension.Json) is { } fileName)
             {
                 var workflow = await Workflow.FromFile(fileName);
-                var next = await workflowSchedule.StartAt(workflow, body.When);
+                var next = await workflowSchedule.StartAt(workflow, body.WhenUtc);
                 return Ok(new { name, next });
             }
 
@@ -177,11 +207,27 @@ public class WorkflowsController
 
     public record StartAtBody : IValidatableObject
     {
-        public DateTimeOffset When { get; init; }
+        public DateTime When { get; init; }
+
+        public string? TimeZoneId { get; init; }
+
+        private TimeZoneInfo TimeZone =>
+            string.IsNullOrEmpty(TimeZoneId)
+                ? TimeZoneInfo.Local
+                : TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+
+        public DateTimeOffset WhenUtc
+        {
+            get
+            {
+                var offset = TimeZone.GetUtcOffset(When);
+                return new DateTimeOffset(When, offset).ToUniversalTime();
+            }
+        }
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            if (When < DateTimeOffset.UtcNow)
+            if (WhenUtc < DateTimeOffset.UtcNow)
             {
                 yield return new ValidationResult($"Workflow must start in the future.", [nameof(When)]);
             }

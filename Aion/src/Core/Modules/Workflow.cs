@@ -5,25 +5,33 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Aion.Head;
 using JetBrains.Annotations;
 using Quartz;
 
 namespace Aion.Core.Modules;
 
 [PublicAPI]
-public record Workflow
+public record Workflow : ITimeZoned
 {
     // .. Make the user specify this value explicitly.
-    public required bool Enabled { get; init; }
+    public bool Enabled { get; init; }
 
     // .. Having a schedule is the whole point of a workflow, so make it "required".
-    public required string Cron { get; init; }
+    public string Cron { get; init; } = null!;
+
+    public string? TimeZoneId { get; init; }
+
+    public TimeZoneInfo TimeZone =>
+        string.IsNullOrEmpty(TimeZoneId)
+            ? TimeZoneInfo.Local
+            : TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
 
     // .. Variables are optional and can be empty.
     public Dictionary<string, object?> Variables { get; init; } = new();
 
     // .. Workflows without steps don't make sense, so make it a required field.
-    public required List<Step> Steps { get; init; } = [];
+    public List<Step> Steps { get; init; } = [];
 
     #region Meta
 
@@ -43,7 +51,7 @@ public record Workflow
             .Create()
             .WithIdentity(Name, JobGroupNames.Workflows)
             .UsingJobData(nameof(Path), Path)
-            .WithCronSchedule(Cron)
+            .WithCronSchedule(Cron, x => x.InTimeZone(TimeZone))
             .Build();
 
     #endregion
@@ -132,8 +140,6 @@ public record Workflow
 }
 
 public class WorkflowNullException(string path) : Exception($"Workflow '{path}' is null.");
-
-
 
 
 // public class WorkflowBinder : IModelBinder

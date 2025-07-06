@@ -1,12 +1,10 @@
 using System;
 using System.CommandLine;
-using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Jobs;
 using Aion.Core.Modules;
 using Aion.Util;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,7 +15,7 @@ using NLog.Web;
 using Quartz;
 using Quartz.AspNetCore;
 
-namespace Aion.Core;
+namespace Aion.Head;
 
 public class Program
 {
@@ -170,40 +168,6 @@ public class Program
     }
 }
 
-public class ColonRouteConvention : IApplicationModelConvention
-{
-    public void Apply(ApplicationModel application)
-    {
-        foreach (var controller in application.Controllers)
-        {
-            // find the [Route("api/[controller]")] template
-            var controllerRoute =
-                controller
-                    .Selectors
-                    .Select(s => s.AttributeRouteModel)
-                    .FirstOrDefault(m => m != null && !m.Template!.Contains("{"))?
-                    .Template;
-
-            if (controllerRoute == null)
-                continue;
-
-            foreach (var action in controller.Actions)
-            {
-                foreach (var selector in action.Selectors)
-                {
-                    var arm = selector.AttributeRouteModel;
-                    if (arm != null && arm.Template!.Contains(":"))
-                    {
-                        // splice it on without the slash
-                        // e.g. "api/workflows" + ":sync" => "api/workflows:sync"
-                        //arm.Template = controllerRoute + arm.Template;
-                    }
-                }
-            }
-        }
-    }
-}
-
 internal static class JobGroupNames
 {
     public const string Workflows = nameof(Workflows);
@@ -213,4 +177,9 @@ internal static class JobGroupNames
 public record QuartzServerOptions
 {
     public int StartDelaySeconds { get; init; }
+}
+
+public interface ITimeZoned
+{
+    TimeZoneInfo TimeZone { get; }
 }
