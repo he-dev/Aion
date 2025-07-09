@@ -16,11 +16,14 @@ public class AdHocWorkflowJob
     public async Task Execute(IJobExecutionContext context)
     {
         var workflowName = context.JobDetail.Key.Name;
-        var path = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
+        var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
+
+        var correlationId = Guid.NewGuid().ToString("N");
+        using var scope = logger.BeginScope(new { workflow = workflowName, correlationId });
 
         try
         {
-            switch (await Workflow.FromFile(path))
+            switch (await Workflow.FromFile(workflowPath))
             {
                 case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
                     logger.LogWarning("Canceling workflow '{workflow}' because it has no enabled steps.", workflowName);
@@ -30,14 +33,15 @@ public class AdHocWorkflowJob
                     await execution.Start(workflow, new WorkflowVariableGroup
                     {
                         Name = workflowName,
-                        Mode = context.Trigger.JobDataMap.GetString("start")! // .. This is always set.
+                        Mode = context.Trigger.JobDataMap.GetString("start")!, // .. This is always set.
+                        JobId = correlationId,
                     });
                     break;
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Canceling workflow '{workflow}' because it could not be loaded.", path);
+            logger.LogError(ex, "Canceling workflow because it could not be loaded.");
         }
     }
 }

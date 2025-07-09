@@ -2,6 +2,9 @@
 @workflows={{host}}/api/workflows
 
 ### Fetch all workflows or by filter and/or other parameters.
+GET {{workflows}}
+
+### Fetch all workflows or by filter and/or other parameters.
 GET {{workflows}}/api/workflows?q={filter}&enabled={enabled}
 
 ### Fetch all workflows or by filter and/or other parameters.

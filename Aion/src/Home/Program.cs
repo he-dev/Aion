@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Aion.Core.Jobs;
 using Aion.Core.Modules;
 using Aion.Util;
+using Aion.Util.NLog;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +16,7 @@ using NLog.Web;
 using Quartz;
 using Quartz.AspNetCore;
 
-namespace Aion.Head;
+namespace Aion.Home;
 
 public class Program
 {
@@ -40,7 +41,16 @@ public class Program
         // }
 
 
-        NLog.LogManager.Setup().LoadConfigurationFromFile("NLog.config");
+        NLog .LogManager
+            .Setup()
+            .SetupSerialization(builder =>
+            {
+                var defaultConverter = builder.LogFactory.ServiceRepository.GetRequiredService<IJsonConverter>();
+                builder.RegisterJsonConverter(new StopwatchConverter(defaultConverter));
+            })
+            .LoadConfigurationFromFile("NLog.config");
+
+        //var asdf = NLog.Config.ConfigurationItemFactory.Default.JsonConverter;
 
         var builder = WebApplication.CreateBuilder(args);
 

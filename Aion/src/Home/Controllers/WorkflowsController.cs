@@ -9,8 +9,9 @@ using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Quartz;
+using NLog.Extensions.Logging;
 
-namespace Aion.Head.Controllers;
+namespace Aion.Home.Controllers;
 
 [ApiController]
 [Route("api")]
@@ -20,7 +21,7 @@ public class WorkflowsController
 ) : ControllerBase
 {
     [HttpGet("[controller]")]
-    public async Task<IActionResult> Get2
+    public async Task<IActionResult> Get
     (
         [FromServices] WorkflowDirectory workflowDirectory,
         [FromQuery(Name = "q")] string? filter,
@@ -29,15 +30,19 @@ public class WorkflowsController
     {
         var workflows = ImmutableList<Workflow>.Empty;
         var errors = ImmutableList<object>.Empty;
-        foreach (var path in workflowDirectory.FindFiles(filter ?? FileFilter.Any, FileExtension.Json))
+        foreach (var filePath in workflowDirectory.FindFiles(filter ?? FileFilter.Any, FileExtension.Json))
         {
             try
             {
-                workflows = workflows.Add(await Workflow.FromFile(path));
+                workflows = workflows.Add(await Workflow.FromFile(filePath));
             }
             catch (Exception ex)
             {
-                errors = errors.Add(new { path, exception = ex.ToString() });
+                using var scope = logger.BeginScope(new { foo = "foo" });
+                //using var scope = logger.BeginScope(new Dictionary<string, object> { ["foo"] = "foo" });
+                logger.LogInformation("test {bar}", "bar");
+                logger.LogError(ex, "Unable to load workflow '{workflow}'.", filePath);
+                errors = errors.Add(new { path = filePath, exception = ex.ToString() });
             }
         }
 

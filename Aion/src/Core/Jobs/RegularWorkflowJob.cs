@@ -25,12 +25,15 @@ public class RegularWorkflowJob
             return;
         }
 
+        var jobId = Guid.NewGuid().ToString("N");
+        using var scope = logger.BeginScope(new { workflow = workflowName, jobId });
+
         try
         {
             switch (await Workflow.FromFile(workflowPath))
             {
                 case { Enabled: false }:
-                    logger.LogWarning("Unscheduling workflow '{workflow}' because it is disabled.", workflowName);
+                    logger.LogWarning("Unscheduling workflow because it is disabled.");
                     await scheduler.Delete(workflowName);
                     break;
                 case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
@@ -44,13 +47,14 @@ public class RegularWorkflowJob
                         Name = workflowName,
                         Mode = "cron",
                         Cron = ((ICronTrigger)context.Trigger).CronExpressionString,
+                        JobId = jobId,
                     });
                     break;
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unscheduling workflow '{workflow}' because it could not be loaded.", workflowPath);
+            logger.LogError(ex, "Unscheduling workflow because it could not be loaded.");
             await scheduler.Delete(workflowName);
         }
     }

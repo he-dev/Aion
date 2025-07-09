@@ -48,7 +48,9 @@ public record FileExtension(string Name)
     public static readonly FileExtension Json = new("json");
     public static readonly FileExtension Lock = new("lock");
 
-    public static implicit operator string(FileExtension extension) => extension.Name;
+    public override string ToString() => Name;
+
+    public static implicit operator string(FileExtension extension) => extension.ToString();
 }
 
 public record FileFilter(string Value)

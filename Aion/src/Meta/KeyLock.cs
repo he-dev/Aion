@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Aion.Util;
+namespace Aion.Meta;
 
 public static class KeyLock
 {

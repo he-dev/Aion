@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Head.Controllers;
+namespace Aion.Home.Controllers;
 
 [ApiController]
 [Route("api")]

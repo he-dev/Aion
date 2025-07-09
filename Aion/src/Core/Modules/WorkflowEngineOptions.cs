@@ -1,4 +1,4 @@
-using Aion.Core.Util;
+using Aion.Util.Scriban;
 using Microsoft.Extensions.Options;
 
 namespace Aion.Core.Modules;

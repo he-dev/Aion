@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,40 +15,44 @@ public class AsyncProcess : IAsyncProcess
 {
     public async Task<Result> StartAsync(ProcessStartInfo startInfo, int timeoutMilliseconds)
     {
-        // If you run bash-script on Linux it is possible that ExitCode can be 255.
-        // To fix it you can try to add '#!/bin/bash' header to the script.
-        using var process = new Process();
-        process.StartInfo = startInfo;
+        startInfo.UseShellExecute = false;
+        startInfo.RedirectStandardInput = true;
+        startInfo.RedirectStandardOutput = true;
+        startInfo.RedirectStandardError = true;
 
-        var stdOutBuilder = new StringBuilder();
-        var outputCloseEvent = new TaskCompletionSource<bool>();
+        // note: If you run a bash-script on Linux, it is possible that ExitCode can be 255.
+        // To fix it, you can try to add the "#!/bin/bash" header to the script.
+        var process = new Process { StartInfo = startInfo };
+
+        var stdOutWriter = new StreamWriter(path: "file-name-here-output.txt", append: true, encoding: Encoding.UTF8) { AutoFlush = true };
+        var stdOutCompletion = new TaskCompletionSource<bool>();
 
         process.OutputDataReceived += (_, e) =>
         {
-            // The output stream has been closed, i.e. the process has terminated.
+            // The output stream has been closed, i.e., the process has terminated.
             if (e.Data is null)
             {
-                outputCloseEvent.SetResult(true);
+                stdOutCompletion.TrySetResult(true);
             }
             else
             {
-                stdOutBuilder.AppendLine(e.Data);
+                stdOutWriter.WriteLine(e.Data);
             }
         };
 
-        var stdErrBuilder = new StringBuilder();
-        var errorCloseEvent = new TaskCompletionSource<bool>();
+        var stdErrWriter = new StreamWriter(path: "file-name-here-error.txt", append: true, encoding: Encoding.UTF8) { AutoFlush = true };
+        var stdErrCompletion = new TaskCompletionSource<bool>();
 
         process.ErrorDataReceived += (s, e) =>
         {
-            // The error stream has been closed i.e. the process has terminated.
+            // The error stream has been closed, i.e., the process has terminated.
             if (e.Data is null)
             {
-                errorCloseEvent.SetResult(true);
+                stdErrCompletion.TrySetResult(true);
             }
             else
             {
-                stdErrBuilder.AppendLine(e.Data);
+                stdErrWriter.WriteLine(e.Data);
             }
         };
 
@@ -56,6 +61,9 @@ public class AsyncProcess : IAsyncProcess
             var stopwatch = Stopwatch.StartNew();
             if (process.Start())
             {
+                process.StandardInput.Close();
+                process.StandardOutput.Close();
+
                 // Reads the output stream first and then waits because deadlocks are possible.
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
@@ -64,7 +72,7 @@ public class AsyncProcess : IAsyncProcess
                 var waitForExit = WaitForExitAsync(process, timeoutMilliseconds);
 
                 // Create the task to wait for process exit and closing all output streams.
-                var processTask = Task.WhenAll(waitForExit, outputCloseEvent.Task, errorCloseEvent.Task);
+                var processTask = Task.WhenAll(waitForExit, stdOutCompletion.Task, stdErrCompletion.Task);
 
                 // Waits process completion and then checks it was not completed by timeout.
                 if (await Task.WhenAny(Task.Delay(timeoutMilliseconds), processTask) == processTask && waitForExit.Result)
@@ -72,8 +80,6 @@ public class AsyncProcess : IAsyncProcess
                     return new Result(process.StartInfo, process.ExitCode)
                     {
                         Completed = true,
-                        StdOut = stdOutBuilder.ToString(),
-                        StdErr = stdErrBuilder.ToString(),
                         Elapsed = stopwatch.Elapsed
                     };
                 }
@@ -81,13 +87,11 @@ public class AsyncProcess : IAsyncProcess
                 // Kill it if it takes too long to complete or hangs.
                 try
                 {
-                    process.Kill();
+                    process.Kill(entireProcessTree: true);
                     return new Result(process.StartInfo, -1)
                     {
                         TimedOut = true,
                         Killed = true,
-                        StdOut = stdOutBuilder.ToString(),
-                        StdErr = stdErrBuilder.ToString(),
                         Elapsed = stopwatch.Elapsed
                     };
                 }
@@ -96,23 +100,17 @@ public class AsyncProcess : IAsyncProcess
                     return new Result(process.StartInfo, -1)
                     {
                         TimedOut = true,
-                        StdOut = stdOutBuilder.ToString(),
-                        StdErr = stdErrBuilder.ToString(),
                         Exception = ex,
                         Elapsed = stopwatch.Elapsed
                     };
                 }
             }
         }
-        catch (Exception ex)
+        finally
         {
-            // Usually it occurs when an executable file is not found or is not executable.
-            return new Result(process.StartInfo, -1)
-            {
-                StdOut = stdOutBuilder.ToString(),
-                StdErr = stdErrBuilder.ToString(),
-                Exception = ex,
-            };
+            await stdOutWriter.DisposeAsync();
+            await stdErrWriter.DisposeAsync();
+            process.Dispose();
         }
 
         return new Result(process.StartInfo, 0);

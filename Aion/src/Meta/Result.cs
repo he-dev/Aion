@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
 
-namespace Aion.Util;
+namespace Aion.Meta;
 
 public abstract record Result<TSuccess, TFailure>
 {

@@ -67,10 +67,6 @@ public class WorkflowExecution
             {
                 FileName = step.Script,
                 Arguments = string.Join(' ', step.Args.Select(a => a.Trim())),
-                UseShellExecute = false,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
                 CreateNoWindow = !step.WindowVisible,
                 WorkingDirectory = step.WorkingDirectory
             };
