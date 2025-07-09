@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Aion.Core.Modules;
 using Aion.Home;
+using Aion.Util.Serilog;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -21,11 +22,14 @@ internal class SynchronizationJob
     {
         logger.LogInformation("Synchronizing workflows...");
 
+        var executionId = Guid.NewGuid().ToString("D");
+
         foreach (var workflowPath in directory.FindFiles(FileFilter.Any, FileExtension.Json))
         {
             try
             {
                 var workflow = await Workflow.FromFile(workflowPath);
+                using var scope = logger.BeginScopeFrom(new { ExecutionId = executionId });
                 await scheduler.Synchronize(workflow);
             }
             catch (Exception ex)

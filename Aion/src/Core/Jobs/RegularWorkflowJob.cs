@@ -46,8 +46,8 @@ public class RegularWorkflowJob
                     await process.Start(workflow, new WorkflowVariableGroup
                     {
                         Name = workflowName,
-                        Mode = nameof(ExecutionMode.Cron),
-                        Cron = ((ICronTrigger)context.Trigger).CronExpressionString,
+                        Mode = nameof(WorkflowTriggerType.Cron),
+                        Trigger = ((ICronTrigger)context.Trigger).CronExpressionString,
                         JobId = executionId,
                     });
                     break;

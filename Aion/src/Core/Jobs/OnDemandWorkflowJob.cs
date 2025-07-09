@@ -35,7 +35,8 @@ public class OnDemandWorkflowJob
                     await workflowProcess.Start(workflow, new WorkflowVariableGroup
                     {
                         Name = workflowName,
-                        Mode = nameof(ExecutionMode.OnDemand),
+                        Mode = nameof(WorkflowTriggerType.OnDemand),
+                        Trigger = onDemandOption,
                         JobId = executionId,
                     });
                     break;

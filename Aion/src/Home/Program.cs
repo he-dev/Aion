@@ -81,12 +81,6 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
-        // todo: setup later
-        // builder.Services.AddSingleton<LogAction>(_ => LogActionBuilder.CreateDefault().Use<LogToConsole>().Use<LogToNLog>().Build());
-        // builder.Services.AddSingleton(typeof(LoggerFactory));
-        // builder.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
-        // builder.Services.AddWiretap();
-
         // .. There's no way these settings are missing so suppress the null warnings.
         //var workflowEngineOptions = builder.Configuration.GetRequiredSection("WorkflowEngine").Get<WorkflowEngineOptions>()!;
         //var standbyEngineOptions = builder.Configuration.GetRequiredSection("StandbyEngine").Get<StandbyEngineOptions>()!;
@@ -163,7 +157,6 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseAuthorization();
-        // app.UseWiretap(); // todo: setup later
         // app.UseRouting();
         // app.UseEndpoints(endpoints =>
         // {

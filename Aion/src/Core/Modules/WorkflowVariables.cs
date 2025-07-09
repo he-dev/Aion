@@ -24,7 +24,7 @@ public class WorkflowVariableGroup() : VariableGroup("Workflow")
 
     public required string Mode { get; init; }
 
-    public string? Cron { get; init; }
+    public string? Trigger { get; init; }
 
     public required string JobId { get; init; }
 
@@ -32,7 +32,7 @@ public class WorkflowVariableGroup() : VariableGroup("Workflow")
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
         yield return new KeyValuePair<string, object?>(nameof(Mode), Mode);
-        yield return new KeyValuePair<string, object?>(nameof(Cron), Cron);
+        yield return new KeyValuePair<string, object?>(nameof(Trigger), Trigger);
         yield return new KeyValuePair<string, object?>(nameof(JobId), JobId);
     }
 }

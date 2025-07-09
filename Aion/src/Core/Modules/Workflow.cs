@@ -124,6 +124,7 @@ public record Workflow : ITimeZoned
             Steps = workflow.Steps.Select((step, index) => step with { Index = index }).ToList()
         };
 
+        workflow.EnsureUrlSafeName();
         workflow.EnsureRenderable();
         workflow.EnsureSchedulable();
 
