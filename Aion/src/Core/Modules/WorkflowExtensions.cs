@@ -11,7 +11,8 @@ public static class WorkflowExtensions
         {
             Script = VariableTemplate.Render(step.Script, variableGroups),
             Args = step.Args.Select(arg => VariableTemplate.Render(arg, variableGroups)).ToList(),
-            WorkingDirectory = VariableTemplate.Render(step.WorkingDirectory ?? string.Empty, variableGroups)
+            WorkingDirectory = VariableTemplate.Render(step.WorkingDirectory ?? string.Empty, variableGroups),
+            LogStdTo = step.LogStdTo is not null ? VariableTemplate.Render(step.LogStdTo, variableGroups) : null,
         };
     }
 }

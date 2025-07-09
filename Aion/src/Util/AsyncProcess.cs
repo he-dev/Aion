@@ -6,147 +6,125 @@ using System.Threading.Tasks;
 
 namespace Aion.Util;
 
-public interface IAsyncProcess
+public class AsyncProcess
 {
-    Task<AsyncProcess.Result> StartAsync(ProcessStartInfo startInfo, int timeoutMilliseconds);
-}
+    public required string FileName { get; init; } = null!;
 
-public class AsyncProcess : IAsyncProcess
-{
-    public async Task<Result> StartAsync(ProcessStartInfo startInfo, int timeoutMilliseconds)
+    public required string Arguments { get; init; } = null!;
+
+    public string? WorkingDirectory { get; init; }
+
+    public StreamWriter? StdStream { get; set; }
+
+    public async Task<int> StartAsync(TimeSpan timeout)
     {
-        startInfo.UseShellExecute = false;
-        startInfo.RedirectStandardInput = true;
-        startInfo.RedirectStandardOutput = true;
-        startInfo.RedirectStandardError = true;
-
         // note: If you run a bash-script on Linux, it is possible that ExitCode can be 255.
         // To fix it, you can try to add the "#!/bin/bash" header to the script.
-        var process = new Process { StartInfo = startInfo };
-
-        var stdOutWriter = new StreamWriter(path: "file-name-here-output.txt", append: true, encoding: Encoding.UTF8) { AutoFlush = true };
-        var stdOutCompletion = new TaskCompletionSource<bool>();
-
-        process.OutputDataReceived += (_, e) =>
+        var process = new Process
         {
-            // The output stream has been closed, i.e., the process has terminated.
-            if (e.Data is null)
+            StartInfo = new ProcessStartInfo
             {
-                stdOutCompletion.TrySetResult(true);
-            }
-            else
-            {
-                stdOutWriter.WriteLine(e.Data);
+                FileName = FileName,
+                Arguments = Arguments,
+                WorkingDirectory = WorkingDirectory,
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
             }
         };
 
-        var stdErrWriter = new StreamWriter(path: "file-name-here-error.txt", append: true, encoding: Encoding.UTF8) { AutoFlush = true };
-        var stdErrCompletion = new TaskCompletionSource<bool>();
+        var stdOutputCompletion = new TaskCompletionSource<bool>();
 
-        process.ErrorDataReceived += (s, e) =>
+        var syncStream = StdStream is not null ? TextWriter.Synchronized(StdStream) : null;
+
+        if (syncStream is not null)
         {
-            // The error stream has been closed, i.e., the process has terminated.
-            if (e.Data is null)
+            process.OutputDataReceived += (_, e) =>
             {
-                stdErrCompletion.TrySetResult(true);
-            }
-            else
+                // The output stream has been closed, i.e., the process has terminated.
+                if (e.Data is null)
+                {
+                    stdOutputCompletion.TrySetResult(true);
+                    syncStream.WriteLine($"{DateTimeOffset.UtcNow:s} | OUT | EOF");
+                }
+                else
+                {
+                    syncStream.WriteLine($"{DateTimeOffset.UtcNow:s} | OUT | {e.Data}");
+                }
+            };
+        }
+        else
+        {
+            stdOutputCompletion.TrySetResult(true);
+        }
+
+        // var stdErrWriter = new StreamWriter(path: "file-name-here-error.txt", append: true, encoding: Encoding.UTF8) { AutoFlush = true };
+        var stdErrorCompletion = new TaskCompletionSource<bool>();
+
+        if (syncStream is not null)
+        {
+            process.ErrorDataReceived += (s, e) =>
             {
-                stdErrWriter.WriteLine(e.Data);
-            }
-        };
+                // The error stream has been closed, i.e., the process has terminated.
+                if (e.Data is null)
+                {
+                    stdErrorCompletion.TrySetResult(true);
+                    syncStream.WriteLine($"{DateTimeOffset.UtcNow:s} | ERR | EOF");
+                }
+                else
+                {
+                    syncStream.WriteLine($"{DateTimeOffset.UtcNow:s} | ERR | {e.Data}");
+                }
+            };
+        }
+        else
+        {
+            stdErrorCompletion.TrySetResult(true);
+        }
 
         try
         {
-            var stopwatch = Stopwatch.StartNew();
             if (process.Start())
             {
-                process.StandardInput.Close();
-                process.StandardOutput.Close();
+                //process.StandardInput.Close();
+                //process.StandardOutput.Close();
 
                 // Reads the output stream first and then waits because deadlocks are possible.
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 
-                // Creates the task to wait for process exit using timeout.
-                var waitForExit = WaitForExitAsync(process, timeoutMilliseconds);
+                var processTask = WaitForExitAsync(process, timeout);
 
-                // Create the task to wait for process exit and closing all output streams.
-                var processTask = Task.WhenAll(waitForExit, stdOutCompletion.Task, stdErrCompletion.Task);
+                // util: This task waits for the process to exit and closing all std-streams.
+                var mainTask = Task.WhenAll(processTask, stdOutputCompletion.Task, stdErrorCompletion.Task);
 
                 // Waits process completion and then checks it was not completed by timeout.
-                if (await Task.WhenAny(Task.Delay(timeoutMilliseconds), processTask) == processTask && waitForExit.Result)
+                if (await Task.WhenAny(Task.Delay(timeout), mainTask) == mainTask && processTask.Result)
                 {
-                    return new Result(process.StartInfo, process.ExitCode)
-                    {
-                        Completed = true,
-                        Elapsed = stopwatch.Elapsed
-                    };
+                    return process.ExitCode;
                 }
 
                 // Kill it if it takes too long to complete or hangs.
-                try
-                {
-                    process.Kill(entireProcessTree: true);
-                    return new Result(process.StartInfo, -1)
-                    {
-                        TimedOut = true,
-                        Killed = true,
-                        Elapsed = stopwatch.Elapsed
-                    };
-                }
-                catch (Exception ex)
-                {
-                    return new Result(process.StartInfo, -1)
-                    {
-                        TimedOut = true,
-                        Exception = ex,
-                        Elapsed = stopwatch.Elapsed
-                    };
-                }
+                process.Kill(entireProcessTree: true);
+                throw new ProcessTimeoutException();
             }
+
+            throw new ProcessNotStartedException();
         }
         finally
         {
-            await stdOutWriter.DisposeAsync();
-            await stdErrWriter.DisposeAsync();
             process.Dispose();
         }
-
-        return new Result(process.StartInfo, 0);
     }
 
-    private static Task<bool> WaitForExitAsync(Process process, int timeout)
+    // util: Helps to avoid the warning about the process being disposed outside the lambda.
+    private static Task<bool> WaitForExitAsync(Process process, TimeSpan timeout)
     {
         return Task.Run(() => process.WaitForExit(timeout));
     }
-
-    public record Result(ProcessStartInfo StartInfo, int ExitCode)
-    {
-        public bool Completed { get; init; }
-        public bool TimedOut { get; init; }
-        public bool Killed { get; init; }
-        public string? StdOut { get; init; }
-        public string? StdErr { get; init; }
-        public Exception? Exception { get; init; }
-        public TimeSpan Elapsed { get; init; } = TimeSpan.Zero;
-
-        public override string ToString()
-        {
-            return
-                new StringBuilder()
-                    .AppendLine($"FileName: {StartInfo.FileName}")
-                    .Append("Arguments:").AppendLine(string.IsNullOrEmpty(StartInfo.Arguments) ? " null" : StartInfo.Arguments)
-                    .AppendLine($"ExitCode: {ExitCode}")
-                    .AppendLine($"Completed: {Completed}")
-                    .AppendLine($"TimedOut: {TimedOut}")
-                    .AppendLine($"Killed: {Killed}")
-                    .Append("Output:").Append(string.IsNullOrEmpty(StdOut) ? " null" : Environment.NewLine + StdOut).AppendLine()
-                    .Append("Error:").Append(string.IsNullOrEmpty(StdErr) ? " null" : Environment.NewLine + StdErr).AppendLine()
-                    .Append("Exception:").Append(Exception is not null ? Environment.NewLine + Exception : " null")
-                    .ToString();
-        }
-
-        public static implicit operator bool(Result result) => result.ExitCode == 0;
-    }
 }
+
+public class ProcessTimeoutException : Exception;
+public class ProcessNotStartedException : Exception;

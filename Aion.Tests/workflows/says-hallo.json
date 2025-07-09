@@ -1,0 +1,17 @@
+{
+  "Enabled": true,
+  "Cron": "0/15 * * * * ?",
+  "Variables": {
+    "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe"
+  },
+  "Steps": [
+    {
+      "Script": "{{ local.exe }}",
+      "Args": [
+        "--sleep 5",
+        "--message \"Hallo NPC!\""
+      ],
+      "LogStdTo": "C:\\temp\\{{ workflow.name }}.std"
+    }
+  ]
+}

@@ -5,11 +5,12 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
+using Aion.Util;
 using Aion.Util.Quartz;
+using Aion.Util.Serilog;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Quartz;
-using NLog.Extensions.Logging;
 
 namespace Aion.Home.Controllers;
 
@@ -38,10 +39,10 @@ public class WorkflowsController
             }
             catch (Exception ex)
             {
-                using var scope = logger.BeginScope(new { foo = "foo" });
+                using var scope = logger.BeginScopeFrom(new { foo = "foo" });
                 //using var scope = logger.BeginScope(new Dictionary<string, object> { ["foo"] = "foo" });
                 logger.LogInformation("test {bar}", "bar");
-                logger.LogError(ex, "Unable to load workflow '{workflow}'.", filePath);
+                logger.LogError(ex, "Unable to load workflow '{WorkflowPath}'.", filePath);
                 errors = errors.Add(new { path = filePath, exception = ex.ToString() });
             }
         }

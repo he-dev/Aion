@@ -2,39 +2,41 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
+using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
 namespace Aion.Core.Jobs;
 
-public class AdHocWorkflowJob
+public class OnDemandWorkflowJob
 (
     ILogger<RegularWorkflowJob> logger,
-    WorkflowExecution execution
+    WorkflowProcess workflowProcess
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
+        var onDemandOption = context.Trigger.JobDataMap.GetString(nameof(OnDemandOption))!;
         var workflowName = context.JobDetail.Key.Name;
         var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
 
-        var correlationId = Guid.NewGuid().ToString("N");
-        using var scope = logger.BeginScope(new { workflow = workflowName, correlationId });
+        var executionId = Guid.NewGuid().ToString("D");
+        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflowName, ExecutionId = executionId });
 
         try
         {
             switch (await Workflow.FromFile(workflowPath))
             {
                 case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
-                    logger.LogWarning("Canceling workflow '{workflow}' because it has no enabled steps.", workflowName);
+                    logger.LogWarning("Canceling workflow because it has no enabled steps.");
                     break;
                 case var workflow:
-                    logger.LogInformation("Executing workflow '{workflow}' on schedule '{cron}'.", workflowName, workflow.Trigger.CronExpressionString);
-                    await execution.Start(workflow, new WorkflowVariableGroup
+                    logger.LogInformation("Executing workflow on-demand by {OnDemandOption}.", onDemandOption);
+                    await workflowProcess.Start(workflow, new WorkflowVariableGroup
                     {
                         Name = workflowName,
-                        Mode = context.Trigger.JobDataMap.GetString("start")!, // .. This is always set.
-                        JobId = correlationId,
+                        Mode = nameof(ExecutionMode.OnDemand),
+                        JobId = executionId,
                     });
                     break;
             }

@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
+using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
@@ -12,7 +13,7 @@ public class RegularWorkflowJob
 (
     ILogger<RegularWorkflowJob> logger,
     WorkflowSchedule scheduler,
-    WorkflowExecution execution
+    WorkflowProcess process
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -25,8 +26,8 @@ public class RegularWorkflowJob
             return;
         }
 
-        var jobId = Guid.NewGuid().ToString("N");
-        using var scope = logger.BeginScope(new { workflow = workflowName, jobId });
+        var executionId = Guid.NewGuid().ToString("D");
+        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflowName, ExecutionId = executionId });
 
         try
         {
@@ -37,17 +38,17 @@ public class RegularWorkflowJob
                     await scheduler.Delete(workflowName);
                     break;
                 case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
-                    logger.LogWarning("Unscheduling workflow '{workflow}' because it has no enabled steps.", workflowName);
+                    logger.LogWarning("Unscheduling workflow because it has no enabled steps.");
                     await scheduler.Delete(workflowName);
                     break;
                 case var workflow:
-                    logger.LogInformation("Executing workflow '{workflow}' on schedule '{cron}'.", workflowName, workflow.Trigger.CronExpressionString);
-                    await execution.Start(workflow, new WorkflowVariableGroup
+                    logger.LogInformation("Executing workflow on schedule by '{Cron}'.", workflow.Trigger.CronExpressionString);
+                    await process.Start(workflow, new WorkflowVariableGroup
                     {
                         Name = workflowName,
-                        Mode = "cron",
+                        Mode = nameof(ExecutionMode.Cron),
                         Cron = ((ICronTrigger)context.Trigger).CronExpressionString,
-                        JobId = jobId,
+                        JobId = executionId,
                     });
                     break;
             }

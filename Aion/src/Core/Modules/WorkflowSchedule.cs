@@ -96,7 +96,7 @@ public class WorkflowSchedule
 
         var job =
             JobBuilder
-                .Create<Jobs.AdHocWorkflowJob>()
+                .Create<Jobs.OnDemandWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
@@ -107,7 +107,7 @@ public class WorkflowSchedule
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .StartNow()
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
-                .UsingJobData("start", "now")
+                .UsingJobData(nameof(OnDemandOption), nameof(OnDemandOption.StartNow))
                 .Build();
 
         return await scheduler.ScheduleJob(job, trigger);
@@ -124,7 +124,7 @@ public class WorkflowSchedule
 
         var job =
             JobBuilder
-                .Create<Jobs.AdHocWorkflowJob>()
+                .Create<Jobs.OnDemandWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
@@ -135,7 +135,7 @@ public class WorkflowSchedule
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .StartAt(startAt)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
-                .UsingJobData("start", "at")
+                .UsingJobData(nameof(OnDemandOption), nameof(OnDemandOption.StartAt))
                 .Build();
 
         //logger.LogDebug("Workflow '{name}' will be started in {delay} seconds.'", workflow.Name, startAt);
@@ -144,6 +144,8 @@ public class WorkflowSchedule
 
     public async Task<DateTimeOffset> StartIn(Workflow workflow, TimeSpan delay)
     {
+        // todo: set this somehow
+        // .UsingJobData(nameof(OnDemandOption), nameof(OnDemandOption.StartNow))
         return await StartAt(workflow, DateTimeOffset.UtcNow + delay);
     }
 
@@ -211,4 +213,19 @@ public class WorkflowSchedule
             }
         }
     }
+}
+
+public enum OnDemandOption
+{
+    None,
+    StartNow,
+    StartIn,
+    StartAt
+}
+
+public enum ExecutionMode
+{
+    None,
+    Cron,
+    OnDemand
 }

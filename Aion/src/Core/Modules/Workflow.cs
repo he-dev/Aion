@@ -83,13 +83,11 @@ public record Workflow : ITimeZoned
 
         public string? WorkingDirectory { get; init; }
 
-        public int TimeoutMilliseconds { get; init; } = -1;
+        public TimeSpan Timeout { get; init; } = System.Threading.Timeout.InfiniteTimeSpan;
 
         public bool WindowVisible { get; init; }
 
-        public bool LogStdOut { get; init; }
-
-        public bool LogStdErr { get; init; }
+        public string? LogStdTo { get; init; }
 
         public string? DependsOn { get; init; }
 
@@ -135,11 +133,15 @@ public record Workflow : ITimeZoned
     public static async Task<Workflow?> FromJson(string path)
     {
         await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return await JsonSerializer.DeserializeAsync<Workflow>(fileStream);
+        return await JsonSerializer.DeserializeAsync<Workflow>(fileStream, new JsonSerializerOptions
+        {
+            ReadCommentHandling = JsonCommentHandling.Skip
+        });
     }
 }
 
 public class WorkflowNullException(string path) : Exception($"Workflow '{path}' is null.");
+
 
 
 // public class WorkflowBinder : IModelBinder

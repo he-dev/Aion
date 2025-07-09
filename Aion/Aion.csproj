@@ -14,11 +14,13 @@
         <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="9.0.6" />
         <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="9.0.6" />
         <PackageReference Include="NLog" Version="6.0.1" />
-        <PackageReference Include="NLog.Extensions.Logging" Version="6.0.1" />
-        <PackageReference Include="NLog.Schema" Version="6.0.1" />
-        <PackageReference Include="NLog.Web.AspNetCore" Version="6.0.1" />
         <PackageReference Include="Quartz.AspNetCore" Version="3.14.0" />
         <PackageReference Include="Scriban" Version="6.2.1" />
+        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+        <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+        <PackageReference Include="Serilog.Sinks.Map" Version="2.0.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.1" />
         <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
         <PackageReference Include="System.Linq.Async" Version="6.0.3" />
@@ -32,15 +34,13 @@
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       </Content>
-      <Content Update="NLog.config">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </Content>
     </ItemGroup>
 
     <ItemGroup>
       <Compile Remove="Core\Utilities\LatestVersion.cs" />
       <Compile Remove="src\Core\Utilities\LatestVersion.cs" />
       <Compile Remove="src\Core\Util\LatestVersion.cs" />
+      <Compile Remove="src\Util\AsyncProcess__.cs" />
     </ItemGroup>
 
     <ItemGroup>

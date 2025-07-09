@@ -1,5 +1,6 @@
 using System;
 using System.CommandLine;
+using System.IO;
 using System.Threading.Tasks;
 using Aion.Core.Jobs;
 using Aion.Core.Modules;
@@ -11,10 +12,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NLog;
-using NLog.Web;
 using Quartz;
 using Quartz.AspNetCore;
+using Serilog;
 
 namespace Aion.Home;
 
@@ -41,21 +41,31 @@ public class Program
         // }
 
 
-        NLog .LogManager
-            .Setup()
-            .SetupSerialization(builder =>
-            {
-                var defaultConverter = builder.LogFactory.ServiceRepository.GetRequiredService<IJsonConverter>();
-                builder.RegisterJsonConverter(new StopwatchConverter(defaultConverter));
-            })
-            .LoadConfigurationFromFile("NLog.config");
-
         //var asdf = NLog.Config.ConfigurationItemFactory.Default.JsonConverter;
 
         var builder = WebApplication.CreateBuilder(args);
 
         builder.Logging.ClearProviders();
-        builder.Host.UseNLog();
+        builder.Host.UseSerilog((context, services, configuration) =>
+        {
+            const string outputTemplate = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u4}] {SourceContext} {Message:lj}{NewLine}{Exception}";
+            configuration
+                .ReadFrom.Configuration(context.Configuration)
+                .WriteTo.Map(keyPropertyName: "WorkflowName", defaultKey: null, (name, writeTo) =>
+                {
+                    if (name is not null)
+                    {
+                        writeTo.File($@"C:\temp\Aion.Workflow-{name}.log", retainedFileCountLimit: 3, outputTemplate: outputTemplate);;
+                    }
+                })
+                .WriteTo.Map(keyPropertyName: "WorkflowPath", defaultKey: null, (path, writeTo) =>
+                {
+                    if (path is not null)
+                    {
+                        writeTo.File($@"C:\temp\Aion.Workflow-{Path.GetFileNameWithoutExtension(path)}.log", retainedFileCountLimit: 3, outputTemplate: outputTemplate);
+                    }
+                });
+        });
 
         var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
 
@@ -91,14 +101,13 @@ public class Program
         builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
         builder.Services.AddSingleton<WorkflowSchedule>();
         builder.Services.AddSingleton<WorkflowSchedule.Collection>();
-        builder.Services.AddSingleton<WorkflowExecution>();
-        builder.Services.AddSingleton<IAsyncProcess, AsyncProcess>();
+        builder.Services.AddSingleton<WorkflowProcess>();
         builder.Services.AddSingleton<WorkflowDirectory>();
         builder.Services.AddSingleton<WorkflowMaintenance>();
 
 
         builder.Services.AddScoped<RegularWorkflowJob>();
-        builder.Services.AddScoped<AdHocWorkflowJob>();
+        builder.Services.AddScoped<OnDemandWorkflowJob>();
         builder.Services.AddScoped<SynchronizationJob>();
 
         builder.Services.AddQuartz(q =>
