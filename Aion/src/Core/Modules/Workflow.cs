@@ -2,12 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Aion.Home;
+using Aion.Util.Scriban;
 using JetBrains.Annotations;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Quartz;
+using Serilog;
 
 namespace Aion.Core.Modules;
 
@@ -32,6 +39,8 @@ public record Workflow : ITimeZoned
 
     // .. Workflows without steps don't make sense, so make it a required field.
     public List<Step> Steps { get; init; } = [];
+
+    public JsonObject? Serilog { get; init; }
 
     #region Meta
 
@@ -89,6 +98,8 @@ public record Workflow : ITimeZoned
 
         public string? LogStdTo { get; init; }
 
+        public JsonObject? Serilog { get; init; }
+
         public string? DependsOn { get; init; }
 
         // !! We need to ensure steps are unique.
@@ -142,7 +153,6 @@ public record Workflow : ITimeZoned
 }
 
 public class WorkflowNullException(string path) : Exception($"Workflow '{path}' is null.");
-
 
 
 // public class WorkflowBinder : IModelBinder

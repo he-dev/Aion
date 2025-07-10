@@ -11,7 +11,8 @@ namespace Aion.Core.Jobs;
 public class OnDemandWorkflowJob
 (
     ILogger<RegularWorkflowJob> logger,
-    WorkflowProcess workflowProcess
+    WorkflowProcess workflowProcess,
+    WorkflowSink workflowSink
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -31,15 +32,19 @@ public class OnDemandWorkflowJob
                     logger.LogWarning("Canceling workflow because it has no enabled steps.");
                     break;
                 case var workflow:
+                {
                     logger.LogInformation("Executing workflow on-demand by {OnDemandOption}.", onDemandOption);
-                    await workflowProcess.Start(workflow, new WorkflowVariableGroup
+                    var workflowVariableGroup = new WorkflowVariableGroup
                     {
                         Name = workflowName,
                         Mode = nameof(WorkflowTriggerType.OnDemand),
                         Trigger = onDemandOption,
                         JobId = executionId,
-                    });
+                    };
+                    using var popWorkflowLogger = workflowSink.Push(workflowName, workflow.Serilog, [workflowVariableGroup]);
+                    await workflowProcess.Start(workflow, workflowVariableGroup);
                     break;
+                }
             }
         }
         catch (Exception ex)

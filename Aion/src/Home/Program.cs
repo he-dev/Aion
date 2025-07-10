@@ -1,11 +1,8 @@
 using System;
 using System.CommandLine;
-using System.IO;
 using System.Threading.Tasks;
 using Aion.Core.Jobs;
 using Aion.Core.Modules;
-using Aion.Util;
-using Aion.Util.NLog;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,25 +42,36 @@ public class Program
 
         var builder = WebApplication.CreateBuilder(args);
 
+        builder.Services.Configure<WorkflowEngineOptions>(builder.Configuration.GetSection("WorkflowEngine"));
+        builder.Services.Configure<SynchronizationJobOptions>(builder.Configuration.GetSection("SynchronizationJob"));
+        builder.Services.Configure<WorkflowLogOptions>(builder.Configuration.GetSection("WorkflowLog"));
+
+        builder.Services.AddSingleton<IPostConfigureOptions<WorkflowEngineOptions>, WorkflowEnginePostConfigure>();
+        builder.Services.AddSingleton<IPostConfigureOptions<WorkflowLogOptions>, WorkflowLogPostConfigure>();
+
+        builder.Services.AddSingleton<WorkflowSink>();
+
         builder.Logging.ClearProviders();
         builder.Host.UseSerilog((context, services, configuration) =>
         {
-            const string outputTemplate = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u4}] {SourceContext} {Message:lj}{NewLine}{Exception}";
+            var workflowLogOptions = services.GetRequiredService<IOptions<WorkflowLogOptions>>().Value;
+
             configuration
                 .ReadFrom.Configuration(context.Configuration)
-                .WriteTo.Map(keyPropertyName: "WorkflowName", defaultKey: null, (name, writeTo) =>
+                .WriteTo.Sink(services.GetRequiredService<WorkflowSink>())
+                .WriteTo.Map(keyPropertyName: "WorkflowName", defaultKey: null, (workflowName, writeTo) =>
                 {
-                    if (name is not null)
-                    {
-                        writeTo.File($@"C:\temp\Aion.Workflow-{name}.log", retainedFileCountLimit: 3, outputTemplate: outputTemplate);;
-                    }
-                })
-                .WriteTo.Map(keyPropertyName: "WorkflowPath", defaultKey: null, (path, writeTo) =>
-                {
-                    if (path is not null)
-                    {
-                        writeTo.File($@"C:\temp\Aion.Workflow-{Path.GetFileNameWithoutExtension(path)}.log", retainedFileCountLimit: 3, outputTemplate: outputTemplate);
-                    }
+                    // note: defaultKey can be null, according to the docs, but it has invalid annotations that make Rider unhappy.
+                    // if (workflowName is not null)
+                    // {
+                    //     var fileName = System.IO.Path.Combine(workflowLogOptions.DirectoryPath, $"{workflowName}.log");
+                    //     writeTo.File(
+                    //         fileName,
+                    //         outputTemplate: workflowLogOptions.OutputTemplate,
+                    //         rollingInterval: workflowLogOptions.RollingInterval,
+                    //         retainedFileCountLimit: workflowLogOptions.RetainedFileCountLimit
+                    //     );
+                    // }
                 });
         });
 
@@ -86,11 +94,8 @@ public class Program
         //var standbyEngineOptions = builder.Configuration.GetRequiredSection("StandbyEngine").Get<StandbyEngineOptions>()!;
         var synchronizationJobOptions = builder.Configuration.GetRequiredSection("SynchronizationJob").Get<SynchronizationJobOptions>()!;
         var quartzServerOptions = builder.Configuration.GetRequiredSection("QuartzServer").Get<QuartzServerOptions>()!;
+        //var workflowLogOptions = builder.Configuration.GetRequiredSection("WorkflowLog").Get<WorkflowLogOptions>()!;
 
-        builder.Services.Configure<WorkflowEngineOptions>(builder.Configuration.GetSection("WorkflowEngine"));
-        builder.Services.Configure<SynchronizationJobOptions>(builder.Configuration.GetSection("SynchronizationJob"));
-
-        builder.Services.AddSingleton<IPostConfigureOptions<WorkflowEngineOptions>, WorkflowEnginePostConfigure>();
 
         builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
         builder.Services.AddSingleton<WorkflowSchedule>();
@@ -98,6 +103,7 @@ public class Program
         builder.Services.AddSingleton<WorkflowProcess>();
         builder.Services.AddSingleton<WorkflowDirectory>();
         builder.Services.AddSingleton<WorkflowMaintenance>();
+
 
 
         builder.Services.AddScoped<RegularWorkflowJob>();

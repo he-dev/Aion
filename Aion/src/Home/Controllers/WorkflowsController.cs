@@ -5,7 +5,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
-using Aion.Util;
 using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Microsoft.AspNetCore.Mvc;
@@ -39,15 +38,12 @@ public class WorkflowsController
             }
             catch (Exception ex)
             {
-                using var scope = logger.BeginScopeFrom(new { foo = "foo" });
-                //using var scope = logger.BeginScope(new Dictionary<string, object> { ["foo"] = "foo" });
-                logger.LogInformation("test {bar}", "bar");
-                logger.LogError(ex, "Unable to load workflow '{WorkflowPath}'.", filePath);
+                logger.LogError(ex, "Unable to load workflow from '{WorkflowPath}'.", filePath);
                 errors = errors.Add(new { path = filePath, exception = ex.ToString() });
             }
         }
 
-        var utcNow = DateTimeOffset.UtcNow; // ?? Keeps the timestamp stable for all items.
+        var utcNow = DateTimeOffset.UtcNow; // clue: Keeps the timestamp stable for all items.
         var result =
             from workflow in workflows
             let next = workflow.Trigger.FiresAt(utcNow).Take(3)
@@ -73,7 +69,7 @@ public class WorkflowsController
         [FromServices] ISchedulerFactory schedulerFactory
     )
     {
-        // !! Does not start the synchronization-job here because we want to see the results immediately.
+        // core: Do not use the synchronization-job here because we want to see the results immediately in the response.
 
         var result = ImmutableList<object>.Empty;
         var errors = ImmutableList<object>.Empty;
@@ -95,7 +91,7 @@ public class WorkflowsController
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to synchronize workflow '{workflow}'.", path);
+                logger.LogError(ex, "Unable to synchronize workflow from '{workflow}'.", path);
                 errors = errors.Add(new
                 {
                     path,
@@ -132,6 +128,7 @@ public class WorkflowsController
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Unable to schedule workflow '{WorkflowName}'.", name);
             return Problem
             (
                 detail: ex.ToString(),
@@ -164,6 +161,7 @@ public class WorkflowsController
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Unable to schedule workflow '{WorkflowName}'.", name);
             return Problem
             (
                 detail: ex.ToString(),
@@ -196,6 +194,7 @@ public class WorkflowsController
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Unable to schedule workflow '{WorkflowName}'.", name);
             return Problem
             (
                 detail: ex.ToString(),

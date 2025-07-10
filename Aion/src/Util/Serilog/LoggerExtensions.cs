@@ -28,3 +28,12 @@ public static class LoggerExtensions
         return logger.BeginScope(properties);
     }
 }
+
+public enum ProcessFlow
+{
+    Started,
+    Running,
+    Completed,
+    Canceled,
+    Faulted,
+}

@@ -20,13 +20,13 @@ public class LocalVariableGroup(IDictionary<string, object?> variables) : Variab
 
 public class WorkflowVariableGroup() : VariableGroup("Workflow")
 {
-    public required string Name { get; init; }
+    public string Name { get; init; }
 
-    public required string Mode { get; init; }
+    public string Mode { get; init; }
 
     public string? Trigger { get; init; }
 
-    public required string JobId { get; init; }
+    public string JobId { get; init; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
@@ -39,9 +39,9 @@ public class WorkflowVariableGroup() : VariableGroup("Workflow")
 
 public class StepVariableGroup() : VariableGroup("Step")
 {
-    public required string? Name { get; init; }
+    public string? Name { get; init; }
 
-    public required int Index { get; init; }
+    public int Index { get; init; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {

@@ -11,7 +11,31 @@
         "--sleep 5",
         "--message \"Hallo NPC!\""
       ],
-      "LogStdTo": "C:\\temp\\{{ workflow.name }}.std"
+      "LogStdTo": "C:\\temp\\{{ workflow.name }}.std",
+      "Serilog": {
+        "MinimumLevel": { "Default": "Information" },
+        "WriteTo": [
+          {
+            "Name": "File",
+            "Args": {
+              "path": "C:\\temp\\{{ workflow.name }}-{{ step.index }}.log",
+              "outputTemplate": "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
+            }
+          }
+        ]
+      }
     }
-  ]
+  ],
+  "Serilog": {
+    "MinimumLevel": { "Default": "Information" },
+    "WriteTo": [
+      {
+        "Name": "File",
+        "Args": {
+          "path": "C:\\temp\\Aion.Workflow-{{ workflow.name }}.log",
+          "outputTemplate": "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
+        }
+      }
+    ]
+  }
 }

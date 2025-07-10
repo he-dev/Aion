@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aion.Util;
+using Aion.Util.Json;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 
@@ -44,6 +45,13 @@ public class WorkflowProcess
         var stopwatch = Stopwatch.StartNew();
         foreach (var step in steps)
         {
+            using var stepLoggerFactory = step.Serilog.ToLoggerFactory([
+                new WorkflowVariableGroup { Name = workflow.Name },
+                new StepVariableGroup { Index = step.Index }
+            ]);
+            var stepLogger = stepLoggerFactory.CreateLogger("Step");
+            stepLogger.LogInformation("TEST!");
+
             using var stepScope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name });
 
             if (!step.Enabled)

@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aion.Util;
@@ -37,6 +36,7 @@ public class AsyncProcess
 
         var stdOutputCompletion = new TaskCompletionSource<bool>();
 
+        // meta: Handling two streams at the same time can be tricky. Let's protect them from race conditions.
         var syncStream = StdStream is not null ? TextWriter.Synchronized(StdStream) : null;
 
         if (syncStream is not null)
