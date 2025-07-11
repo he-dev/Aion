@@ -14,7 +14,7 @@ namespace Aion.Home.Jobs;
 public class RegularWorkflowJob
 (
     ILogger<RegularWorkflowJob> logger,
-    WorkflowSchedule scheduler,
+    WorkflowScheduler scheduler,
     WorkflowProcess process
 ) : IJob
 {
@@ -25,14 +25,10 @@ public class RegularWorkflowJob
         var executionId = Guid.NewGuid().ToString("D");
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflowName, ExecutionId = executionId });
 
-        if (await IsLocked(workflowPath))
-        {
-            // note: Logging is done over there.
-            return;
-        }
-
         try
         {
+            await EnsureWorkflowNotLocked(workflowPath);
+
             switch (await Workflow.FromFile(workflowPath))
             {
                 // core: Gets rid of useless workflows.
@@ -56,31 +52,41 @@ public class RegularWorkflowJob
                     break;
             }
         }
+        catch (WorkflowLockedException ex)
+        {
+            logger.LogWarning("Workflow is locked for {RemainingLock} until it expires on {ExpiresOn}.", ex.Lock.Remaining, ex.Lock.EndsOnUtc.ToLocalTime());
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unscheduling workflow because it could not be loaded.");
-            await scheduler.Delete(workflowName);
-        }
-    }
-
-    private async Task<bool> IsLocked(string workflowPath)
-    {
-        try
-        {
-            if (await WorkflowLock.FromFile(workflowPath) is { } workflowLock)
+            if (await scheduler.Delete(workflowName))
             {
-                await using (workflowLock)
-                {
-                    logger.LogWarning("Workflow is locked for {RemainingLock} minutes until it expires on {ExpiresOn}.", workflowLock.Remaining, workflowLock.EndsOnUtc);
-                    return workflowLock.IsPending;
-                }
+                logger.LogInformation("Workflow has been unscheduled because something went wrong.");
             }
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error checking if workflow is locked.");
-        }
-
-        return false;
     }
+
+    // core: Works as a fail-safe which means that any attempt to check the lock that fails automatically is interpreted as locked.
+    private async Task EnsureWorkflowNotLocked(string workflowPath)
+    {
+        if (await WorkflowLock.FromFile(workflowPath) is { } workflowLock)
+        {
+            if (workflowLock.IsRunning)
+            {
+                // core: Uses control flow by exception, so this is an expected exception.
+                throw new WorkflowLockedException { Lock = workflowLock };
+            }
+
+            if (workflowLock.IsExpired)
+            {
+                logger.LogWarning("Workflow lock has expired on {ExpiresOn} and will be deleted.", workflowLock.EndsOnUtc.ToLocalTime());
+                await workflowLock.Delete();
+            }
+        }
+    }
+}
+
+public class WorkflowLockedException : Exception
+{
+    public required WorkflowLock Lock { get; init; }
 }

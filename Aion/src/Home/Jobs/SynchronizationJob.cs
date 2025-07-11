@@ -14,7 +14,7 @@ internal class SynchronizationJob
 (
     ILogger<SynchronizationJob> logger,
     WorkflowDirectory directory,
-    WorkflowSchedule scheduler
+    WorkflowScheduler scheduler
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)

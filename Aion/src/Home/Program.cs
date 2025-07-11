@@ -1,8 +1,10 @@
 using System;
 using System.CommandLine;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
 using Aion.Home.Jobs;
+using Aion.Util.Serilog;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +21,8 @@ public class Program
 {
     public static async Task Main(params string[] args)
     {
+        var stopwatch = Stopwatch.StartNew();
+
         var disableSyncOption = new Option<bool>("--app-disable-sync", "Disable the sync job.") { IsRequired = false };
         var rootCommand = new RootCommand { disableSyncOption };
         var commandLine = rootCommand.Parse(args);
@@ -37,52 +41,42 @@ public class Program
         //     args = commandLine.UnparsedTokens.ToArray();
         // }
 
-
-        //var asdf = NLog.Config.ConfigurationItemFactory.Default.JsonConverter;
-
         var builder = WebApplication.CreateBuilder(args);
 
-        builder.Services.Configure<WorkflowEngineOptions>(builder.Configuration.GetSection("WorkflowEngine"));
+        builder.Services.Configure<WorkflowDirectoryOptions>(builder.Configuration.GetSection("WorkflowDirectory"));
         builder.Services.Configure<SynchronizationJobOptions>(builder.Configuration.GetSection("SynchronizationJob"));
-        builder.Services.Configure<WorkflowLogOptions>(builder.Configuration.GetSection("WorkflowLog"));
 
-        builder.Services.AddSingleton<IPostConfigureOptions<WorkflowEngineOptions>, WorkflowEnginePostConfigure>();
-        builder.Services.AddSingleton<IPostConfigureOptions<WorkflowLogOptions>, WorkflowLogPostConfigure>();
-
+        builder.Services.AddSingleton<IPostConfigureOptions<WorkflowDirectoryOptions>, WorkflowDirectoryPostConfigure>();
         builder.Services.AddSingleton<WorkflowSink>();
 
         builder.Logging.ClearProviders();
         builder.Host.UseSerilog((context, services, configuration) =>
         {
-            var workflowLogOptions = services.GetRequiredService<IOptions<WorkflowLogOptions>>().Value;
-
             configuration
                 .ReadFrom.Configuration(context.Configuration)
-                .WriteTo.Sink(services.GetRequiredService<WorkflowSink>())
-                .WriteTo.Map(keyPropertyName: "WorkflowName", defaultKey: null, (workflowName, writeTo) =>
-                {
-                    // note: defaultKey can be null, according to the docs, but it has invalid annotations that make Rider unhappy.
-                    // if (workflowName is not null)
-                    // {
-                    //     var fileName = System.IO.Path.Combine(workflowLogOptions.DirectoryPath, $"{workflowName}.log");
-                    //     writeTo.File(
-                    //         fileName,
-                    //         outputTemplate: workflowLogOptions.OutputTemplate,
-                    //         rollingInterval: workflowLogOptions.RollingInterval,
-                    //         retainedFileCountLimit: workflowLogOptions.RetainedFileCountLimit
-                    //     );
-                    // }
-                });
+                .Enrich.With(new TimeSpanEnricher(ts => Math.Round(ts.TotalSeconds, 1)))
+                .WriteTo.Sink(services.GetRequiredService<WorkflowSink>());
+
+            // note: This was a nice proof-of-concept experiment, but it does not work here. WorkflowSink replaces it.
+            // .WriteTo.Map(keyPropertyName: "WorkflowName", defaultKey: null, (workflowName, writeTo) =>
+            // {
+            //     // note: defaultKey can be null, according to the docs, but it has invalid annotations that make Rider unhappy.
+            //     if (workflowName is not null)
+            //     {
+            //         var fileName = System.IO.Path.Combine(workflowLogOptions.DirectoryPath, $"{workflowName}.log");
+            //         writeTo.File(
+            //             fileName,
+            //             outputTemplate: workflowLogOptions.OutputTemplate,
+            //             rollingInterval: workflowLogOptions.RollingInterval,
+            //             retainedFileCountLimit: workflowLogOptions.RetainedFileCountLimit
+            //         );
+            //     }
+            // });
         });
 
         var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
 
-        builder.Services.AddControllers(options =>
-        {
-            //options.InputFormatters.Insert(0, new YamlInputFormatter());
-            //options.OutputFormatters.Insert(0, new YamlOutputFormatter());
-            //options.Conventions.Add(new ColonRouteConvention());
-        });
+        builder.Services.AddControllers();
         //.AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new WorkflowIssueConverter()); });
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -90,21 +84,14 @@ public class Program
         builder.Services.AddSwaggerGen();
 
         // .. There's no way these settings are missing so suppress the null warnings.
-        //var workflowEngineOptions = builder.Configuration.GetRequiredSection("WorkflowEngine").Get<WorkflowEngineOptions>()!;
-        //var standbyEngineOptions = builder.Configuration.GetRequiredSection("StandbyEngine").Get<StandbyEngineOptions>()!;
-        var synchronizationJobOptions = builder.Configuration.GetRequiredSection("SynchronizationJob").Get<SynchronizationJobOptions>()!;
-        var quartzServerOptions = builder.Configuration.GetRequiredSection("QuartzServer").Get<QuartzServerOptions>()!;
-        //var workflowLogOptions = builder.Configuration.GetRequiredSection("WorkflowLog").Get<WorkflowLogOptions>()!;
 
 
         builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
-        builder.Services.AddSingleton<WorkflowSchedule>();
-        builder.Services.AddSingleton<WorkflowSchedule.Collection>();
+        builder.Services.AddSingleton<WorkflowScheduler>();
+        builder.Services.AddSingleton<WorkflowScheduler.Collection>();
         builder.Services.AddSingleton<WorkflowProcess>();
         builder.Services.AddSingleton<WorkflowDirectory>();
         builder.Services.AddSingleton<WorkflowMaintenance>();
-
-
 
         builder.Services.AddScoped<RegularWorkflowJob>();
         builder.Services.AddScoped<OnDemandWorkflowJob>();
@@ -119,6 +106,8 @@ public class Program
 
                 try
                 {
+                    var synchronizationJobOptions = builder.Configuration.GetRequiredSection("SynchronizationJob").Get<SynchronizationJobOptions>()!;
+
                     q.ScheduleJob<SynchronizationJob>(trigger =>
                     {
                         trigger
@@ -147,6 +136,8 @@ public class Program
 
         builder.Services.AddQuartzServer(options =>
         {
+            var quartzServerOptions = builder.Configuration.GetRequiredSection("QuartzServer").Get<QuartzServerOptions>()!;
+
             options.AwaitApplicationStarted = true;
             options.WaitForJobsToComplete = true;
             options.StartDelay = TimeSpan.FromSeconds(quartzServerOptions.StartDelaySeconds);
@@ -163,19 +154,9 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseAuthorization();
-        // app.UseRouting();
-        // app.UseEndpoints(endpoints =>
-        // {
-        //     // matches POST /api/Workflows:sync → WorkflowsController.Sync()
-        //     endpoints.MapControllerRoute(
-        //         name: "colonSync",
-        //         pattern: "api/{controller}:{action}");
-        //     // then fallback to your normal attribute-routed controllers
-        //     //endpoints.MapControllers();
-        // });
         app.MapControllers();
 
-        logger.LogDebug("Everything initialized. Starting up...");
+        logger.LogInformation("Everything initialized in {Elapsed} seconds. Starting up...", stopwatch.Elapsed);
 
         await app.RunAsync();
     }

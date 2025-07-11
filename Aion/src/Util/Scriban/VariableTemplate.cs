@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Scriban;
 using Scriban.Parsing;
@@ -33,7 +34,7 @@ public abstract class VariableGroup(string name) : IEnumerable<KeyValuePair<stri
 
 public static class VariableTemplate
 {
-    public static string Render(string template, IEnumerable<VariableGroup> variableGroups)
+    public static string Render(string template, IImmutableList<VariableGroup> variableGroups)
     {
         var customFunctions = new ScriptObject(StringComparer.OrdinalIgnoreCase);
         customFunctions.Import("env", EnvironmentVariables.Get);

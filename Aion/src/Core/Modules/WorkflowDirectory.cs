@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace Aion.Core.Modules;
 
-public class WorkflowDirectory(IOptions<WorkflowEngineOptions> options)
+public class WorkflowDirectory(IOptions<WorkflowDirectoryOptions> options)
 {
     public IEnumerable<string> FindFiles(string fileNameFilter, FileExtension extension)
     {
@@ -18,21 +18,23 @@ public class WorkflowDirectory(IOptions<WorkflowEngineOptions> options)
         matcher.AddInclude($"**\\{fileNameFilter}.{extension}");
 
         return
-            from path in matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(options.Value.WorkflowDirectory))).Files
-            select Path.Join(options.Value.WorkflowDirectory, path.Path);
+            from path in matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(options.Value.Path))).Files
+            select Path.Join(options.Value.Path, path.Path);
     }
 
-    public string? FindFile(string fileNameFilter, FileExtension extension)
+    public string FindFile(string fileNameFilter, FileExtension extension)
     {
         using var enumerator = FindFiles(fileNameFilter, extension).GetEnumerator();
 
+        // meta: Try to advance to the first item.
         if (!enumerator.MoveNext())
         {
-            return null; // No match.
+            throw new WorkflowNotFoundException(fileNameFilter);
         }
 
         var first = enumerator.Current;
 
+        // meta: Try to advance to the second item.
         if (enumerator.MoveNext())
         {
             // Multiple matches.

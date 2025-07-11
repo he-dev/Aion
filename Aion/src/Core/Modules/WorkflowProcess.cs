@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Aion.Util;
 using Aion.Util.Json;
@@ -32,7 +30,7 @@ public class WorkflowProcess
 
             logger.LogInformation("Executing workflow...");
 
-            // clue: Does not filter out disabled steps because we want them logged.
+            // note: Does not filter out disabled steps because we want them logged.
             foreach (var template in workflow.Steps)
             {
                 var stepVariables = variables.Add(new StepVariableGroup

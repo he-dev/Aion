@@ -15,16 +15,15 @@ namespace Aion.Core.Modules;
 // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
 
 // role: This class provides convenient scheduling methods to other modules.
-public class WorkflowSchedule
+public class WorkflowScheduler
 (
-    ILogger<WorkflowSchedule> logger,
+    ILogger<WorkflowScheduler> logger,
     ISchedulerFactory schedulerFactory
 )
 {
     public async Task<(SynchronizationResult Action, DateTimeOffset? Next)> Synchronize(Workflow workflow)
     {
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name});
-        logger.LogInformation("Workflow is being synchronized...");
 
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -34,24 +33,24 @@ public class WorkflowSchedule
             {
                 if (await scheduler.DeleteJob(workflow.JobKey))
                 {
-                    logger.LogInformation("Workflow {SynchronizationResult} from schedule because it is disabled.", SynchronizationResult.Deleted);
-                    return (SynchronizationResult.Deleted, null);
+                    logger.LogInformation("Workflow no longer enabled: {SynchronizationResult}.", SynchronizationResult.Delete);
+                    return (SynchronizationResult.Delete, null);
                 }
 
-                logger.LogInformation("Workflow {SynchronizationResult} because it is disabled.", SynchronizationResult.Skipped);
-                return (SynchronizationResult.Skipped, null);
+                logger.LogInformation("Workflow is disabled: {SynchronizationResult}.", SynchronizationResult.Ignore);
+                return (SynchronizationResult.Ignore, null);
             }
 
             if (!workflow.Steps.Any(s => s.Enabled))
             {
                 if (await scheduler.DeleteJob(workflow.JobKey))
                 {
-                    logger.LogInformation("Workflow {SynchronizationResult} from schedule because it has no enabled steps.", SynchronizationResult.Deleted);
-                    return (SynchronizationResult.Deleted, null);
+                    logger.LogInformation("Workflow no longer has any enabled steps: {SynchronizationResult}.", SynchronizationResult.Delete);
+                    return (SynchronizationResult.Delete, null);
                 }
 
-                logger.LogInformation("Workflow {SynchronizationResult} because it has no enabled steps.", SynchronizationResult.Skipped);;
-                return (SynchronizationResult.Skipped, null);
+                logger.LogInformation("Workflow has no enabled steps: {SynchronizationResult}.", SynchronizationResult.Ignore);;
+                return (SynchronizationResult.Ignore, null);
             }
 
             // .. This might throw when the Cron property is invalid.
@@ -61,24 +60,24 @@ public class WorkflowSchedule
             {
                 if (cron.Equals(trigger.CronExpressionString))
                 {
-                    logger.LogInformation("Workflow {SynchronizationResult} because it is already scheduled.", SynchronizationResult.Skipped);
-                    return (SynchronizationResult.Skipped, null);
+                    logger.LogInformation("Workflow is already scheduled: {SynchronizationResult}.", SynchronizationResult.Ignore);
+                    return (SynchronizationResult.Ignore, null);
                 }
 
                 if (await scheduler.RescheduleJob(trigger.Key, trigger) is { } next)
                 {
-                    logger.LogInformation("Workflow {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Updated, next);
-                    return (SynchronizationResult.Updated, null);
+                    logger.LogInformation("Workflow schedule has changed: {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Update, next);
+                    return (SynchronizationResult.Update, null);
                 }
 
-                logger.LogInformation("Workflow {SynchronizationResult} because it could not be rescheduled.", SynchronizationResult.Skipped);
-                return (SynchronizationResult.Skipped, null);
+                logger.LogInformation("Workflow could not be rescheduled: {SynchronizationResult}.", SynchronizationResult.Ignore);
+                return (SynchronizationResult.Ignore, null);
             }
             else
             {
                 var next = await Schedule(workflow);
-                logger.LogInformation("Workflow {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Created, next);
-                return (SynchronizationResult.Created, null);
+                logger.LogInformation("Workflow is new: {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Create, next);
+                return (SynchronizationResult.Create, null);
             }
         }
         catch (Exception ex)
@@ -174,31 +173,15 @@ public class WorkflowSchedule
     {
         var scheduler = await schedulerFactory.GetScheduler();
         var jobKey = new JobKey(name, JobGroupNames.Workflows);
-        var deleted = await scheduler.DeleteJob(jobKey);
-        try
-        {
-            return deleted;
-        }
-        finally
-        {
-            if (deleted)
-            {
-                //activity.LogNoop(message: "Job does not exist.");
-            }
-            else
-            {
-                //activity.LogEnd();
-            }
-        }
+        return await scheduler.DeleteJob(jobKey);
     }
 
     public enum SynchronizationResult
     {
-        Skipped,
-        Created,
-        Updated,
-        Deleted,
-        Faulted
+        Ignore,
+        Create,
+        Update,
+        Delete
     }
 
     public class Collection

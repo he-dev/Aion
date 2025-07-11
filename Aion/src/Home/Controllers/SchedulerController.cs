@@ -17,7 +17,7 @@ public class SchedulerController(ILogger<SchedulerController> logger) : Controll
     [HttpGet("[controller]/jobs")]
     public async Task<IActionResult> Get
     (
-        [FromServices] WorkflowSchedule.Collection workflowSchedules,
+        [FromServices] WorkflowScheduler.Collection workflowSchedules,
         [FromQuery(Name = "q")] string? filter = null,
         [FromQuery] OrderBy orderBy = OrderBy.Next,
         [FromQuery] Status status = Status.Pending

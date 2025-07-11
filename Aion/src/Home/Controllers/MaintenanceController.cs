@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
+using Aion.Util;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -18,7 +19,7 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
         [FromServices] WorkflowDirectory workflowDirectory
     )
     {
-        var lockFileNames = workflowDirectory.FindFiles(null, FileExtension.Lock);
+        var lockFileNames = workflowDirectory.FindFiles(FileFilter.Any, FileExtension.Lock);
         var locks = ImmutableList<WorkflowLock>.Empty;
         foreach (var lockFileName in lockFileNames)
         {
@@ -26,18 +27,15 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
             {
                 if (await WorkflowLock.FromFile(lockFileName) is { } lockFile)
                 {
-                    await using (lockFile)
+                    if (lockFile.Remaining > TimeSpan.Zero)
                     {
-                        if (lockFile.Remaining > TimeSpan.Zero)
-                        {
-                            locks = locks.Add(lockFile);
-                        }
+                        locks = locks.Add(lockFile);
                     }
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to load lock file '{lock}'.", lockFileName);
+                logger.LogError(ex, "Unable to load lock file '{LockFileName}'.", lockFileName);
             }
         }
 
@@ -67,7 +65,9 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
     {
         try
         {
-            var lockNames = await workflowMaintenance.Schedule(body.Filter, body.Wait, body.Duration);
+            var workflowLock = body.ToWorkflowLock();
+            ;
+            var lockNames = await workflowMaintenance.Schedule(workflowLock, body.Filter);
             return Ok(new { lockNames });
         }
         catch (Exception ex)
@@ -81,13 +81,13 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
     public async Task<IActionResult> StartAt
     (
         [FromServices] WorkflowMaintenance workflowMaintenance,
-        [FromBody] StartAtBody body,
-        string name
+        [FromBody] StartAtBody body
     )
     {
         try
         {
-            var lockNames = await workflowMaintenance.Schedule(body.Filter, body.StartsOnUtc, body.EndsOnUtc);
+            var workflowLock = body.ToWorkflowLock();
+            var lockNames = await workflowMaintenance.Schedule(workflowLock, body.Filter);
             return Ok(new { lockNames });
         }
         catch (Exception ex)
@@ -104,14 +104,22 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
         public TimeSpan Wait { get; init; }
 
         public TimeSpan Duration { get; init; }
+
+        public WorkflowLock ToWorkflowLock() => WorkflowLock.StartIn(Wait, Duration);
     }
 
     public record StartAtBody
     {
         public string Filter { get; init; } = null!;
 
-        public DateTimeOffset StartsOnUtc { get; init; }
+        public DateTimeOffset StartsOn { get; init; }
 
-        public DateTimeOffset EndsOnUtc { get; init; }
+        public DateTimeOffset EndsOn { get; init; }
+
+        public WorkflowLock ToWorkflowLock() => WorkflowLock.StartAt
+        (
+            StartsOn.FixMissingOffset().ToUniversalTime(),
+            EndsOn.FixMissingOffset().ToUniversalTime()
+        );
     }
 }

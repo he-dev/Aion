@@ -1,21 +1,22 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
+using Serilog;
 using Serilog.Core;
 using Serilog.Events;
-using ILogger = Serilog.ILogger;
+
 
 namespace Aion.Core.Modules;
 
 public class WorkflowSink : ILogEventSink
 {
-    private readonly object Lock = new();
-    private readonly ConcurrentDictionary<object, ILogger?> Loggers = new();
+    private ConcurrentDictionary<object, ILogger?> Loggers { get; } = new();
 
-    public IDisposable Push(string workflowName, JsonObject? configuration, IEnumerable<VariableGroup> variables)
+    public IDisposable Push(string workflowName, JsonObject? configuration, IImmutableList<VariableGroup> variables)
     {
         Loggers.GetOrAdd(workflowName, _ => configuration.RenderPaths(variables).ToLogger());
         return new Pop(() => Loggers.TryRemove(workflowName, out _));

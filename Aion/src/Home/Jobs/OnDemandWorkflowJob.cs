@@ -38,7 +38,7 @@ public class OnDemandWorkflowJob
                 case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
                     logger.LogWarning("Canceling workflow because it has no enabled steps.");
                     break;
-                // core: This is where the actual magic happens
+                // core: This is where the actual magic happens.
                 case var workflow:
                     await workflowProcess.Start(workflow, ImmutableList<VariableGroup>.Empty.Add(new WorkflowVariableGroup
                     {

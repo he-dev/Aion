@@ -12,7 +12,7 @@ public class WorkflowMaintenance
     WorkflowDirectory workflowDirectory
 )
 {
-    public async Task<IImmutableList<string>> Schedule(string filter, DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc)
+    public async Task<IImmutableList<string>> Schedule(WorkflowLock workflowLock, string filter)
     {
         var workflowFiles = workflowDirectory.FindFiles(filter, FileExtension.Json).ToImmutableList();
 
@@ -25,18 +25,10 @@ public class WorkflowMaintenance
 
         foreach (var workflowFile in workflowFiles)
         {
-            var workflowLock = await WorkflowLock.Create(startsOnUtc, endsOnUtc).SaveFor(workflowFile);
-            workflowLocks = workflowLocks.Add(workflowLock);
+            var workflowLockPath = await workflowLock.SaveFor(workflowFile);
+            workflowLocks = workflowLocks.Add(workflowLockPath);
         }
 
         return workflowLocks;
-    }
-
-    public async Task<IImmutableList<string>> Schedule(string filter, TimeSpan wait, TimeSpan length)
-    {
-        var startsOnUtc = DateTimeOffset.UtcNow.Add(wait);
-        var endsOnUtc = startsOnUtc.Add(length);
-
-        return await Schedule(filter, startsOnUtc, endsOnUtc);
     }
 }

@@ -7,24 +7,25 @@ using System.Threading.Tasks;
 
 namespace Aion.Core.Modules;
 
-public record WorkflowLock : IAsyncDisposable
+public record WorkflowLock
 {
     private static readonly SemaphoreSlim Lock = new(1, 1);
 
-    public DateTimeOffset StartsOnUtc { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset StartsOnUtc { get; init; }
     public DateTimeOffset EndsOnUtc { get; init; }
     public DateTimeOffset CreatedOnUtc { get; init; } = DateTimeOffset.UtcNow;
 
     [JsonIgnore]
-    public string FileName { get; init; } = null!;
+    public string? FileName { get; init; }
 
     public TimeSpan Length => EndsOnUtc - StartsOnUtc;
     public TimeSpan Remaining => EndsOnUtc - DateTimeOffset.UtcNow;
 
     public bool IsPending => StartsOnUtc < DateTimeOffset.UtcNow;
     public bool IsExpired => EndsOnUtc < DateTimeOffset.UtcNow;
+    public bool IsRunning => StartsOnUtc <= DateTimeOffset.UtcNow && EndsOnUtc > DateTimeOffset.UtcNow;
 
-    public static WorkflowLock Create(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc)
+    public static WorkflowLock StartAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc)
     {
         if (startsOnUtc > endsOnUtc)
         {
@@ -41,6 +42,14 @@ public record WorkflowLock : IAsyncDisposable
             StartsOnUtc = startsOnUtc,
             EndsOnUtc = endsOnUtc,
         };
+    }
+
+    public static WorkflowLock StartIn(TimeSpan wait, TimeSpan length)
+    {
+        var startsOnUtc = DateTimeOffset.UtcNow.Add(wait);
+        var endsOnUtc = startsOnUtc.Add(length);
+
+        return StartAt(startsOnUtc, endsOnUtc);
     }
 
     public static async Task<WorkflowLock?> FromFile(string workflowPath)
@@ -92,10 +101,13 @@ public record WorkflowLock : IAsyncDisposable
         return lockPath;
     }
 
-    public async ValueTask DisposeAsync()
+    public async ValueTask Delete()
     {
         if (IsExpired)
         {
+            if (FileName is null) throw new InvalidOperationException("Cannot delete a lock that is not saved.");
+            if (!File.Exists(FileName)) throw new InvalidOperationException("Cannot delete a lock that does not exist.");
+
             await Lock.WaitAsync();
             try
             {
