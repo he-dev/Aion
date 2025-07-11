@@ -18,10 +18,10 @@ public record WorkflowLock
     [JsonIgnore]
     public string? FileName { get; init; }
 
-    public TimeSpan Length => EndsOnUtc - StartsOnUtc;
+    public TimeSpan Duration => EndsOnUtc - StartsOnUtc;
     public TimeSpan Remaining => EndsOnUtc - DateTimeOffset.UtcNow;
 
-    public bool IsPending => StartsOnUtc < DateTimeOffset.UtcNow;
+    public bool IsPending => StartsOnUtc > DateTimeOffset.UtcNow;
     public bool IsExpired => EndsOnUtc < DateTimeOffset.UtcNow;
     public bool IsRunning => StartsOnUtc <= DateTimeOffset.UtcNow && EndsOnUtc > DateTimeOffset.UtcNow;
 

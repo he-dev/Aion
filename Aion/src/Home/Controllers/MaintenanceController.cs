@@ -27,10 +27,7 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
             {
                 if (await WorkflowLock.FromFile(lockFileName) is { } lockFile)
                 {
-                    if (lockFile.Remaining > TimeSpan.Zero)
-                    {
-                        locks = locks.Add(lockFile);
-                    }
+                    locks = locks.Add(lockFile);
                 }
             }
             catch (Exception ex)
@@ -48,9 +45,11 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
                 s.CreatedOnUtc,
                 s.StartsOnUtc,
                 s.EndsOnUtc,
-                s.Length,
+                s.Duration,
                 s.Remaining,
-                s.IsPending
+                s.IsPending,
+                s.IsRunning,
+                s.IsExpired,
             };
 
         return Ok(query.ToList());
@@ -87,8 +86,8 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
         try
         {
             var workflowLock = body.ToWorkflowLock();
-            var lockNames = await workflowMaintenance.Schedule(workflowLock, body.Filter);
-            return Ok(new { lockNames });
+            var lockedWorkflows = await workflowMaintenance.Schedule(workflowLock, body.Filter);
+            return Ok(new { workflowLock, lockedWorkflows });
         }
         catch (Exception ex)
         {

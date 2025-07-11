@@ -3,15 +3,19 @@
 
 
 ### Fetch all active maintenance tokens; 200 OK
+GET {{maintenance}}
+
+### Fetch all active maintenance tokens; 200 OK
 GET {{maintenance}}?q={filter}&orderBy=createdOn&orderBy=expiresIn
 
 ### Start maintenance relative from now; 201 Created or an error when period in the past; include location header pointing to the new location
-POST {{maintenance}}/{name}:startIn
+POST {{maintenance}}:startIn
 Content-Type: application/json
 
 {
+    "filter": "says-hallo",
     "wait": "00:00:05",
-    "duration": "00:20:00",
+    "duration": "00:20:00"
 }
 
 ### Start maintenance at the specified time.
