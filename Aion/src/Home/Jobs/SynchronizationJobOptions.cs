@@ -1,7 +1,6 @@
 using System;
-using Aion.Home;
 
-namespace Aion.Core.Jobs;
+namespace Aion.Home.Jobs;
 
 public record SynchronizationJobOptions : ITimeZoned
 {

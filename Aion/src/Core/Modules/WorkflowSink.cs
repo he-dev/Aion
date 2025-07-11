@@ -17,7 +17,7 @@ public class WorkflowSink : ILogEventSink
 
     public IDisposable Push(string workflowName, JsonObject? configuration, IEnumerable<VariableGroup> variables)
     {
-        Loggers.GetOrAdd(workflowName, _ => configuration.ToLogger(variables));
+        Loggers.GetOrAdd(workflowName, _ => configuration.RenderPaths(variables).ToLogger());
         return new Pop(() => Loggers.TryRemove(workflowName, out _));
     }
 

@@ -29,7 +29,7 @@ public static class WorkflowValidation
         {
             step.RenderVariables([
                 new LocalVariableGroup(workflow.Variables),
-                new WorkflowVariableGroup { Name = "test", Mode = "test", Trigger = "0 0 0 * * ?", JobId = "test" },
+                new WorkflowVariableGroup { Name = "test", Trigger = "Cron", ExecutionId = "test" },
                 new StepVariableGroup { Name = "test", Index = 0 }
             ]);
         }

@@ -2,18 +2,19 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Aion.Util;
 
 public class AsyncProcess
 {
-    public required string FileName { get; init; } = null!;
+    public required string FileName { get; init; }
 
-    public required string Arguments { get; init; } = null!;
+    public required string Arguments { get; init; }
 
     public string? WorkingDirectory { get; init; }
 
-    public StreamWriter? StdStream { get; set; }
+    public ILogger? Logger { get; set; }
 
     public async Task<int> StartAsync(TimeSpan timeout)
     {
@@ -34,79 +35,41 @@ public class AsyncProcess
             }
         };
 
-        var stdOutputCompletion = new TaskCompletionSource<bool>();
+        var stdOutCompletion = new TaskCompletionSource<bool>();
+        var stdErrCompletion = new TaskCompletionSource<bool>();
 
-        // meta: Handling two streams at the same time can be tricky. Let's protect them from race conditions.
-        var syncStream = StdStream is not null ? TextWriter.Synchronized(StdStream) : null;
-
-        if (syncStream is not null)
+        if (Logger is not null)
         {
-            process.OutputDataReceived += (_, e) =>
-            {
-                // The output stream has been closed, i.e., the process has terminated.
-                if (e.Data is null)
-                {
-                    stdOutputCompletion.TrySetResult(true);
-                    syncStream.WriteLine($"{DateTimeOffset.UtcNow:s} | OUT | EOF");
-                }
-                else
-                {
-                    syncStream.WriteLine($"{DateTimeOffset.UtcNow:s} | OUT | {e.Data}");
-                }
-            };
+            process.OutputDataReceived += (_, e) => OnDataReceived(e, stdOutCompletion, StdStreamType.Out);
+            process.ErrorDataReceived += (_, e) => OnDataReceived(e, stdErrCompletion, StdStreamType.Err);
         }
         else
         {
-            stdOutputCompletion.TrySetResult(true);
-        }
-
-        // var stdErrWriter = new StreamWriter(path: "file-name-here-error.txt", append: true, encoding: Encoding.UTF8) { AutoFlush = true };
-        var stdErrorCompletion = new TaskCompletionSource<bool>();
-
-        if (syncStream is not null)
-        {
-            process.ErrorDataReceived += (s, e) =>
-            {
-                // The error stream has been closed, i.e., the process has terminated.
-                if (e.Data is null)
-                {
-                    stdErrorCompletion.TrySetResult(true);
-                    syncStream.WriteLine($"{DateTimeOffset.UtcNow:s} | ERR | EOF");
-                }
-                else
-                {
-                    syncStream.WriteLine($"{DateTimeOffset.UtcNow:s} | ERR | {e.Data}");
-                }
-            };
-        }
-        else
-        {
-            stdErrorCompletion.TrySetResult(true);
+            stdOutCompletion.TrySetResult(true);
+            stdErrCompletion.TrySetResult(true);
         }
 
         try
         {
+            Logger?.LogInformation("Starting process '{FileName}' with arguments '{Arguments}'.", FileName, Arguments);
             if (process.Start())
             {
-                //process.StandardInput.Close();
-                //process.StandardOutput.Close();
-
-                // Reads the output stream first and then waits because deadlocks are possible.
+                // meta: Reads the output stream first and then waits because deadlocks are possible.
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 
                 var processTask = WaitForExitAsync(process, timeout);
 
-                // util: This task waits for the process to exit and closing all std-streams.
-                var mainTask = Task.WhenAll(processTask, stdOutputCompletion.Task, stdErrorCompletion.Task);
+                // core: This task waits for the process to exit and closing all std-streams.
+                var mainTask = Task.WhenAll(processTask, stdOutCompletion.Task, stdErrCompletion.Task);
 
-                // Waits process completion and then checks it was not completed by timeout.
+                // core: Waits process completion and then checks it was not completed by timeout.
                 if (await Task.WhenAny(Task.Delay(timeout), mainTask) == mainTask && processTask.Result)
                 {
                     return process.ExitCode;
                 }
 
-                // Kill it if it takes too long to complete or hangs.
+                // core: Kill it if it takes too long to complete or hangs.
                 process.Kill(entireProcessTree: true);
                 throw new ProcessTimeoutException();
             }
@@ -119,12 +82,34 @@ public class AsyncProcess
         }
     }
 
-    // util: Helps to avoid the warning about the process being disposed outside the lambda.
+    // util: Let's not write this code twice...
+    private void OnDataReceived(DataReceivedEventArgs e, TaskCompletionSource<bool> stdStreamCompletion, StdStreamType stdStreamType)
+    {
+        // The output stream has been closed, i.e., the process has terminated.
+        if (e.Data is null)
+        {
+            stdStreamCompletion.TrySetResult(true);
+            Logger?.LogInformation("{StdStreamType} | EOF", stdStreamType);
+        }
+        else
+        {
+            Logger?.LogInformation("{StdStreamType} | {Line}", stdStreamType, e.Data);
+        }
+    }
+
+    // hack: Helps to avoid the warning about the process being disposed outside the lambda.
     private static Task<bool> WaitForExitAsync(Process process, TimeSpan timeout)
     {
         return Task.Run(() => process.WaitForExit(timeout));
     }
 }
 
+public enum StdStreamType
+{
+    Out,
+    Err,
+}
+
 public class ProcessTimeoutException : Exception;
+
 public class ProcessNotStartedException : Exception;

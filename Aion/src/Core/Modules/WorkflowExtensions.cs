@@ -1,11 +1,12 @@
-﻿using System.Linq;
+﻿using System.Collections.Immutable;
+using System.Linq;
 using Aion.Util.Scriban;
 
 namespace Aion.Core.Modules;
 
 public static class WorkflowExtensions
 {
-    public static Workflow.Step RenderVariables(this Workflow.Step step, params VariableGroup[] variableGroups)
+    public static Workflow.Step RenderVariables(this Workflow.Step step, IImmutableList<VariableGroup> variableGroups)
     {
         return step with
         {

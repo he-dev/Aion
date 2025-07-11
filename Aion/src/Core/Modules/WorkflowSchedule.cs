@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Aion.Home;
+using Aion.Home.Jobs;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -93,7 +94,7 @@ public class WorkflowSchedule
 
         var job =
             JobBuilder
-                .Create<Jobs.OnDemandWorkflowJob>()
+                .Create<OnDemandWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
@@ -116,7 +117,7 @@ public class WorkflowSchedule
 
         var job =
             JobBuilder
-                .Create<Jobs.OnDemandWorkflowJob>()
+                .Create<OnDemandWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
@@ -139,7 +140,7 @@ public class WorkflowSchedule
 
         var job =
             JobBuilder
-                .Create<Jobs.OnDemandWorkflowJob>()
+                .Create<OnDemandWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
@@ -160,7 +161,7 @@ public class WorkflowSchedule
     {
         var jobDetail =
             JobBuilder
-                .Create<Jobs.RegularWorkflowJob>()
+                .Create<RegularWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();

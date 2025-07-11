@@ -1,8 +1,8 @@
 using System;
 using System.CommandLine;
 using System.Threading.Tasks;
-using Aion.Core.Jobs;
 using Aion.Core.Modules;
+using Aion.Home.Jobs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

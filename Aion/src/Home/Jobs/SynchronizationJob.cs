@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
-using Aion.Home;
 using Aion.Util.Serilog;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Jobs;
+namespace Aion.Home.Jobs;
 
 [UsedImplicitly]
 [DisallowConcurrentExecution]

@@ -22,18 +22,17 @@ public class WorkflowVariableGroup() : VariableGroup("Workflow")
 {
     public string Name { get; init; }
 
-    public string Mode { get; init; }
+    //public string Mode { get; init; }
 
-    public string? Trigger { get; init; }
+    public string Trigger { get; init; }
 
-    public string JobId { get; init; }
+    public string ExecutionId { get; init; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
-        yield return new KeyValuePair<string, object?>(nameof(Mode), Mode);
         yield return new KeyValuePair<string, object?>(nameof(Trigger), Trigger);
-        yield return new KeyValuePair<string, object?>(nameof(JobId), JobId);
+        yield return new KeyValuePair<string, object?>(nameof(ExecutionId), ExecutionId);
     }
 }
 
