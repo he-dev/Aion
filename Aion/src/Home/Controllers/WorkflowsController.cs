@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Aion.Core.Modules;
 using Aion.Util;
 using Aion.Util.Quartz;
-using Aion.Util.Serilog;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 

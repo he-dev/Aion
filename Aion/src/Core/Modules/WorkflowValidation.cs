@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace Aion.Core.Modules;
@@ -29,8 +30,8 @@ public static class WorkflowValidation
         {
             step.RenderVariables([
                 new LocalVariableGroup(workflow.Variables),
-                new WorkflowVariableGroup { Name = "test", Trigger = "Cron", ExecutionId = "test" },
-                new StepVariableGroup { Name = "test", Index = 0 }
+                new WorkflowVariableGroup { Name = "test", Trigger = "Cron", TraceId = ActivityTraceId.CreateRandom(), SpanId = ActivitySpanId.CreateRandom() },
+                new StepVariableGroup { Name = "test", Index = 0, TraceId = ActivityTraceId.CreateRandom(), SpanId = ActivitySpanId.CreateRandom() }
             ]);
         }
     }

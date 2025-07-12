@@ -4,7 +4,6 @@ using Aion.Core.Modules;
 using Aion.Util.Serilog;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Aion.Home.Jobs;
@@ -14,8 +13,6 @@ namespace Aion.Home.Jobs;
 internal class SynchronizationJob
 (
     ILogger<SynchronizationJob> logger,
-    IOptions<SynchronizationJobOptions> options,
-    ISchedulerFactory schedulerFactory,
     WorkflowDirectory workflowDirectory,
     WorkflowScheduler workflowScheduler
 ) : IJob

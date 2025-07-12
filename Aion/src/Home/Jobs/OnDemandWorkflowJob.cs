@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
@@ -18,6 +19,8 @@ public class OnDemandWorkflowJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
+        using var activity = new Activity("ExecuteWorkflow").Start();
+
         var onDemandOption = context.Trigger.JobDataMap.GetString(nameof(OnDemandOption))!;
         var workflowName = context.JobDetail.Key.Name;
         var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
@@ -44,7 +47,8 @@ public class OnDemandWorkflowJob
                     {
                         Name = workflowName,
                         Trigger = onDemandOption,
-                        ExecutionId = executionId,
+                        TraceId = activity.TraceId,
+                        SpanId = activity.SpanId,
                     }));
                     break;
             }

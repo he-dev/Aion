@@ -11,7 +11,6 @@
         "--sleep 5",
         "--message \"Hallo NPC!\""
       ],
-      "LogStdTo": "C:\\temp\\{{ workflow.name }}.std",
       "Serilog": {
         "MinimumLevel": { "Default": "Information" },
         "WriteTo": [
@@ -19,7 +18,7 @@
             "Name": "File",
             "Args": {
               "path": "C:\\temp\\{{ workflow.name }}-{{ step.index }}.log",
-              "outputTemplate": "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
+              "outputTemplate": "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj}"
             }
           }
         ]

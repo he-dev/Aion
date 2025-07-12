@@ -33,10 +33,14 @@ public class WorkflowProcess
             // note: Does not filter out disabled steps because we want them logged.
             foreach (var template in workflow.Steps)
             {
+                using var activity = new Activity("ExecuteStep").Start();
+
                 var stepVariables = variables.Add(new StepVariableGroup
                 {
                     Name = template.Name,
                     Index = template.Index,
+                    TraceId = activity.TraceId,
+                    SpanId = activity.SpanId,
                 });
 
                 var step = template.RenderVariables(stepVariables);

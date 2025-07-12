@@ -112,7 +112,7 @@ public class Program
                             .WithSimpleSchedule(x => x.WithRepeatCount(0));
                     });
 
-                    q.AddTriggerListener<SynchronizationJobTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(jobDetail.Key.Group));
+                    q.AddTriggerListener<SynchronizationJobTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(JobGroupNames.Services));
                     q.AddTriggerListener<RegularWorkflowJobTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(JobGroupNames.Workflows));
 
                     // note: The docs say that the default is 1 minute.

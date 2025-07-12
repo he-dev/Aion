@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using Aion.Util.Scriban;
 
 namespace Aion.Core.Modules;
@@ -20,19 +21,19 @@ public class LocalVariableGroup(IDictionary<string, object?> variables) : Variab
 
 public class WorkflowVariableGroup() : VariableGroup("Workflow")
 {
-    public string Name { get; init; }
+    public required string Name { get; init; }
 
-    //public string Mode { get; init; }
+    public required string Trigger { get; init; }
 
-    public string Trigger { get; init; }
+    public required ActivityTraceId TraceId { get; init; }
 
-    public string ExecutionId { get; init; }
+    public required ActivitySpanId SpanId { get; init; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
         yield return new KeyValuePair<string, object?>(nameof(Trigger), Trigger);
-        yield return new KeyValuePair<string, object?>(nameof(ExecutionId), ExecutionId);
+        yield return new KeyValuePair<string, object?>(nameof(TraceId), TraceId);
     }
 }
 
@@ -40,7 +41,11 @@ public class StepVariableGroup() : VariableGroup("Step")
 {
     public string? Name { get; init; }
 
-    public int Index { get; init; }
+    public required int Index { get; init; }
+
+    public required ActivityTraceId TraceId { get; init; }
+
+    public required ActivitySpanId SpanId { get; init; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
