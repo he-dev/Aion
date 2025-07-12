@@ -6,6 +6,7 @@ using Aion.Core.Modules;
 using Aion.Home.Jobs;
 using Aion.Util.Serilog;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -41,72 +42,89 @@ public class Program
         //     args = commandLine.UnparsedTokens.ToArray();
         // }
 
-        var builder = WebApplication.CreateBuilder(args);
+        var builder = CreateHostBuilder(args);
 
-        builder.Services.Configure<WorkflowDirectoryOptions>(builder.Configuration.GetSection("WorkflowDirectory"));
-        builder.Services.Configure<SynchronizationJobOptions>(builder.Configuration.GetSection("SynchronizationJob"));
 
-        builder.Services.AddSingleton<IPostConfigureOptions<WorkflowDirectoryOptions>, WorkflowDirectoryPostConfigure>();
-        builder.Services.AddSingleton<WorkflowSink>();
+        var app = builder.Build();
+        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Everything initialized in {Elapsed} seconds. Starting up...", stopwatch.Elapsed);
 
-        builder.Logging.ClearProviders();
-        builder.Host.UseSerilog((context, services, configuration) =>
-        {
-            configuration
-                .ReadFrom.Configuration(context.Configuration)
-                .Enrich.With(new TimeSpanEnricher(ts => Math.Round(ts.TotalSeconds, 1)))
-                .WriteTo.Sink(services.GetRequiredService<WorkflowSink>());
+        await app.RunAsync();
+    }
 
-            // note: This was a nice proof-of-concept experiment, but it does not work here. WorkflowSink replaces it.
-            // .WriteTo.Map(keyPropertyName: "WorkflowName", defaultKey: null, (workflowName, writeTo) =>
+    public static IHostBuilder CreateHostBuilder(string[] args)
+    {
+        var disableSyncOption = new Option<bool>("--app-disable-sync", "Disable the sync job.") { IsRequired = false };
+        var rootCommand = new RootCommand { disableSyncOption };
+        var commandLine = rootCommand.Parse(args);
+
+        return Host
+            .CreateDefaultBuilder(args)
+            // .ConfigureAppConfiguration((context, builder) =>
             // {
-            //     // note: defaultKey can be null, according to the docs, but it has invalid annotations that make Rider unhappy.
-            //     if (workflowName is not null)
-            //     {
-            //         var fileName = System.IO.Path.Combine(workflowLogOptions.DirectoryPath, $"{workflowName}.log");
-            //         writeTo.File(
-            //             fileName,
-            //             outputTemplate: workflowLogOptions.OutputTemplate,
-            //             rollingInterval: workflowLogOptions.RollingInterval,
-            //             retainedFileCountLimit: workflowLogOptions.RetainedFileCountLimit
-            //         );
-            //     }
-            // });
-        });
-
-        var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
-
-        builder.Services.AddControllers();
-        //.AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new WorkflowIssueConverter()); });
-
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
-
-        // .. There's no way these settings are missing so suppress the null warnings.
-
-
-        builder.Services.AddSingleton(services => services.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
-        builder.Services.AddSingleton<WorkflowScheduler>();
-        builder.Services.AddSingleton<WorkflowScheduler.Collection>();
-        builder.Services.AddSingleton<WorkflowProcess>();
-        builder.Services.AddSingleton<WorkflowDirectory>();
-        builder.Services.AddSingleton<WorkflowMaintenance>();
-
-        builder.Services.AddScoped<RegularWorkflowJob>();
-        builder.Services.AddScoped<OnDemandWorkflowJob>();
-        builder.Services.AddScoped<SynchronizationJob>();
-
-        builder.Services.AddQuartz(q =>
-        {
-            if (commandLine.GetValueForOption(disableSyncOption) is false)
+            //     builder
+            //         .AddJsonFile("appsettings.json", optional: false)
+            //         .AddCommandLine(source =>
+            //         {
+            //             source.Args = args;
+            //
+            //         });
+            // })
+            .ConfigureLogging(builder => { builder.ClearProviders(); })
+            .UseSerilog((context, services, configuration) =>
             {
-                // ?? Use the same job but with two triggers so they don't run at the same time.
-                var jobDetail = SynchronizationJob.CreateJobDetail();
+                configuration
+                    .ReadFrom.Configuration(context.Configuration)
+                    .Enrich.With(new TimeSpanEnricher(ts => Math.Round(ts.TotalSeconds, 1)))
+                    .WriteTo.Sink(services.GetRequiredService<WorkflowSink>());
+            })
+            .ConfigureServices((context, services) =>
+            {
+                services.Configure<WorkflowDirectoryOptions>(context.Configuration.GetSection("WorkflowDirectory"));
+                services.Configure<SynchronizationJobOptions>(context.Configuration.GetSection("SynchronizationJob"));
 
-                try
+                services.AddSingleton<IPostConfigureOptions<WorkflowDirectoryOptions>, WorkflowDirectoryPostConfigure>();
+                services.AddSingleton<WorkflowSink>();
+
+
+                services
+                    .AddControllers()
+                    // meta: This is a must for endpoints.MapControllers to work.
+                    .AddApplicationPart(typeof(Program).Assembly);
+                //.AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new WorkflowIssueConverter()); });
+
+                // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+                services.AddEndpointsApiExplorer();
+                services.AddSwaggerGen(options =>
                 {
-                    var synchronizationJobOptions = builder.Configuration.GetRequiredSection("SynchronizationJob").Get<SynchronizationJobOptions>()!;
+                    // hack: Custom schema is necessary because Swagger otherwise will crash on types with same names.
+                    options.CustomSchemaIds(type => type.FullName?.Replace("+", ".") ?? type.Name);
+
+                    // note: Or something like this:
+                    // if (type.DeclaringType != null)
+                    // {
+                    //     return $"{type.DeclaringType.Name}.{type.Name}";
+                    // }
+                    // return type.Name;
+                });
+
+                // .. There's no way these settings are missing so suppress the null warnings.
+
+                services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
+                services.AddSingleton<WorkflowScheduler>();
+                services.AddSingleton<WorkflowScheduler.Collection>();
+                services.AddSingleton<WorkflowProcess>();
+                services.AddSingleton<WorkflowDirectory>();
+                services.AddSingleton<WorkflowMaintenance>();
+
+                services.AddScoped<RegularWorkflowJob>();
+                services.AddScoped<OnDemandWorkflowJob>();
+                services.AddScoped<SynchronizationJob>();
+
+                services.AddQuartz(q =>
+                {
+                    var synchronizationJobOptions = context.Configuration.GetRequiredSection("SynchronizationJob").Get<SynchronizationJobOptions>()!;
+                    var jobDetail = SynchronizationJob.CreateJobDetail();
 
                     q.ScheduleJob<SynchronizationJob>(trigger =>
                     {
@@ -119,51 +137,38 @@ public class Program
                     {
                         trigger
                             .ForJob(jobDetail)
-                            .StartNow();
+                            .StartNow()
+                            .WithSimpleSchedule(x => x.WithRepeatCount(0));
                     });
-                }
-                catch (Exception ex)
+                });
+
+                services.AddQuartzServer(options =>
                 {
-                    logger.LogError(ex, "Error scheduling the synchronization job.");
-                    throw;
-                }
-            }
-            else
+                    var quartzServerOptions = context.Configuration.GetRequiredSection("QuartzServer").Get<QuartzServerOptions>()!;
+
+                    options.AwaitApplicationStarted = true;
+                    options.WaitForJobsToComplete = true;
+                    options.StartDelay = TimeSpan.FromSeconds(quartzServerOptions.StartDelaySeconds);
+                });
+            })
+            .ConfigureWebHostDefaults(builder =>
             {
-                logger.LogWarning("Synchronization job is disabled.");
-            }
-        });
+                builder.Configure((context, app) =>
+                {
+                    if (context.HostingEnvironment.IsDevelopment())
+                    {
+                        app.UseSwagger();
+                        app.UseSwaggerUI();
+                    }
 
-        builder.Services.AddQuartzServer(options =>
-        {
-            var quartzServerOptions = builder.Configuration.GetRequiredSection("QuartzServer").Get<QuartzServerOptions>()!;
-
-            options.AwaitApplicationStarted = true;
-            options.WaitForJobsToComplete = true;
-            options.StartDelay = TimeSpan.FromSeconds(quartzServerOptions.StartDelaySeconds);
-        });
-
-        var app = builder.Build();
-
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
-
-        app.UseHttpsRedirection();
-        app.UseAuthorization();
-        app.MapControllers();
-
-        logger.LogInformation("Everything initialized in {Elapsed} seconds. Starting up...", stopwatch.Elapsed);
-
-        await app.RunAsync();
-    }
-
-    public static IHostBuilder CreateHostBuilder(string[] args)
-    {
-        return null;
+                    app.UseHttpsRedirection();
+                    // meta: This is a must for UseEndpoints() to work.
+                    app.UseRouting();
+                    app.UseAuthorization();
+                    // meta: This is a must for controllers to work.
+                    app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+                });
+            });
     }
 }
 

@@ -11,28 +11,33 @@ public record WorkflowLock
 {
     private static readonly SemaphoreSlim Lock = new(1, 1);
 
+    // util: Provides time and means to override it for test.
+    [JsonIgnore]
+    public TimeProvider Clock { get; init; } = TimeProvider.System;
+
     public DateTimeOffset StartsOnUtc { get; init; }
     public DateTimeOffset EndsOnUtc { get; init; }
-    public DateTimeOffset CreatedOnUtc { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset CreatedOnUtc { get; init; }
 
     [JsonIgnore]
     public string? FileName { get; init; }
 
     public TimeSpan Duration => EndsOnUtc - StartsOnUtc;
-    public TimeSpan Remaining => EndsOnUtc - DateTimeOffset.UtcNow;
+    public TimeSpan Remaining => EndsOnUtc - Clock.GetUtcNow();
 
-    public bool IsPending => StartsOnUtc > DateTimeOffset.UtcNow;
-    public bool IsExpired => EndsOnUtc < DateTimeOffset.UtcNow;
-    public bool IsRunning => StartsOnUtc <= DateTimeOffset.UtcNow && EndsOnUtc > DateTimeOffset.UtcNow;
+    public bool IsPending => StartsOnUtc > Clock.GetUtcNow();
+    public bool IsExpired => EndsOnUtc < Clock.GetUtcNow();
+    public bool IsRunning => StartsOnUtc <= Clock.GetUtcNow() && EndsOnUtc > Clock.GetUtcNow();
 
-    public static WorkflowLock StartAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc)
+    public static WorkflowLock StartAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
     {
+        clock ??= TimeProvider.System;
         if (startsOnUtc > endsOnUtc)
         {
             throw new ArgumentException("Workflow lock's start must be before end.", nameof(startsOnUtc));
         }
 
-        if (endsOnUtc < DateTimeOffset.UtcNow)
+        if (endsOnUtc < clock.GetUtcNow())
         {
             throw new ArgumentException("Workflow lock's expiry must be in the future.", nameof(endsOnUtc));
         }
@@ -44,9 +49,10 @@ public record WorkflowLock
         };
     }
 
-    public static WorkflowLock StartIn(TimeSpan wait, TimeSpan length)
+    public static WorkflowLock StartIn(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
     {
-        var startsOnUtc = DateTimeOffset.UtcNow.Add(wait);
+        clock ??= TimeProvider.System;
+        var startsOnUtc = clock.GetUtcNow().Add(wait);
         var endsOnUtc = startsOnUtc.Add(length);
 
         return StartAt(startsOnUtc, endsOnUtc);
