@@ -1,5 +1,4 @@
 using System;
-using System.CommandLine;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
@@ -14,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
 using Quartz.AspNetCore;
+using Quartz.Impl.Matchers;
 using Serilog;
 
 namespace Aion.Home;
@@ -23,53 +23,21 @@ public class Program
     public static async Task Main(params string[] args)
     {
         var stopwatch = Stopwatch.StartNew();
-
-        var disableSyncOption = new Option<bool>("--app-disable-sync", "Disable the sync job.") { IsRequired = false };
-        var rootCommand = new RootCommand { disableSyncOption };
-        var commandLine = rootCommand.Parse(args);
-
-        // if (commandLine.GetValueForOption(debugOption) is false && commandLine.Tokens.Any(t => t.Value == "--url") == false)
-        // {
-        //     var preConfig = new ConfigurationBuilder()
-        //         .SetBasePath(AppContext.BaseDirectory)
-        //         .AddJsonFile("appsettings.json", optional: false)
-        //         .Build();
-        //
-        //     args = new[] { "--url", preConfig["AionApi:Url"] };
-        // }
-        // else
-        // {
-        //     args = commandLine.UnparsedTokens.ToArray();
-        // }
-
         var builder = CreateHostBuilder(args);
-
-
         var app = builder.Build();
+
         var logger = app.Services.GetRequiredService<ILogger<Program>>();
         logger.LogInformation("Everything initialized in {Elapsed} seconds. Starting up...", stopwatch.Elapsed);
 
         await app.RunAsync();
     }
 
+    // note: This must be public for the WebApplicationFactory.
+    // ReSharper disable once MemberCanBePrivate.Global
     public static IHostBuilder CreateHostBuilder(string[] args)
     {
-        var disableSyncOption = new Option<bool>("--app-disable-sync", "Disable the sync job.") { IsRequired = false };
-        var rootCommand = new RootCommand { disableSyncOption };
-        var commandLine = rootCommand.Parse(args);
-
         return Host
             .CreateDefaultBuilder(args)
-            // .ConfigureAppConfiguration((context, builder) =>
-            // {
-            //     builder
-            //         .AddJsonFile("appsettings.json", optional: false)
-            //         .AddCommandLine(source =>
-            //         {
-            //             source.Args = args;
-            //
-            //         });
-            // })
             .ConfigureLogging(builder => { builder.ClearProviders(); })
             .UseSerilog((context, services, configuration) =>
             {
@@ -85,7 +53,6 @@ public class Program
 
                 services.AddSingleton<IPostConfigureOptions<WorkflowDirectoryOptions>, WorkflowDirectoryPostConfigure>();
                 services.AddSingleton<WorkflowSink>();
-
 
                 services
                     .AddControllers()
@@ -108,9 +75,8 @@ public class Program
                     // return type.Name;
                 });
 
-                // .. There's no way these settings are missing so suppress the null warnings.
-
                 services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
+
                 services.AddSingleton<WorkflowScheduler>();
                 services.AddSingleton<WorkflowScheduler.Collection>();
                 services.AddSingleton<WorkflowProcess>();
@@ -121,6 +87,9 @@ public class Program
                 services.AddScoped<OnDemandWorkflowJob>();
                 services.AddScoped<SynchronizationJob>();
 
+                services.AddSingleton<SynchronizationJobTriggerListener>();
+                services.AddSingleton<RegularWorkflowJobTriggerListener>();
+
                 services.AddQuartz(q =>
                 {
                     var synchronizationJobOptions = context.Configuration.GetRequiredSection("SynchronizationJob").Get<SynchronizationJobOptions>()!;
@@ -130,6 +99,7 @@ public class Program
                     {
                         trigger
                             .ForJob(jobDetail)
+                            .WithIdentity("sync-jobs-by-cron", JobGroupNames.Services)
                             .WithCronSchedule(CronScheduleBuilder.CronSchedule(synchronizationJobOptions.Cron));
                     });
 
@@ -137,9 +107,16 @@ public class Program
                     {
                         trigger
                             .ForJob(jobDetail)
+                            .WithIdentity("sync-jobs-by-start-now", JobGroupNames.Services)
                             .StartNow()
                             .WithSimpleSchedule(x => x.WithRepeatCount(0));
                     });
+
+                    q.AddTriggerListener<SynchronizationJobTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(jobDetail.Key.Group));
+                    q.AddTriggerListener<RegularWorkflowJobTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(JobGroupNames.Workflows));
+
+                    // note: The docs say that the default is 1 minute.
+                    q.MisfireThreshold = TimeSpan.FromMinutes(2);
                 });
 
                 services.AddQuartzServer(options =>

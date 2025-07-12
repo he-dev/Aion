@@ -28,7 +28,7 @@ public class WorkflowLockTest
 
         // Assert: The lock should still be running.
         Assert.True(workflowLock.IsRunning);
-        WebApplicationFactory>
+
         // Arrange: Advance the clock to the exact expiry time.
         //fakeTimeProvider.Advance(TimeSpan.FromMinutes(30));
 

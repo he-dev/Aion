@@ -22,15 +22,6 @@ internal class SynchronizationJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        if (options.Value.Disabled)
-        {
-            logger.LogWarning("Synchronization job is disabled, so it will be deleted.");
-            var scheduler = await schedulerFactory.GetScheduler();
-            await scheduler.DeleteJob(context.JobDetail.Key);
-
-            return;
-        }
-
         logger.LogInformation("Synchronizing workflows...");
 
         var executionId = Guid.NewGuid().ToString("D");

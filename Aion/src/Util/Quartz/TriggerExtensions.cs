@@ -33,6 +33,7 @@ public static class JobDataMapExtensions
             {
                 throw new NullReferenceException($"Key {key} has a null value.");
             }
+
             return (T)value;
         }
 

@@ -23,7 +23,7 @@ public class WorkflowScheduler
 {
     public async Task<(SynchronizationResult Action, DateTimeOffset? Next)> Synchronize(Workflow workflow)
     {
-        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name});
+        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -49,7 +49,8 @@ public class WorkflowScheduler
                     return (SynchronizationResult.Delete, null);
                 }
 
-                logger.LogInformation("Workflow has no enabled steps: {SynchronizationResult}.", SynchronizationResult.Ignore);;
+                logger.LogInformation("Workflow has no enabled steps: {SynchronizationResult}.", SynchronizationResult.Ignore);
+                ;
                 return (SynchronizationResult.Ignore, null);
             }
 
@@ -89,14 +90,14 @@ public class WorkflowScheduler
 
     public async Task<DateTimeOffset> StartNow(Workflow workflow)
     {
-        var scheduler = await schedulerFactory.GetScheduler();
-
         var job =
             JobBuilder
                 .Create<OnDemandWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
+
+        await EnsureWorkflowNotScheduled(job);
 
         var trigger =
             TriggerBuilder
@@ -107,19 +108,20 @@ public class WorkflowScheduler
                 .UsingJobData(nameof(OnDemandOption), nameof(OnDemandOption.StartNow))
                 .Build();
 
+        var scheduler = await schedulerFactory.GetScheduler();
         return await scheduler.ScheduleJob(job, trigger);
     }
 
     public async Task<DateTimeOffset> StartAt(Workflow workflow, DateTimeOffset startAt)
     {
-        var scheduler = await schedulerFactory.GetScheduler();
-
         var job =
             JobBuilder
                 .Create<OnDemandWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
+
+        await EnsureWorkflowNotScheduled(job);
 
         var trigger =
             TriggerBuilder
@@ -130,19 +132,20 @@ public class WorkflowScheduler
                 .UsingJobData(nameof(OnDemandOption), nameof(OnDemandOption.StartAt))
                 .Build();
 
+        var scheduler = await schedulerFactory.GetScheduler();
         return await scheduler.ScheduleJob(job, trigger);
     }
 
     public async Task<DateTimeOffset> StartIn(Workflow workflow, TimeSpan delay)
     {
-        var scheduler = await schedulerFactory.GetScheduler();
-
         var job =
             JobBuilder
                 .Create<OnDemandWorkflowJob>()
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
+
+        await EnsureWorkflowNotScheduled(job);
 
         var trigger =
             TriggerBuilder
@@ -153,6 +156,7 @@ public class WorkflowScheduler
                 .UsingJobData(nameof(OnDemandOption), nameof(OnDemandOption.StartIn))
                 .Build();
 
+        var scheduler = await schedulerFactory.GetScheduler();
         return await scheduler.ScheduleJob(job, trigger);
     }
 
@@ -174,6 +178,15 @@ public class WorkflowScheduler
         var scheduler = await schedulerFactory.GetScheduler();
         var jobKey = new JobKey(name, JobGroupNames.Workflows);
         return await scheduler.DeleteJob(jobKey);
+    }
+
+    private async Task EnsureWorkflowNotScheduled(IJobDetail jobDetail)
+    {
+        var scheduler = await schedulerFactory.GetScheduler();
+        if (await scheduler.CheckExists(jobDetail.Key))
+        {
+            throw new WorkflowAlreadyScheduledException();
+        }
     }
 
     public enum SynchronizationResult
@@ -219,3 +232,5 @@ public enum WorkflowTriggerType
     Cron,
     OnDemand
 }
+
+public class WorkflowAlreadyScheduledException : Exception;

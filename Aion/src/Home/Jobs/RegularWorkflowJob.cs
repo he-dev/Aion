@@ -27,8 +27,6 @@ public class RegularWorkflowJob
 
         try
         {
-            await EnsureWorkflowNotLocked(workflowPath);
-
             switch (await Workflow.FromFile(workflowPath))
             {
                 // core: Gets rid of useless workflows.
@@ -62,25 +60,6 @@ public class RegularWorkflowJob
             if (await scheduler.Delete(workflowName))
             {
                 logger.LogInformation("Workflow has been unscheduled because something went wrong.");
-            }
-        }
-    }
-
-    // core: Works as a fail-safe which means that any attempt to check the lock that fails automatically is interpreted as locked.
-    private async Task EnsureWorkflowNotLocked(string workflowPath)
-    {
-        if (await WorkflowLock.FromFile(workflowPath) is { } workflowLock)
-        {
-            if (workflowLock.IsRunning)
-            {
-                // core: Uses control flow by exception, so this is an expected exception.
-                throw new WorkflowLockedException { Lock = workflowLock };
-            }
-
-            if (workflowLock.IsExpired)
-            {
-                logger.LogWarning("Workflow lock has expired on {ExpiresOn} and will be deleted.", workflowLock.EndsOnUtc.ToLocalTime());
-                await workflowLock.Delete();
             }
         }
     }
