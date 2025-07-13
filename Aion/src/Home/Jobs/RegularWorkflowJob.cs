@@ -16,41 +16,31 @@ public class RegularWorkflowJob
 (
     ILogger<RegularWorkflowJob> logger,
     WorkflowScheduler workflowScheduler,
-    WorkflowProcess workflowProcess
+    WorkflowEngine workflowEngine
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        using var activity = new Activity("ExecuteWorkflow").Start();
-
         var workflowName = context.JobDetail.Key.Name;
         var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
-        var executionId = Guid.NewGuid().ToString("D");
-        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflowName, ExecutionId = executionId });
 
         try
         {
             switch (await Workflow.FromFile(workflowPath))
             {
                 // core: Gets rid of useless workflows.
-                case { Enabled: false }:
+                case { IsOn: false }:
                     logger.LogWarning("Unscheduling workflow because it is disabled.");
                     await workflowScheduler.Delete(workflowName);
                     break;
                 // core: Gets rid of useless workflows.
-                case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
+                case { Steps: { } steps } when steps.Any(s => s.IsOn) == false:
                     logger.LogWarning("Unscheduling workflow because it has no enabled steps.");
                     await workflowScheduler.Delete(workflowName);
                     break;
                 // core: This is where the actual magic happens.
                 case var workflow:
-                    await workflowProcess.Start(workflow, ImmutableList<VariableGroup>.Empty.Add(new WorkflowVariableGroup
-                    {
-                        Name = workflowName,
-                        Trigger = nameof(WorkflowTriggerType.Cron),
-                        TraceId = activity.TraceId,
-                        SpanId = activity.SpanId,
-                    }));
+                    await workflowEngine.Start(workflow, WorkflowTriggerGroup.Cron);
                     break;
             }
         }

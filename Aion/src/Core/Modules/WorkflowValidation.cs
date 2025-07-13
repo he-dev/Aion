@@ -26,12 +26,14 @@ public static class WorkflowValidation
     {
         // role: Ensures that templates in each step can be rendered.
         // code: Use fake values for testing.
+        using var workflowActivity = new Activity("Test");
         foreach (var step in workflow.Steps)
         {
+            using var stepActivity = new Activity("Test");
             step.RenderVariables([
-                new LocalVariableGroup(workflow.Variables),
-                new WorkflowVariableGroup { Name = "test", Trigger = "Cron", TraceId = ActivityTraceId.CreateRandom(), SpanId = ActivitySpanId.CreateRandom() },
-                new StepVariableGroup { Name = "test", Index = 0, TraceId = ActivityTraceId.CreateRandom(), SpanId = ActivitySpanId.CreateRandom() }
+                new ArgumentVariableGroup(workflow.Args),
+                new WorkflowVariableGroup(workflowActivity) { Name = "test", Trigger = WorkflowTriggerGroup.Cron },
+                new StepVariableGroup(stepActivity) { Name = "test", Index = 0 }
             ]);
         }
     }

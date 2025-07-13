@@ -1,19 +1,22 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
+using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 
 namespace Aion.Util;
 
-public class AsyncProcess
+public class AsyncProcess(ILogger logger)
 {
-    public required string FileName { get; init; }
+    public required string File { get; init; }
 
-    public required string Arguments { get; init; }
+    public required IEnumerable<string> Args { get; init; }
 
     public string? WorkingDirectory { get; init; }
 
-    public ILogger? Logger { get; set; }
+    public Action<Process> OnProcessStarted { get; init; } = _ => { };
 
     public async Task<int> StartAsync(TimeSpan timeout)
     {
@@ -23,8 +26,8 @@ public class AsyncProcess
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = FileName,
-                Arguments = Arguments,
+                FileName = File,
+                Arguments = string.Join(' ', Args.Select(a => a.Trim())),
                 WorkingDirectory = WorkingDirectory,
                 CreateNoWindow = true,
                 UseShellExecute = false,
@@ -34,25 +37,22 @@ public class AsyncProcess
             }
         };
 
+        using var activity = new Activity("ExecuteProcess");
+        activity.Start();
+
         var stdOutCompletion = new TaskCompletionSource<bool>();
         var stdErrCompletion = new TaskCompletionSource<bool>();
 
-        if (Logger is not null)
-        {
-            process.OutputDataReceived += (_, e) => OnDataReceived(e, stdOutCompletion, StdStreamType.Out);
-            process.ErrorDataReceived += (_, e) => OnDataReceived(e, stdErrCompletion, StdStreamType.Err);
-        }
-        else
-        {
-            stdOutCompletion.TrySetResult(true);
-            stdErrCompletion.TrySetResult(true);
-        }
+        process.OutputDataReceived += (_, e) => OnDataReceived(e, stdOutCompletion, StdStreamType.Out, activity);
+        process.ErrorDataReceived += (_, e) => OnDataReceived(e, stdErrCompletion, StdStreamType.Err, activity);
 
         try
         {
-            Logger?.LogInformation("Starting process '{FileName}' with arguments '{Arguments}'.", FileName, Arguments);
+            logger.LogInformation("Starting process '{File}' with arguments '{Args}'.", File, process.StartInfo.Arguments);
             if (process.Start())
             {
+                OnProcessStarted(process);
+
                 // meta: Reads the output stream first and then waits because deadlocks are possible.
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
@@ -82,17 +82,24 @@ public class AsyncProcess
     }
 
     // util: Let's not write this code twice...
-    private void OnDataReceived(DataReceivedEventArgs e, TaskCompletionSource<bool> stdStreamCompletion, StdStreamType stdStreamType)
+    private void OnDataReceived(DataReceivedEventArgs e, TaskCompletionSource<bool> stdStreamCompletion, StdStreamType stdStreamType, Activity activity)
     {
         // The output stream has been closed, i.e., the process has terminated.
         if (e.Data is null)
         {
             stdStreamCompletion.TrySetResult(true);
-            Logger?.LogInformation("{StdStreamType} | EOF", stdStreamType);
+            activity.Stop();
+            using (logger.BeginScopeFrom(new { StdStreamType = stdStreamType }))
+            {
+                logger.LogInformation("EOF in {Elapsed}", activity.Duration);
+            }
         }
         else
         {
-            Logger?.LogInformation("{StdStreamType} | {Line}", stdStreamType, e.Data);
+            using (logger.BeginScopeFrom(new { StdStreamType = stdStreamType }))
+            {
+                logger.LogInformation("{Line}", e.Data);
+            }
         }
     }
 

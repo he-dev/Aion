@@ -16,7 +16,7 @@ namespace Aion.Core.Modules;
 public record Workflow : ITimeZoned
 {
     // .. Make the user specify this value explicitly.
-    public bool Enabled { get; init; }
+    public bool IsOn { get; init; }
 
     // .. Having a schedule is the whole point of a workflow, so make it "required".
     public string Cron { get; init; } = null!;
@@ -29,12 +29,14 @@ public record Workflow : ITimeZoned
             : TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
 
     // .. Variables are optional and can be empty.
-    public Dictionary<string, object?> Variables { get; init; } = new();
+    public Dictionary<string, object?> Args { get; init; } = new();
 
     // .. Workflows without steps don't make sense, so make it a required field.
     public List<Step> Steps { get; init; } = [];
 
     public JsonObject? Serilog { get; init; }
+
+    public JsonObject? Console { get; init; }
 
     #region Meta
 
@@ -78,9 +80,10 @@ public record Workflow : ITimeZoned
         [JsonIgnore]
         public int Index { get; init; }
 
-        public bool Enabled { get; init; } = true;
 
-        public string Script { get; init; } = null!;
+        public bool IsOn { get; init; } = true;
+
+        public string File { get; init; } = null!;
 
         public List<string> Args { get; init; } = [];
 
@@ -88,11 +91,9 @@ public record Workflow : ITimeZoned
 
         public TimeSpan Timeout { get; init; } = System.Threading.Timeout.InfiniteTimeSpan;
 
-        public bool WindowVisible { get; init; }
+        // public bool WindowVisible { get; init; }
 
-        public string? LogStdTo { get; init; }
-
-        public JsonObject? Serilog { get; init; }
+        public JsonObject? Console { get; init; }
 
         public string? DependsOn { get; init; }
 
@@ -107,7 +108,7 @@ public record Workflow : ITimeZoned
             return Name is null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
         }
 
-        public static implicit operator bool(Step step) => step.Enabled;
+        public static implicit operator bool(Step step) => step.IsOn;
     }
 
     public static async Task<Workflow> FromFile(string path)

@@ -41,6 +41,8 @@ public class Program
             .ConfigureLogging(builder => { builder.ClearProviders(); })
             .UseSerilog((context, services, configuration) =>
             {
+                var appInfo = context.Configuration.GetSection("Serilog");
+
                 configuration
                     .ReadFrom.Configuration(context.Configuration)
                     .Enrich.With(new TimeSpanEnricher(ts => Math.Round(ts.TotalSeconds, 1)))
@@ -79,7 +81,7 @@ public class Program
 
                 services.AddSingleton<WorkflowScheduler>();
                 services.AddSingleton<WorkflowScheduler.Collection>();
-                services.AddSingleton<WorkflowProcess>();
+                services.AddSingleton<WorkflowEngine>();
                 services.AddSingleton<WorkflowDirectory>();
                 services.AddSingleton<WorkflowMaintenance>();
 

@@ -13,6 +13,8 @@ public static class JsonObjectExtensions
     // role: Renders each path property it finds that looks like a template.
     public static JsonObject? RenderPaths(this JsonObject? serilog, IImmutableList<VariableGroup> variables)
     {
+        // meta: It needs to be cloned otherwise the original object will be modified, which would happen during validation.
+        serilog = serilog is null ? null : JsonNode.Parse(serilog.ToJsonString())!.AsObject();
         // core: Scan sinks for the "path" property and run it through the template engine.
         if (serilog?["WriteTo"] is JsonArray writeTo)
         {

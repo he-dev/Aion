@@ -12,7 +12,7 @@ namespace Aion.Util.Scriban;
 
 // https://github.com/scriban/scriban/tree/master/doc
 
-// !! Make code for creating variable groups reusable.
+// util: Makes creating variable groups more convenient.
 public abstract class VariableGroup(string name) : IEnumerable<KeyValuePair<string, object?>>
 {
     private static IEqualityComparer<string> Comparer => StringComparer.OrdinalIgnoreCase;
@@ -21,15 +21,13 @@ public abstract class VariableGroup(string name) : IEnumerable<KeyValuePair<stri
     {
         var members = new ScriptObject(Comparer);
         members.Import(this.ToDictionary(Comparer));
+        // meta: Selectors like "parent.child" require nested ScriptObjects.
         return new ScriptObject(Comparer) { [name] = members };
     }
 
     public abstract IEnumerator<KeyValuePair<string, object?>> GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return GetEnumerator();
-    }
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
 public static class VariableTemplate
@@ -41,7 +39,7 @@ public static class VariableTemplate
 
         var customContext = new TemplateContext
         {
-            // !! Make sure no missing variable goes unnoticed.
+            // core: Make sure no missing variable goes unnoticed.
             StrictVariables = true,
         };
         customContext.PushGlobal(customFunctions);
@@ -56,7 +54,7 @@ public static class VariableTemplate
 
         var maxPasses = 3;
 
-        // !! Ensure we also render nested variables but don't fall into an infinite loop.
+        // meta: Ensure we also render nested variables but don't fall into an infinite loop.
         while (current != previous && passes < maxPasses)
         {
             previous = current;
@@ -64,10 +62,10 @@ public static class VariableTemplate
             passes++;
         }
 
-        // .. Apparently it's still not fully rendered.
+        // meta: Apparently it's still not fully rendered.
         if (passes >= maxPasses && current != previous)
         {
-            throw new Exception($"Variable template did not stabilize after {maxPasses} passes: {current}");
+            throw new Exception($"Variable template did not stabilize after {maxPasses} passes.");
         }
 
         return current;

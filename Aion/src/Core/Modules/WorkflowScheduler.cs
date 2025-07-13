@@ -29,7 +29,7 @@ public class WorkflowScheduler
 
         try
         {
-            if (!workflow.Enabled)
+            if (!workflow.IsOn)
             {
                 if (await scheduler.DeleteJob(workflow.JobKey))
                 {
@@ -41,7 +41,7 @@ public class WorkflowScheduler
                 return (SynchronizationResult.Ignore, null);
             }
 
-            if (!workflow.Steps.Any(s => s.Enabled))
+            if (!workflow.Steps.Any(s => s.IsOn))
             {
                 if (await scheduler.DeleteJob(workflow.JobKey))
                 {
@@ -105,7 +105,7 @@ public class WorkflowScheduler
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .StartNow()
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
-                .UsingJobData(nameof(OnDemandOption), nameof(OnDemandOption.StartNow))
+                .UsingJobData(nameof(WorkflowTriggerGroup), nameof(WorkflowTriggerGroup.StartNow))
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();
@@ -129,7 +129,7 @@ public class WorkflowScheduler
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .StartAt(startAt)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
-                .UsingJobData(nameof(OnDemandOption), nameof(OnDemandOption.StartAt))
+                .UsingJobData(nameof(WorkflowTriggerGroup), nameof(WorkflowTriggerGroup.StartAt))
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();
@@ -153,7 +153,7 @@ public class WorkflowScheduler
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .StartAt(DateTimeOffset.UtcNow + delay)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
-                .UsingJobData(nameof(OnDemandOption), nameof(OnDemandOption.StartIn))
+                .UsingJobData(nameof(WorkflowTriggerGroup), nameof(WorkflowTriggerGroup.StartIn))
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();
@@ -218,19 +218,12 @@ public class WorkflowScheduler
     }
 }
 
-public enum OnDemandOption
+public enum WorkflowTriggerGroup
 {
-    None,
+    Cron,
     StartNow,
     StartIn,
     StartAt
-}
-
-public enum WorkflowTriggerType
-{
-    None,
-    Cron,
-    OnDemand
 }
 
 public class WorkflowAlreadyScheduledException : Exception;

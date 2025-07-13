@@ -50,10 +50,10 @@ public class WorkflowsController
             select new
             {
                 path = workflow.Path,
-                isOn = workflow.Enabled,
+                isOn = workflow.IsOn,
                 cron = workflow.Cron,
                 next = next,
-                cmds = workflow.Steps.Count(s => s.Enabled),
+                cmds = workflow.Steps.Count(s => s.IsOn),
             };
 
         return Ok(new { result, errors });

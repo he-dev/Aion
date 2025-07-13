@@ -1,19 +1,20 @@
 ﻿using System.Collections.Immutable;
 using System.Linq;
+using Aion.Util.Json;
 using Aion.Util.Scriban;
 
 namespace Aion.Core.Modules;
 
 public static class WorkflowExtensions
 {
-    public static Workflow.Step RenderVariables(this Workflow.Step step, IImmutableList<VariableGroup> variableGroups)
+    public static Workflow.Step RenderVariables(this Workflow.Step step, IImmutableList<VariableGroup> variables)
     {
         return step with
         {
-            Script = VariableTemplate.Render(step.Script, variableGroups),
-            Args = step.Args.Select(arg => VariableTemplate.Render(arg, variableGroups)).ToList(),
-            WorkingDirectory = VariableTemplate.Render(step.WorkingDirectory ?? string.Empty, variableGroups),
-            LogStdTo = step.LogStdTo is not null ? VariableTemplate.Render(step.LogStdTo, variableGroups) : null,
+            File = VariableTemplate.Render(step.File, variables),
+            Args = step.Args.Select(arg => VariableTemplate.Render(arg, variables)).ToList(),
+            WorkingDirectory = VariableTemplate.Render(step.WorkingDirectory ?? string.Empty, variables),
+            Console = step.Console.RenderPaths(variables)
         };
     }
 }

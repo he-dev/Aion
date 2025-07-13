@@ -1,24 +1,29 @@
 {
-  "Enabled": true,
+  "IsOn": true,
   "Cron": "0/15 * * * * ?",
-  "Variables": {
+  "Args": {
     "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe"
   },
   "Steps": [
     {
-      "Script": "{{ local.exe }}",
+      "IsOn": true,
+      "File": "{{ arg.exe }}",
       "Args": [
         "--sleep 5",
         "--message \"Hallo NPC!\""
       ],
-      "Serilog": {
-        "MinimumLevel": { "Default": "Information" },
+      "Console": {
+        "MinimumLevel": {
+          "Default": "Information"
+        },
         "WriteTo": [
           {
             "Name": "File",
             "Args": {
               "path": "C:\\temp\\{{ workflow.name }}-{{ step.index }}.log",
-              "outputTemplate": "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj}"
+              "outputTemplate": "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {StdStreamType} » {Message:lj}{NewLine}",
+              "rollingInterval": "Day",
+              "retainedFileCountLimit": 3
             }
           }
         ]
@@ -26,13 +31,17 @@
     }
   ],
   "Serilog": {
-    "MinimumLevel": { "Default": "Information" },
+    "MinimumLevel": {
+      "Default": "Information"
+    },
     "WriteTo": [
       {
         "Name": "File",
         "Args": {
-          "path": "C:\\temp\\Aion.Workflow-{{ workflow.name }}.log",
-          "outputTemplate": "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
+          "path": "C:\\temp\\Aion.Workflow-{{ workflow.name }}_.log",
+          "outputTemplate": "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": 3
         }
       }
     ]
