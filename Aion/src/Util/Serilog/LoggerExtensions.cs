@@ -9,18 +9,7 @@ namespace Aion.Util.Serilog;
 
 public static class LoggerExtensions
 {
-    // public static IDisposable? BeginScopeFrom<T>(this ILogger logger, T state, string scopeName = "Scope") where T : notnull
-    // {
-    //     var scope =
-    //         from p in state.GetType().GetProperties()
-    //         select new KeyValuePair<string, object?>(p.Name, p.GetValue(state));
-    //
-    //     return logger.BeginScope(new Dictionary<string, object?>
-    //     {
-    //         [scopeName] = scope.ToDictionary()
-    //     });
-    // }
-
+    // role: The built-in BeginScope does not support anonymous objects, thus this helper.
     public static IDisposable? BeginScopeFrom<T>(this Microsoft.Extensions.Logging.ILogger logger, T state) where T : notnull
     {
         var properties =
@@ -39,13 +28,4 @@ public static class LoggerExtensions
                 ? NullLoggerFactory.Instance
                 : LoggerFactory.Create(builder => { builder.ClearProviders().AddSerilog(logger, dispose: true); });
     }
-}
-
-public enum ProcessFlow
-{
-    Started,
-    Running,
-    Completed,
-    Canceled,
-    Faulted,
 }

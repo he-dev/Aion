@@ -7,12 +7,10 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Aion.Home;
-using JetBrains.Annotations;
 using Quartz;
 
 namespace Aion.Core.Modules;
 
-[PublicAPI]
 public record Workflow
 {
     // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
@@ -72,7 +70,6 @@ public record Workflow
         return StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
     }
 
-    [PublicAPI]
     public record Step
     {
         public string? Name { get; init; }

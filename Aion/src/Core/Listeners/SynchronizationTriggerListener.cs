@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
 
-namespace Aion.Home.Jobs;
+namespace Aion.Core.Listeners;
 
 public class SynchronizationTriggerListener
 (

@@ -11,18 +11,21 @@ using Serilog.Events;
 
 namespace Aion.Core.Modules;
 
+// role: This custom sink writes log events into the custom logger configured on the workflow.
 public class WorkflowSink : ILogEventSink
 {
     private ConcurrentDictionary<object, ILogger?> Loggers { get; } = new();
 
     public IDisposable Push(string workflowName, JsonObject? configuration, IImmutableList<VariableGroup> variables)
     {
+        // core: Create a new logger from the workflow's configuration and let the caller remove it when done.
         Loggers.GetOrAdd(workflowName, _ => configuration.RenderPaths(variables).ToLogger());
         return new Pop(() => Loggers.TryRemove(workflowName, out _));
     }
 
     public void Emit(LogEvent logEvent)
     {
+        // core: Redirect log events to the custom logger when the WorkflowName property exists.
         if (logEvent.Properties.TryGetValue("WorkflowName", out var value) && value is ScalarValue { Value: string } workflowName)
         {
             if (Loggers.TryGetValue(workflowName.Value!, out var logger))
@@ -32,6 +35,7 @@ public class WorkflowSink : ILogEventSink
         }
     }
 
+    // core: Discard the logger as it's no logger necessary.
     private class Pop(Action pop) : IDisposable
     {
         public void Dispose() => pop();

@@ -8,7 +8,6 @@ using Quartz;
 
 namespace Aion.Home.Jobs;
 
-[UsedImplicitly]
 [DisallowConcurrentExecution]
 internal class SynchronizationJob
 (

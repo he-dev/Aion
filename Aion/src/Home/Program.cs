@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Aion.Core;
+using Aion.Core.Listeners;
 using Aion.Core.Modules;
 using Aion.Home.Jobs;
 using Aion.Util.Serilog;
@@ -21,8 +23,6 @@ namespace Aion.Home;
 public class Program
 {
     public const string Name = "Aion";
-    public const string Version = "3.0.0";
-    public string Id => $"{Name}-v{Version}";
 
     public static async Task Main(params string[] args)
     {
@@ -45,7 +45,6 @@ public class Program
             .ConfigureLogging(builder => { builder.ClearProviders(); })
             .UseSerilog((context, services, configuration) =>
             {
-
                 var profile = context.Configuration.GetRequiredSection("Profile").Get<ProfileOptions>()!;
 
                 configuration
@@ -156,20 +155,4 @@ public class Program
                 });
             });
     }
-}
-
-internal static class JobGroupNames
-{
-    public const string Workflows = nameof(Workflows);
-    public const string Services = nameof(Services);
-}
-
-public record QuartzServerOptions
-{
-    public int StartDelaySeconds { get; init; }
-}
-
-public record ProfileOptions
-{
-    public string Name { get; init; } = Program.Name;
 }

@@ -10,7 +10,7 @@
       "File": "{{ arg.exe }}",
       "Args": [
         "--sleep 5",
-        "--message \"Hallo NPC!\"",
+        "--message \"Hallo variables!\"",
         "--profile-name {{ profile.name }}",
         "--workflow-name {{ workflow.name }}",
         "--workflow-trigger {{ workflow.trigger }}",

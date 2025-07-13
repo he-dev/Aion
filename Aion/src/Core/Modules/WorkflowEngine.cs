@@ -2,7 +2,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Aion.Home;
 using Aion.Util;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
@@ -12,7 +11,7 @@ using Microsoft.Extensions.Options;
 
 namespace Aion.Core.Modules;
 
-// Executes workflow's enabled steps.
+// role: Executes workflow's enabled steps.
 public class WorkflowEngine
 (
     ILogger<WorkflowEngine> logger,

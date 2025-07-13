@@ -5,7 +5,7 @@ using Aion.Core.Modules;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Home.Jobs;
+namespace Aion.Core.Listeners;
 
 public class RegularWorkflowTriggerListener
 (
