@@ -2,11 +2,13 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Aion.Home;
 using Aion.Util;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Aion.Core.Modules;
 
@@ -14,6 +16,7 @@ namespace Aion.Core.Modules;
 public class WorkflowEngine
 (
     ILogger<WorkflowEngine> logger,
+    IOptions<ProfileOptions> profile,
     WorkflowSink workflowSink
 )
 {
@@ -22,6 +25,7 @@ public class WorkflowEngine
         using var workflowActivity = new Activity("ExecuteWorkflow");
         var variables = ImmutableList<VariableGroup>.Empty.AddRange
         ([
+            new ProfileVariableGroup { Name = profile.Value.Name },
             new ArgumentVariableGroup(workflow.Args),
             new WorkflowVariableGroup(workflowActivity) { Name = workflow.Name, Trigger = triggerGroup }
         ]);

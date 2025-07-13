@@ -11,7 +11,7 @@
       "Args": [
         "--sleep 5",
         "--message \"Hallo NPC!\"",
-        "--caller-name {{ app.name }}",
+        "--profile-name {{ profile.name }}",
         "--workflow-name {{ workflow.name }}",
         "--workflow-trigger {{ workflow.trigger }}",
         "--workflow-trace-id {{ workflow.traceId }}",

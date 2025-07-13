@@ -45,10 +45,13 @@ public class Program
             .ConfigureLogging(builder => { builder.ClearProviders(); })
             .UseSerilog((context, services, configuration) =>
             {
-                var appInfo = context.Configuration.GetSection("Serilog");
+
+                var profile = context.Configuration.GetRequiredSection("Profile").Get<ProfileOptions>()!;
 
                 configuration
                     .ReadFrom.Configuration(context.Configuration)
+                    .Enrich.WithProperty("AppName", Program.Name)
+                    .Enrich.WithProperty("ProfileName", profile.Name)
                     .Enrich.With(new TimeSpanEnricher(ts => Math.Round(ts.TotalSeconds, 1)))
                     .WriteTo.Sink(services.GetRequiredService<WorkflowSink>());
             })
@@ -164,4 +167,9 @@ internal static class JobGroupNames
 public record QuartzServerOptions
 {
     public int StartDelaySeconds { get; init; }
+}
+
+public record ProfileOptions
+{
+    public string Name { get; init; } = Program.Name;
 }

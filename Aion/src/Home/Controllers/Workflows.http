@@ -16,6 +16,11 @@ POST {{workflows}}:sync
 ### Start a workflow now only once; 202 Accepted
 POST {{workflows}}/says-hallo:startNow
 
+### Start a workflow now only once; 202 Accepted
+POST {{workflows}}/uses-all-vars:startNow
+
+
+
 ### Start a workflow with a delay once; 202 Accepted
 POST {{workflows}}/says-hallo:startIn
 Content-Type: application/json

@@ -4,9 +4,9 @@ using Aion.Util.Scriban;
 
 namespace Aion.Core.Modules;
 
-public class ApplicationVariableGroup() : VariableGroup("App")
+public class ProfileVariableGroup() : VariableGroup("Profile")
 {
-    public string? Name { get; set; }
+    public string Name { get; init; } = null!;
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
