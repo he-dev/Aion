@@ -1,12 +1,8 @@
 using System;
-using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
 using Aion.Util.Quartz;
-using Aion.Util.Scriban;
-using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
@@ -20,9 +16,9 @@ public class OnDemandWorkflowJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        var workflowTrigger = context.Trigger.JobDataMap.GetEnum<WorkflowTriggerGroup>();
-        var workflowName = context.JobDetail.Key.Name;
         var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
+        var workflowName = context.JobDetail.Key.Name;
+        var workflowTrigger = context.Trigger.JobDataMap.GetEnum<WorkflowTriggerGroup>();
 
         try
         {

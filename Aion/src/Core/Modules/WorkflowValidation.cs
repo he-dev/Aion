@@ -22,9 +22,9 @@ public static class WorkflowValidation
         }
     }
 
+    // role: Ensures that templates in each step can be rendered.
     public static void EnsureRenderable(this Workflow workflow)
     {
-        // role: Ensures that templates in each step can be rendered.
         // code: Use fake values for testing.
         using var workflowActivity = new Activity("Test");
         foreach (var step in workflow.Steps)
@@ -38,9 +38,9 @@ public static class WorkflowValidation
         }
     }
 
+    // role: Ensures that the trigger can actually be created from its cron.
     public static void EnsureSchedulable(this Workflow workflow)
     {
-        // role: Ensures that the trigger can actually be created from its cron.
         // code: Using the property creates a new trigger each time that would throw an exception if it's invalid.
         workflow.Trigger.GetFireTimeAfter(DateTimeOffset.UtcNow);
     }

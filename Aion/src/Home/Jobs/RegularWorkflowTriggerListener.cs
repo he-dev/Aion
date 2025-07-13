@@ -7,12 +7,12 @@ using Quartz;
 
 namespace Aion.Home.Jobs;
 
-public class RegularWorkflowJobTriggerListener
+public class RegularWorkflowTriggerListener
 (
-    ILogger<RegularWorkflowJobTriggerListener> logger
+    ILogger<RegularWorkflowTriggerListener> logger
 ) : ITriggerListener
 {
-    public string Name => nameof(RegularWorkflowJobTriggerListener);
+    public string Name => nameof(RegularWorkflowTriggerListener);
 
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {

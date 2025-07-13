@@ -84,11 +84,13 @@ public class AsyncProcess(ILogger logger)
     // util: Let's not write this code twice...
     private void OnDataReceived(DataReceivedEventArgs e, TaskCompletionSource<bool> stdStreamCompletion, StdStreamType stdStreamType, Activity activity)
     {
-        // The output stream has been closed, i.e., the process has terminated.
+        // meta: The output stream has been closed, i.e., the process has terminated.
         if (e.Data is null)
         {
             stdStreamCompletion.TrySetResult(true);
             activity.Stop();
+
+            // core: Allow the user to use this property in the message template.
             using (logger.BeginScopeFrom(new { StdStreamType = stdStreamType }))
             {
                 logger.LogInformation("EOF in {Elapsed}", activity.Duration);
@@ -96,6 +98,7 @@ public class AsyncProcess(ILogger logger)
         }
         else
         {
+            // core: Allow the user to use this property in the message template.
             using (logger.BeginScopeFrom(new { StdStreamType = stdStreamType }))
             {
                 logger.LogInformation("{Line}", e.Data);

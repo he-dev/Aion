@@ -13,17 +13,17 @@ using Quartz;
 namespace Aion.Core.Modules;
 
 [PublicAPI]
-public record Workflow : ITimeZoned
+public record Workflow
 {
-    // .. Make the user specify this value explicitly.
+    // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
     public bool IsOn { get; init; }
 
-    // .. Having a schedule is the whole point of a workflow, so make it "required".
     public string Cron { get; init; } = null!;
 
     public string? TimeZoneId { get; init; }
 
-    public TimeZoneInfo TimeZone =>
+    // util: Use the local time-zone if the request did not specify any.
+    private TimeZoneInfo TimeZone =>
         string.IsNullOrEmpty(TimeZoneId)
             ? TimeZoneInfo.Local
             : TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
@@ -80,7 +80,6 @@ public record Workflow : ITimeZoned
         [JsonIgnore]
         public int Index { get; init; }
 
-
         public bool IsOn { get; init; } = true;
 
         public string File { get; init; } = null!;
@@ -90,8 +89,6 @@ public record Workflow : ITimeZoned
         public string? WorkingDirectory { get; init; }
 
         public TimeSpan Timeout { get; init; } = System.Threading.Timeout.InfiniteTimeSpan;
-
-        // public bool WindowVisible { get; init; }
 
         public JsonObject? Console { get; init; }
 
@@ -107,23 +104,19 @@ public record Workflow : ITimeZoned
         {
             return Name is null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
         }
-
-        public static implicit operator bool(Step step) => step.IsOn;
     }
 
     public static async Task<Workflow> FromFile(string path)
     {
-        // todo: check path for characters that are illegal in http urls
-
         if (!File.Exists(path))
         {
-            // This is pretty unlikely, but who knows...
+            // note: This is pretty unlikely, but who knows...
             throw new FileNotFoundException($"Workflow '{path}' not found.", fileName: path);
         }
 
         var workflow = await FromJson(path) ?? throw new WorkflowNullException(path);
 
-        // .. Update meta-properties.
+        // meta: Update runtime properties.
         workflow = workflow with
         {
             Path = path,
@@ -148,15 +141,3 @@ public record Workflow : ITimeZoned
 }
 
 public class WorkflowNullException(string path) : Exception($"Workflow '{path}' is null.");
-
-
-// public class WorkflowBinder : IModelBinder
-// {
-//     public Task BindModelAsync(ModelBindingContext bindingContext)
-//     {
-//         //var workflow = await JsonSerializer.DeserializeAsync<Workflow>(bindingContext.HttpContext.Request.BodyReader.AsStream());
-//         //workflow.Name = bindingContext.HttpContext.Request.Path;
-//         //bindingContext.Result = ModelBindingResult.Success(workflow);
-//         return Task.CompletedTask;
-//     }
-// }

@@ -20,6 +20,10 @@ namespace Aion.Home;
 
 public class Program
 {
+    public const string Name = "Aion";
+    public const string Version = "3.0.0";
+    public string Id => $"{Name}-v{Version}";
+
     public static async Task Main(params string[] args)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -89,8 +93,8 @@ public class Program
                 services.AddScoped<OnDemandWorkflowJob>();
                 services.AddScoped<SynchronizationJob>();
 
-                services.AddSingleton<SynchronizationJobTriggerListener>();
-                services.AddSingleton<RegularWorkflowJobTriggerListener>();
+                services.AddSingleton<SynchronizationTriggerListener>();
+                services.AddSingleton<RegularWorkflowTriggerListener>();
 
                 services.AddQuartz(q =>
                 {
@@ -114,8 +118,8 @@ public class Program
                             .WithSimpleSchedule(x => x.WithRepeatCount(0));
                     });
 
-                    q.AddTriggerListener<SynchronizationJobTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(JobGroupNames.Services));
-                    q.AddTriggerListener<RegularWorkflowJobTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(JobGroupNames.Workflows));
+                    q.AddTriggerListener<SynchronizationTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(JobGroupNames.Services));
+                    q.AddTriggerListener<RegularWorkflowTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(JobGroupNames.Workflows));
 
                     // note: The docs say that the default is 1 minute.
                     q.MisfireThreshold = TimeSpan.FromMinutes(2);
@@ -160,9 +164,4 @@ internal static class JobGroupNames
 public record QuartzServerOptions
 {
     public int StartDelaySeconds { get; init; }
-}
-
-public interface ITimeZoned
-{
-    TimeZoneInfo TimeZone { get; }
 }

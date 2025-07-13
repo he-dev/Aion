@@ -6,13 +6,13 @@ using Quartz;
 
 namespace Aion.Home.Jobs;
 
-public class SynchronizationJobTriggerListener
+public class SynchronizationTriggerListener
 (
-    ILogger<SynchronizationJobTriggerListener> logger,
+    ILogger<SynchronizationTriggerListener> logger,
     IOptions<SynchronizationJobOptions> options
 ) : ITriggerListener
 {
-    public string Name => nameof(SynchronizationJobTriggerListener);
+    public string Name => nameof(SynchronizationTriggerListener);
 
     public Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = new())
     {
@@ -21,7 +21,7 @@ public class SynchronizationJobTriggerListener
 
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = new())
     {
-        if (options.Value.Disabled)
+        if (options.Value.IsOn == false)
         {
             logger.LogWarning("Synchronization job is disabled - pausing it.");
             await context.Scheduler.PauseJob(context.JobDetail.Key, cancellationToken);

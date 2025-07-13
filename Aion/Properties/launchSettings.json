@@ -15,7 +15,7 @@
       "launchBrowser": false,
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5049",
-      "commandLineArgs": "--SynchronizationJob:Disabled=true",
+      "commandLineArgs": "--SynchronizationJob:IsOn=false",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
