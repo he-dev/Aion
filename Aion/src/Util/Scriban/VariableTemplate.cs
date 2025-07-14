@@ -41,9 +41,10 @@ public static class VariableTemplate
         {
             // core: Make sure no missing variable goes unnoticed.
             StrictVariables = true,
+            // ReSharper disable once ConvertToLambdaExpression
+            // hack: Scriban does not always throw exceptions when variables are missing despite the above flag. This way it does.
             TryGetMember = ((TemplateContext context, SourceSpan span, object target, string member, out object value) =>
             {
-                // hack: Scriban does not always throw exceptions when variables are missing. This way it does.
                 throw new ScriptRuntimeException(span, $"Variable '{member}' not found.");
             })
         };
@@ -79,8 +80,8 @@ public static class VariableTemplate
 
 public static class EnvironmentVariables
 {
-    // !! The template engine should throw an exception when the variable is missing, or empty.
-    // ?? Custom function lets us do that.
+    // core: The template engine should throw an exception when the variable is missing, or empty.
+    // hack: Custom function lets us do that.
     public static string Get(TemplateContext context, SourceSpan span, string name)
     {
         var value = Environment.GetEnvironmentVariable(name);
