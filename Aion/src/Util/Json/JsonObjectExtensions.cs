@@ -10,7 +10,7 @@ namespace Aion.Util.Json;
 
 public static class JsonObjectExtensions
 {
-    // role: Renders each path property it finds that looks like a template.
+    // core: Renders each path property it finds that looks like a template.
     public static JsonObject? RenderPaths(this JsonObject? serilog, IImmutableList<VariableGroup> variables)
     {
         // meta: It needs to be cloned otherwise the original object will be modified, which would happen during validation.
@@ -33,6 +33,8 @@ public static class JsonObjectExtensions
         return serilog;
     }
 
+    // core: Converts a Serilog configuration into a Serilog logger.
+    // note: This is a bit tricky, but it's the only way to get the logger to work.
     public static ILogger? ToLogger(this JsonObject? serilog)
     {
         if (serilog is null) return null;

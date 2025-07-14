@@ -34,8 +34,10 @@ public static class VariableTemplate
 {
     public static string Render(string template, IImmutableList<VariableGroup> variableGroups)
     {
+        // note: Scriban's documentation recommends creating everything from scratch each time.
+
         var customFunctions = new ScriptObject(StringComparer.OrdinalIgnoreCase);
-        customFunctions.Import("env", EnvironmentVariables.Get);
+        customFunctions.Import("env", EnvironmentVariable.Get);
 
         var customContext = new TemplateContext
         {
@@ -78,7 +80,7 @@ public static class VariableTemplate
     }
 }
 
-public static class EnvironmentVariables
+public static class EnvironmentVariable
 {
     // core: The template engine should throw an exception when the variable is missing, or empty.
     // hack: Custom function lets us do that.

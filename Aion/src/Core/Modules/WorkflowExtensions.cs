@@ -7,7 +7,7 @@ namespace Aion.Core.Modules;
 
 public static class WorkflowExtensions
 {
-    public static Workflow.Step RenderVariables(this Workflow.Step step, IImmutableList<VariableGroup> variables)
+    public static Workflow.Step RenderTemplates(this Workflow.Step step, IImmutableList<VariableGroup> variables)
     {
         return step with
         {

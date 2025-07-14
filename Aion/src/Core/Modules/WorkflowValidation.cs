@@ -43,7 +43,7 @@ public static class WorkflowValidation
         foreach (var step in workflow.Steps)
         {
             using var stepActivity = new Activity("Test");
-            step.RenderVariables(variables.Add(new StepVariableGroup(stepActivity) { Name = "test", Index = 0 }));
+            step.RenderTemplates(variables.Add(new StepVariableGroup(stepActivity) { Name = "test", Index = 0 }));
         }
     }
 

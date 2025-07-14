@@ -63,7 +63,7 @@ public class WorkflowEngine
             try
             {
                 // core: Failing to render variables also counts as a failed step.
-                var step = template.RenderVariables(stepVariables);
+                var step = template.RenderTemplates(stepVariables);
 
                 using var stepLoggerFactory = (step.Console ?? workflow.Console).ToLogger().ToLoggerFactory();
                 var asyncProcess = new AsyncProcess(stepLoggerFactory.CreateLogger(nameof(Workflow.Step)))

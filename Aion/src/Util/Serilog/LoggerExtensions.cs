@@ -9,7 +9,7 @@ namespace Aion.Util.Serilog;
 
 public static class LoggerExtensions
 {
-    // role: The built-in BeginScope does not support anonymous objects, thus this helper.
+    // util: The built-in BeginScope does not support anonymous objects, thus this helper.
     public static IDisposable? BeginScopeFrom<T>(this Microsoft.Extensions.Logging.ILogger logger, T state) where T : notnull
     {
         var properties =
@@ -19,7 +19,7 @@ public static class LoggerExtensions
         return logger.BeginScope(properties);
     }
 
-    // role: We want to use the same ILogger API everywhere, so use the ILoggerFactory.
+    // util: We want to use the same ILogger API everywhere, so use the ILoggerFactory.
     public static ILoggerFactory ToLoggerFactory(this global::Serilog.ILogger? logger)
     {
         // util: Wraps the Serilog's logger into Microsoft's logger.

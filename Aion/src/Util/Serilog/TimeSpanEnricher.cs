@@ -4,6 +4,7 @@ using Serilog.Events;
 
 namespace Aion.Util.Serilog;
 
+// util: Enriches log events by converting the TimeSpan into the precision specified by the select parameter.
 public class TimeSpanEnricher(Func<TimeSpan, double> select, string propertyName = "Elapsed") : ILogEventEnricher
 {
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
