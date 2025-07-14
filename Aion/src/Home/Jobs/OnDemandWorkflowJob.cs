@@ -36,7 +36,7 @@ public class OnDemandWorkflowJob
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Canceling workflow because it could not be loaded.");
+            logger.LogError(ex, "Error executing workflow '{WorkflowName}'.", workflowName);
         }
     }
 }

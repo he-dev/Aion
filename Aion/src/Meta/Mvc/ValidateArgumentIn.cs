@@ -7,9 +7,9 @@ using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Aion.Meta.Mvc;
 
-internal class ValidateArgument : Attribute, IAsyncActionFilter
+internal class ValidateArgumentIn : Attribute, IAsyncActionFilter
 {
-    public ValidateArgument(string name, string[] allowedValues)
+    public ValidateArgumentIn(string name, string[] allowedValues)
     {
         Name = name;
         AllowedValues = allowedValues.ToHashSet(StringComparer.InvariantCultureIgnoreCase);

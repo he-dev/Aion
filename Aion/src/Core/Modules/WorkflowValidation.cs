@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Aion.Util.Json;
+using Aion.Util.Scriban;
 
 namespace Aion.Core.Modules;
 
-// role: This class provides extensions that allow us to validate workflows before they are even scheduled.
+// core: This class provides extensions that allow us to validate workflows before they are even scheduled.
 public static class WorkflowValidation
 {
     // note:
@@ -22,26 +25,32 @@ public static class WorkflowValidation
         }
     }
 
-    // role: Ensures that templates in each step can be rendered.
+    // core: Ensures that templates in each step can be rendered.
     public static void EnsureRenderable(this Workflow workflow)
     {
-        // code: Use fake values for testing.
         using var workflowActivity = new Activity("Test");
+
+        // core: Use fake values for testing.
+        var variables = ImmutableList<VariableGroup>.Empty.AddRange([
+            new ProfileVariableGroup { Name = "Test" },
+            new ArgumentVariableGroup(workflow.Args),
+            new WorkflowVariableGroup(workflowActivity) { Name = "test", Trigger = WorkflowTriggerGroup.Cron }
+        ]);
+
+        workflow.Serilog.RenderPaths(variables);
+        workflow.Console.RenderPaths(variables);
+
         foreach (var step in workflow.Steps)
         {
             using var stepActivity = new Activity("Test");
-            step.RenderVariables([
-                new ArgumentVariableGroup(workflow.Args),
-                new WorkflowVariableGroup(workflowActivity) { Name = "test", Trigger = WorkflowTriggerGroup.Cron },
-                new StepVariableGroup(stepActivity) { Name = "test", Index = 0 }
-            ]);
+            step.RenderVariables(variables.Add(new StepVariableGroup(stepActivity) { Name = "test", Index = 0 }));
         }
     }
 
-    // role: Ensures that the trigger can actually be created from its cron.
+    // core: Ensures that the trigger can actually be created from its cron.
     public static void EnsureSchedulable(this Workflow workflow)
     {
-        // code: Using the property creates a new trigger each time that would throw an exception if it's invalid.
+        // core: Using the property creates a new trigger each time that would throw an exception if it's invalid.
         workflow.Trigger.GetFireTimeAfter(DateTimeOffset.UtcNow);
     }
 }

@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 
 namespace Aion.Core.Modules;
 
-// role: Executes workflow's enabled steps.
+// core: Executes workflow's enabled steps.
 public class WorkflowEngine
 (
     ILogger<WorkflowEngine> logger,
@@ -37,7 +37,7 @@ public class WorkflowEngine
         workflowActivity.Start();
         logger.LogInformation("Executing workflow...");
 
-        // core: Does not filter out disabled steps because we want them logged.
+        // core: Do not filter out disabled steps because we want them logged.
         foreach (var template in workflow.Steps)
         {
             using var stepActivity = new Activity("ExecuteStep");
@@ -49,12 +49,15 @@ public class WorkflowEngine
                 continue;
             }
 
+            // note: Currently, there is only one DependsOn rule: "$previous".
+            // core: This check is irrelevant for the first step, so ignore it.
             if (template is { Index: > 0, DependsOn: "$previous" } && previousExitCode is not 0)
             {
                 logger.LogWarning("Workflow aborted because this step depends on the previous one and it failed.");
                 break;
             }
 
+            // core: We need one more variable-group to render a step, its own.
             var stepVariables = variables.Add(new StepVariableGroup(stepActivity) { Name = template.Name, Index = template.Index });
 
             try

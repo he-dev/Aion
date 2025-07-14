@@ -42,10 +42,10 @@ public class RegularWorkflowJob
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unscheduling workflow because it could not be loaded.");
+            logger.LogError(ex, "Error executing workflow '{WorkflowName}'.", workflowName);
             if (await workflowScheduler.Delete(workflowName))
             {
-                logger.LogWarning("Workflow has been unscheduled.");
+                logger.LogWarning("Workflow '{WorkflowName}' has been unscheduled.", workflowName);
             }
         }
     }

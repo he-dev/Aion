@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
@@ -16,17 +14,15 @@ namespace Aion.Home.Controllers;
 [Route("api")]
 public class WorkflowsController
 (
-    ILogger<WorkflowsController> logger
+    ILogger<WorkflowsController> logger,
+    WorkflowDirectory workflowDirectory,
+    WorkflowScheduler workflowScheduler
 ) : ControllerBase
 {
     [HttpGet("[controller]")]
-    public async Task<IActionResult> Get
-    (
-        [FromServices] WorkflowDirectory workflowDirectory,
-        [FromQuery(Name = "q")] string? filter,
-        [FromQuery] bool? enabled = null
-    )
+    public async Task<IActionResult> Get([FromQuery(Name = "q")] string? filter, [FromQuery] bool? isOn = null)
     {
+        // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflows = ImmutableList<Workflow>.Empty;
         var errors = ImmutableList<object>.Empty;
         foreach (var filePath in workflowDirectory.FindFiles(filter ?? FileFilter.Any, FileExtension.Json))
@@ -42,33 +38,28 @@ public class WorkflowsController
             }
         }
 
-        var utcNow = DateTimeOffset.UtcNow; // clue: Keeps the timestamp stable for all items.
+        var utcNow = DateTimeOffset.UtcNow; // note: Keeps the timestamp stable for all items.
         var result =
             from workflow in workflows
-            let next = workflow.Trigger.FiresAt(utcNow).Take(3)
-            orderby next.FirstOrDefault().Value, workflow.Name
+            let next = workflow.Trigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
+            orderby next.FirstOrDefault(), workflow.Name
             select new
             {
                 path = workflow.Path,
                 isOn = workflow.IsOn,
                 cron = workflow.Cron,
                 next = next,
-                cmds = workflow.Steps.Count(s => s.IsOn),
+                jobs = workflow.Steps.Count(s => s.IsOn),
             };
 
         return Ok(new { result, errors });
     }
 
-    // role: The API can synchronize workflows outside its regular schedule.
+    // core: This API can synchronize workflows outside the regular synchronization schedule.
+    // core: Does not use the synchronization-job here because we want to see the results immediately in the response.
     [HttpPost("[controller]:sync")]
-    public async Task<IActionResult> Synchronize
-    (
-        [FromServices] WorkflowDirectory workflowDirectory,
-        [FromServices] WorkflowScheduler workflowScheduler
-    )
+    public async Task<IActionResult> Synchronize()
     {
-        // core: Do not use the synchronization-job here because we want to see the results immediately in the response.
-
         var result = ImmutableList<object>.Empty;
         var errors = ImmutableList<object>.Empty;
 
@@ -83,13 +74,13 @@ public class WorkflowsController
                     {
                         path,
                         sync,
-                        next
+                        next = next?.ToLocalTime(),
                     });
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to synchronize workflow from '{WorkflowPath}'.", path);
+                logger.LogError(ex, "Unable to synchronize workflow '{WorkflowPath}'.", path);
                 errors = errors.Add(new
                 {
                     path,
@@ -106,85 +97,32 @@ public class WorkflowsController
     }
 
     [HttpPost("[controller]/{name}:startNow")]
-    public async Task<IActionResult> StartNow
-    (
-        [FromServices] WorkflowDirectory workflowDirectory,
-        [FromServices] WorkflowScheduler workflowScheduler,
-        string name
-    )
+    public async Task<IActionResult> StartNow(string name)
     {
-        try
-        {
-            var fileName = workflowDirectory.FindFile(name, FileExtension.Json);
-            var workflow = await Workflow.FromFile(fileName);
-            var next = await workflowScheduler.StartNow(workflow);
-            return Ok(new { name, next });
-        }
-        catch (WorkflowNotFoundException)
-        {
-            return NotFound(new { name });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unable to schedule workflow '{WorkflowName}'.", name);
-            return Problem
-            (
-                detail: ex.ToString(),
-                title: $"Unable to schedule workflow '{name}'.",
-                statusCode: 500,
-                instance: Request.Path
-            );
-        }
+        return await Start(name, async workflow => await workflowScheduler.StartNow(workflow));
     }
 
     [HttpPost("[controller]/{name}:startIn")]
-    public async Task<IActionResult> StartIn
-    (
-        [FromServices] WorkflowDirectory workflowDirectory,
-        [FromServices] WorkflowScheduler workflowScheduler,
-        [FromRoute] string name,
-        [FromBody] StartInBody body
-    )
+    public async Task<IActionResult> StartIn([FromRoute] string name, [FromBody] StartInBody body)
     {
-        try
-        {
-            var fileName = workflowDirectory.FindFile(name, FileExtension.Json);
-            var workflow = await Workflow.FromFile(fileName);
-            var next = await workflowScheduler.StartIn(workflow, body.Wait);
-            return Ok(new { name, next });
-        }
-        catch (WorkflowNotFoundException)
-        {
-            return NotFound(new { name });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unable to schedule workflow '{WorkflowName}'.", name);
-            return Problem
-            (
-                detail: ex.ToString(),
-                title: $"Unable to schedule workflow '{name}'.",
-                statusCode: 500,
-                instance: Request.Path
-            );
-        }
+        return await Start(name, async workflow => await workflowScheduler.StartIn(workflow, body.Wait));
     }
 
     [HttpPost("[controller]/{name}:startAt")]
-    public async Task<IActionResult> StartAt
-    (
-        [FromServices] WorkflowDirectory workflowDirectory,
-        [FromServices] WorkflowScheduler workflowScheduler,
-        [FromBody] StartAtBody body,
-        [FromRoute] string name
-    )
+    public async Task<IActionResult> StartAt([FromBody] StartAtBody body, [FromRoute] string name)
+    {
+        var startAt = body.When.FixMissingOffset().ToUniversalTime();
+        return await Start(name, async workflow => await workflowScheduler.StartAt(workflow, startAt));
+    }
+
+    private async Task<IActionResult> Start(string name, Func<Workflow, Task<DateTimeOffset>> action)
     {
         try
         {
             var fileName = workflowDirectory.FindFile(name, FileExtension.Json);
             var workflow = await Workflow.FromFile(fileName);
-            var next = await workflowScheduler.StartAt(workflow, body.When.FixMissingOffset().ToUniversalTime());
-            return Ok(new { name, next });
+            var next = await action(workflow);
+            return Ok(new { name, next = next.ToLocalTime() });
         }
         catch (WorkflowNotFoundException)
         {
@@ -193,8 +131,7 @@ public class WorkflowsController
         catch (Exception ex)
         {
             logger.LogError(ex, "Unable to schedule workflow '{WorkflowName}'.", name);
-            return Problem
-            (
+            return Problem(
                 detail: ex.ToString(),
                 title: $"Unable to schedule workflow '{name}'.",
                 statusCode: 500,
@@ -208,16 +145,9 @@ public class WorkflowsController
         public TimeSpan Wait { get; init; }
     }
 
-    public record StartAtBody : IValidatableObject
+    // note: Does not validate the input because the scheduler does that already.
+    public record StartAtBody
     {
         public DateTimeOffset When { get; init; }
-
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-        {
-            if (When.ToUniversalTime() < DateTimeOffset.UtcNow)
-            {
-                yield return new ValidationResult($"Workflow must start in the future.", [nameof(When)]);
-            }
-        }
     }
 }

@@ -15,6 +15,7 @@ public static class JsonObjectExtensions
     {
         // meta: It needs to be cloned otherwise the original object will be modified, which would happen during validation.
         serilog = serilog is null ? null : JsonNode.Parse(serilog.ToJsonString())!.AsObject();
+
         // core: Scan sinks for the "path" property and run it through the template engine.
         if (serilog?["WriteTo"] is JsonArray writeTo)
         {

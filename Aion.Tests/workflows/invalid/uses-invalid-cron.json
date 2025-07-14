@@ -1,0 +1,18 @@
+{
+  "IsOn": true,
+  // test: Cron has too many places.
+  "Cron": "* 0/15 * * * * ?",
+  "Args": {
+    "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe"
+  },
+  "Steps": [
+    {
+      "IsOn": true,
+      "File": "{{ arg.exe }}",
+      "Args": [
+        "--sleep 5",
+        "--message \"Hallo NPC!\""
+      ]
+    }
+  ]
+}

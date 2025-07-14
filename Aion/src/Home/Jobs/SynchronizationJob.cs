@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Aion.Core.Modules;
 using Aion.Util.Serilog;
-using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
@@ -32,7 +31,7 @@ internal class SynchronizationJob
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error synchronizing workflow '{workflowPath}'.", workflowPath);
+                logger.LogError(ex, "Unable to synchronize workflow '{WorkflowPath}'.", workflowPath);
             }
         }
     }

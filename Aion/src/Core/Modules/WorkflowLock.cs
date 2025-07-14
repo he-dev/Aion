@@ -7,11 +7,12 @@ using System.Threading.Tasks;
 
 namespace Aion.Core.Modules;
 
+// core: Represents a single workflow-lock that carries the same name, but a different extension.
 public record WorkflowLock
 {
     private static readonly SemaphoreSlim Lock = new(1, 1);
 
-    // util: Provides time and means to override it for test.
+    // util: Provides the means to override it for tests.
     [JsonIgnore]
     public TimeProvider Clock { get; init; } = TimeProvider.System;
 
@@ -67,6 +68,7 @@ public record WorkflowLock
             return null;
         }
 
+        // core: Avoid race conditions by locking file operations.
         await Lock.WaitAsync();
         try
         {
@@ -88,6 +90,7 @@ public record WorkflowLock
     {
         var lockPath = Path.ChangeExtension(workflowPath, FileExtension.Lock);
 
+        // core: Avoid race conditions by locking file operations.
         await Lock.WaitAsync();
         try
         {
@@ -111,9 +114,11 @@ public record WorkflowLock
     {
         if (IsExpired)
         {
+            // util: Prevent these two bugs that won't happen during normal operation, but only due to mistakes.
             if (FileName is null) throw new InvalidOperationException("Cannot delete a lock that is not saved.");
             if (!File.Exists(FileName)) throw new InvalidOperationException("Cannot delete a lock that does not exist.");
 
+            // core: Avoid race conditions by locking file operations.
             await Lock.WaitAsync();
             try
             {

@@ -41,6 +41,11 @@ public static class VariableTemplate
         {
             // core: Make sure no missing variable goes unnoticed.
             StrictVariables = true,
+            TryGetMember = ((TemplateContext context, SourceSpan span, object target, string member, out object value) =>
+            {
+                // hack: Scriban does not always throw exceptions when variables are missing. This way it does.
+                throw new ScriptRuntimeException(span, $"Variable '{member}' not found.");
+            })
         };
         customContext.PushGlobal(customFunctions);
         foreach (var variableGroup in variableGroups)

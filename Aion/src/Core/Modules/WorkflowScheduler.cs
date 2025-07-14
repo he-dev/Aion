@@ -27,64 +27,56 @@ public class WorkflowScheduler
 
         var scheduler = await schedulerFactory.GetScheduler();
 
-        try
+        if (!workflow.IsOn)
         {
-            if (!workflow.IsOn)
+            if (await scheduler.DeleteJob(workflow.JobKey))
             {
-                if (await scheduler.DeleteJob(workflow.JobKey))
-                {
-                    logger.LogInformation("Workflow no longer enabled: {SynchronizationResult}.", SynchronizationResult.Delete);
-                    return (SynchronizationResult.Delete, null);
-                }
-
-                logger.LogInformation("Workflow is disabled: {SynchronizationResult}.", SynchronizationResult.Ignore);
-                return (SynchronizationResult.Ignore, null);
+                logger.LogInformation("Workflow no longer enabled: {SynchronizationResult}.", SynchronizationResult.Delete);
+                return (SynchronizationResult.Delete, null);
             }
 
-            if (!workflow.Steps.Any(s => s.IsOn))
-            {
-                if (await scheduler.DeleteJob(workflow.JobKey))
-                {
-                    logger.LogInformation("Workflow no longer has any enabled steps: {SynchronizationResult}.", SynchronizationResult.Delete);
-                    return (SynchronizationResult.Delete, null);
-                }
-
-                logger.LogInformation("Workflow has no enabled steps: {SynchronizationResult}.", SynchronizationResult.Ignore);
-                ;
-                return (SynchronizationResult.Ignore, null);
-            }
-
-            // .. This might throw when the Cron property is invalid.
-            var trigger = workflow.Trigger;
-
-            if (await scheduler.GetTrigger(trigger.Key) is ICronTrigger { CronExpressionString: { } cron } current)
-            {
-                if (cron.Equals(trigger.CronExpressionString))
-                {
-                    logger.LogInformation("Workflow is already scheduled: {SynchronizationResult}.", SynchronizationResult.Ignore);
-                    return (SynchronizationResult.Ignore, null);
-                }
-
-                if (await scheduler.RescheduleJob(trigger.Key, trigger) is { } next)
-                {
-                    logger.LogInformation("Workflow schedule has changed: {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Update, next);
-                    return (SynchronizationResult.Update, null);
-                }
-
-                logger.LogInformation("Workflow could not be rescheduled: {SynchronizationResult}.", SynchronizationResult.Ignore);
-                return (SynchronizationResult.Ignore, null);
-            }
-            else
-            {
-                var next = await Schedule(workflow);
-                logger.LogInformation("Workflow is new: {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Create, next);
-                return (SynchronizationResult.Create, null);
-            }
+            logger.LogInformation("Workflow is disabled: {SynchronizationResult}.", SynchronizationResult.Ignore);
+            return (SynchronizationResult.Ignore, null);
         }
-        catch (Exception ex)
+
+        if (!workflow.Steps.Any(s => s.IsOn))
         {
-            logger.LogError(ex, "Workflow could not be synchronized.");
-            throw;
+            if (await scheduler.DeleteJob(workflow.JobKey))
+            {
+                logger.LogInformation("Workflow no longer has any enabled steps: {SynchronizationResult}.", SynchronizationResult.Delete);
+                return (SynchronizationResult.Delete, null);
+            }
+
+            logger.LogInformation("Workflow has no enabled steps: {SynchronizationResult}.", SynchronizationResult.Ignore);
+            ;
+            return (SynchronizationResult.Ignore, null);
+        }
+
+        // .. This might throw when the Cron property is invalid.
+        var trigger = workflow.Trigger;
+
+        if (await scheduler.GetTrigger(trigger.Key) is ICronTrigger { CronExpressionString: { } cron } current)
+        {
+            if (cron.Equals(trigger.CronExpressionString))
+            {
+                logger.LogInformation("Workflow is already scheduled: {SynchronizationResult}.", SynchronizationResult.Ignore);
+                return (SynchronizationResult.Ignore, null);
+            }
+
+            if (await scheduler.RescheduleJob(trigger.Key, trigger) is { } next)
+            {
+                logger.LogInformation("Workflow schedule has changed: {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Update, next);
+                return (SynchronizationResult.Update, null);
+            }
+
+            logger.LogInformation("Workflow could not be rescheduled: {SynchronizationResult}.", SynchronizationResult.Ignore);
+            return (SynchronizationResult.Ignore, null);
+        }
+        else
+        {
+            var next = await Schedule(workflow);
+            logger.LogInformation("Workflow is new: {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Create, next);
+            return (SynchronizationResult.Create, null);
         }
     }
 

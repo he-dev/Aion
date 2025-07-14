@@ -26,7 +26,7 @@ POST {{workflows}}/says-hallo:startIn
 Content-Type: application/json
 
 {
-    "wait": "00:00:05"
+    "wait": "00:00:15"
 }
 
 ### Start a workflow at the specified time; 202 Accepted

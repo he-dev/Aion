@@ -6,7 +6,7 @@ namespace Aion.Util.Quartz;
 
 public static class TriggerExtensions
 {
-    public static IEnumerable<DateTimeOffset?> FiresAt(this ITrigger trigger, DateTimeOffset afterTimeUtc)
+    public static IEnumerable<DateTimeOffset> FiresAt(this ITrigger trigger, DateTimeOffset afterTimeUtc)
     {
         while (true)
         {
