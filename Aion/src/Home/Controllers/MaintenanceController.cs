@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
@@ -29,6 +30,10 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
                 {
                     locks = locks.Add(lockFile);
                 }
+            }
+            catch (FileNotFoundException)
+            {
+                // core: Ignore this error as it is by design.
             }
             catch (Exception ex)
             {

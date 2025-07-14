@@ -59,13 +59,13 @@ public record WorkflowLock
         return StartAt(startsOnUtc, endsOnUtc);
     }
 
-    public static async Task<WorkflowLock?> FromFile(string workflowPath)
+    public static async Task<WorkflowLock> FromFile(string workflowPath)
     {
         var workflowLockPath = Path.ChangeExtension(workflowPath, FileExtension.Lock);
 
         if (!Path.Exists(workflowLockPath))
         {
-            return null;
+            throw new FileNotFoundException($"Workflow lock file '{workflowLockPath}' not found.", fileName: workflowLockPath);
         }
 
         // core: Avoid race conditions by locking file operations.
@@ -83,7 +83,7 @@ public record WorkflowLock
             Lock.Release();
         }
 
-        return null;
+        throw new WorkflowLockNullException(workflowPath);
     }
 
     public async Task<string> SaveFor(string workflowPath)
@@ -112,12 +112,11 @@ public record WorkflowLock
 
     public async ValueTask Delete()
     {
-        if (IsExpired)
-        {
-            // util: Prevent these two bugs that won't happen during normal operation, but only due to mistakes.
-            if (FileName is null) throw new InvalidOperationException("Cannot delete a lock that is not saved.");
-            if (!File.Exists(FileName)) throw new InvalidOperationException("Cannot delete a lock that does not exist.");
+        // util: Prevent these two bugs that won't happen during normal operation, but only due to mistakes.
+        if (FileName is null) throw new InvalidOperationException("Cannot delete a lock that is not saved.");
 
+        if (File.Exists(FileName))
+        {
             // core: Avoid race conditions by locking file operations.
             await Lock.WaitAsync();
             try
@@ -131,3 +130,5 @@ public record WorkflowLock
         }
     }
 }
+
+public class WorkflowLockNullException(string path) : Exception($"Workflow '{path}' is null.");

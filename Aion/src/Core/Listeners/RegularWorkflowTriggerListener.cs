@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
@@ -30,6 +31,10 @@ public class RegularWorkflowTriggerListener
 
                 return workflowLock.IsRunning;
             }
+        }
+        catch (FileNotFoundException)
+        {
+            // core: Ignore this error as it's by design.
         }
         catch (Exception ex)
         {
