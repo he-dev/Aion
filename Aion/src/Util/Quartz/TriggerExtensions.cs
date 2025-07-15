@@ -23,6 +23,14 @@ public static class TriggerExtensions
     }
 }
 
+public static class TriggerBuilderExtensions
+{
+    public static TriggerBuilder UsingJobData<T>(this TriggerBuilder builder, T value) where T : Enum
+    {
+        return builder.UsingJobData(typeof(T).Name, value.ToString());
+    }
+}
+
 public static class JobDataMapExtensions
 {
     public static T Get<T>(this JobDataMap data, string key)

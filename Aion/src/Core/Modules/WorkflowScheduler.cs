@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Aion.Home;
 using Aion.Home.Jobs;
 using Aion.Util.Serilog;
+using Aion.Util.Quartz;
 using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Impl.Matchers;
@@ -97,7 +98,7 @@ public class WorkflowScheduler
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .StartNow()
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
-                .UsingJobData(nameof(WorkflowTriggerGroup), nameof(WorkflowTriggerGroup.StartNow))
+                .UsingJobData(WorkflowTriggerGroup.StartNow)
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();
@@ -121,7 +122,7 @@ public class WorkflowScheduler
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .StartAt(startAt)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
-                .UsingJobData(nameof(WorkflowTriggerGroup), nameof(WorkflowTriggerGroup.StartAt))
+                .UsingJobData(WorkflowTriggerGroup.StartAt)
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();
@@ -145,7 +146,7 @@ public class WorkflowScheduler
                 .WithIdentity(workflow.Name, JobGroupNames.Workflows)
                 .StartAt(DateTimeOffset.UtcNow + delay)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
-                .UsingJobData(nameof(WorkflowTriggerGroup), nameof(WorkflowTriggerGroup.StartIn))
+                .UsingJobData(WorkflowTriggerGroup.StartIn)
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();

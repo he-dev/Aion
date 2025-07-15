@@ -111,7 +111,7 @@ public class WorkflowsController
     [HttpPost("[controller]/{name}:startAt")]
     public async Task<IActionResult> StartAt([FromBody] StartAtBody body, [FromRoute] string name)
     {
-        var startAt = body.When.FixMissingOffset().ToUniversalTime();
+        var startAt = body.When.UseTimeZoneOffsetOrLocal().ToUniversalTime();
         return await Start(name, async workflow => await workflowScheduler.StartAt(workflow, startAt));
     }
 

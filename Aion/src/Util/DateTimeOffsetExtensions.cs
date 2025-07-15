@@ -7,8 +7,8 @@ internal static class DateTimeOffsetExtensions
     // util: Adds time-zone offset to DateTimeOffset.
     // note: Quartz.net requires UTC for non-cron APIs, but requests specify the local time without the offset.
     // note: Uses local-time-zone if none is specified.
-    public static DateTimeOffset FixMissingOffset(this DateTimeOffset value, TimeZoneInfo? timeZone = null)
+    public static DateTimeOffset UseTimeZoneOffsetOrLocal(this DateTimeOffset value, TimeZoneInfo? timeZone = null)
     {
-        return new DateTimeOffset(value.DateTime, (timeZone ?? TimeZoneInfo.Local).GetUtcOffset(value));
+        return new DateTimeOffset(value.DateTime, (timeZone ?? TimeZoneInfo.Local).GetUtcOffset(DateTimeOffset.Now));
     }
 }

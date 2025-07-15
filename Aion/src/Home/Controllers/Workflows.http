@@ -34,7 +34,7 @@ POST {{workflows}}/says-hallo:startAt
 Content-Type: application/json
 
 {
-    "when": "2026-07-01T22:00Z"
+    "when": "2025-07-15T10:05Z"
 }
 
 ### Start a workflow at the specified time; 400 Bad Request because in the past.

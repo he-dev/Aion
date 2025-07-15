@@ -122,8 +122,8 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
 
         public WorkflowLock ToWorkflowLock() => WorkflowLock.StartAt
         (
-            StartsOn.FixMissingOffset().ToUniversalTime(),
-            EndsOn.FixMissingOffset().ToUniversalTime()
+            StartsOn.UseTimeZoneOffsetOrLocal().ToUniversalTime(),
+            EndsOn.UseTimeZoneOffsetOrLocal().ToUniversalTime()
         );
     }
 }

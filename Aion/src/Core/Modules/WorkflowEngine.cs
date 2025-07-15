@@ -107,4 +107,9 @@ public class WorkflowEngine
         workflowActivity.Stop();
         logger.LogInformation("Workflow completed in {Elapsed}.", workflowActivity.Duration);
     }
+
+    private async Task<int?> ExecuteStep(Workflow.Step step, IImmutableList<VariableGroup> variables)
+    {
+        return default;
+    }
 }
