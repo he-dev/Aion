@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
@@ -16,8 +17,9 @@ public class AsyncProcess(ILogger logger)
 
     public string? WorkingDirectory { get; init; }
 
-    public Action<Process> OnProcessStarted { get; init; } = _ => { };
+    public Action<Process> OnStarted { get; init; } = _ => { };
 
+    // note: Not using external cancellation as this app does not support such a scenario.
     public async Task<int> StartAsync(TimeSpan timeout)
     {
         // note: If you run a bash-script on Linux, it is possible that ExitCode can be 255.
@@ -27,6 +29,7 @@ public class AsyncProcess(ILogger logger)
             StartInfo = new ProcessStartInfo
             {
                 FileName = File,
+                // note: Not using the ArgumentList as it does not correctly transfer the arguments. Let the process handle them.
                 Arguments = string.Join(' ', Args.Select(a => a.Trim())),
                 WorkingDirectory = WorkingDirectory,
                 CreateNoWindow = true,
@@ -37,43 +40,85 @@ public class AsyncProcess(ILogger logger)
             }
         };
 
-        using var activity = new Activity("ExecuteProcess");
-        activity.Start();
+        var stopwatch = Stopwatch.StartNew();
 
         var stdOutCompletion = new TaskCompletionSource<bool>();
         var stdErrCompletion = new TaskCompletionSource<bool>();
 
-        process.OutputDataReceived += (_, e) => OnDataReceived(e, stdOutCompletion, StdStreamType.Out, activity);
-        process.ErrorDataReceived += (_, e) => OnDataReceived(e, stdErrCompletion, StdStreamType.Err, activity);
+        process.OutputDataReceived += (_, e) => OnDataReceived(e, stdOutCompletion, StdStreamType.StdOut, stopwatch);
+        process.ErrorDataReceived += (_, e) => OnDataReceived(e, stdErrCompletion, StdStreamType.StdErr, stopwatch);
 
         try
         {
-            logger.LogInformation("Starting process '{File}' with arguments '{Args}'.", File, process.StartInfo.Arguments);
+            using (logger.BeginScopeFrom(new { StdStreamType = StdStreamType.Engine }))
+            {
+                logger.LogInformation("Starting process '{File}' with arguments [{Args}].", File, process.StartInfo.Arguments);
+            }
+
             if (process.Start())
             {
-                OnProcessStarted(process);
+                using (logger.BeginScopeFrom(new { StdStreamType = StdStreamType.Engine }))
+                {
+                    logger.LogInformation
+                    (
+                        "taskkill /F /FI \"PID eq {PID}\" /FI \"SESSION eq {SID}\" /FI \"IMAGENAME eq {ImageName}\" /FI \"SERVICES eq false\"",
+                        process.Id,
+                        process.SessionId,
+                        process.ProcessName
+                    );
+                }
+
+                // core: Background processes are not allowed to expect any input. Not respecting the EOF means for them, they're gonna hit the timeout.
+                process.StandardInput.Close();
+
+                OnStarted(process);
 
                 // meta: Reads the output stream first and then waits because deadlocks are possible.
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 
-                var processTask = WaitForExitAsync(process, timeout);
+                using var cts = new CancellationTokenSource(timeout);
+                await process.WaitForExitAsync(cts.Token);
+                await Task.WhenAll(stdOutCompletion.Task, stdErrCompletion.Task);
 
-                // core: This task waits for the process to exit and closing all std-streams.
-                var mainTask = Task.WhenAll(processTask, stdOutCompletion.Task, stdErrCompletion.Task);
-
-                // core: Waits process completion and then checks it was not completed by timeout.
-                if (await Task.WhenAny(Task.Delay(timeout), mainTask) == mainTask && processTask.Result)
+                using (logger.BeginScopeFrom(new { StdStreamType = StdStreamType.Engine }))
                 {
-                    return process.ExitCode;
+                    switch (process.ExitCode)
+                    {
+                        case 0: logger.LogInformation("Process completed in {Elapsed}.", stopwatch.Elapsed); break;
+                        default: logger.LogError("Process failed in {Elapsed} with exit-code {ExitCode}.", stopwatch.Elapsed, process.ExitCode); break;
+                    }
                 }
 
-                // core: Kill it if it takes too long to complete or hangs.
-                process.Kill(entireProcessTree: true);
-                throw new ProcessTimeoutException();
+                return process.ExitCode;
             }
 
             throw new ProcessNotStartedException();
+        }
+        catch (OperationCanceledException)
+        {
+            using var scope = logger.BeginScopeFrom(new { StdStreamType = StdStreamType.Engine });
+
+            // core: This exception is thrown when the timeout is reached.
+            logger.LogWarning("Process timed out after {Elapsed}.", stopwatch.Elapsed);
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    logger.LogWarning("Process was killed.");
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                logger.LogInformation("Process had already exited.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unable to kill process.");
+            }
+
+            throw;
         }
         finally
         {
@@ -82,18 +127,17 @@ public class AsyncProcess(ILogger logger)
     }
 
     // util: Let's not write this code twice...
-    private void OnDataReceived(DataReceivedEventArgs e, TaskCompletionSource<bool> stdStreamCompletion, StdStreamType stdStreamType, Activity activity)
+    private void OnDataReceived(DataReceivedEventArgs e, TaskCompletionSource<bool> stdStreamCompletion, StdStreamType stdStreamType, Stopwatch stopwatch)
     {
         // meta: The output stream has been closed, i.e., the process has terminated.
         if (e.Data is null)
         {
             stdStreamCompletion.TrySetResult(true);
-            activity.Stop();
 
             // core: Allow the user to use this property in the message template.
             using (logger.BeginScopeFrom(new { StdStreamType = stdStreamType }))
             {
-                logger.LogInformation("EOF in {Elapsed}", activity.Duration);
+                logger.LogInformation("EOF in {Elapsed}", stopwatch.Elapsed);
             }
         }
         else
@@ -105,18 +149,13 @@ public class AsyncProcess(ILogger logger)
             }
         }
     }
-
-    // hack: Helps to avoid the warning about the process being disposed outside the lambda.
-    private static Task<bool> WaitForExitAsync(Process process, TimeSpan timeout)
-    {
-        return Task.Run(() => process.WaitForExit(timeout));
-    }
 }
 
 public enum StdStreamType
 {
-    Out,
-    Err,
+    Engine,
+    StdOut,
+    StdErr,
 }
 
 public class ProcessTimeoutException : Exception;

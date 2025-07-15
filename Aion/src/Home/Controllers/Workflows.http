@@ -17,7 +17,11 @@ POST {{workflows}}:sync
 POST {{workflows}}/says-hallo:startNow
 
 ### Start a workflow now only once; 202 Accepted
+POST {{workflows}}/says-hallo-with-timeout:startNow
+
+### Start a workflow now only once; 202 Accepted
 POST {{workflows}}/uses-all-vars:startNow
+
 
 
 
@@ -28,6 +32,7 @@ Content-Type: application/json
 {
     "wait": "00:00:15"
 }
+
 
 ### Start a workflow at the specified time; 202 Accepted
 POST {{workflows}}/says-hallo:startAt

@@ -22,7 +22,7 @@ internal static class Program
 
         if (commandLine.GetValueForOption(sleepOption) is var sleep and > 0)
         {
-            Console.WriteLine($"Working hard for {sleep * 1000} seconds...");
+            Console.WriteLine($"Working hard for {sleep} seconds...");
             Thread.Sleep(sleep * 1000);
         }
 
