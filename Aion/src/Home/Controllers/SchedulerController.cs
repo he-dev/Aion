@@ -1,32 +1,40 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Aion.Core;
 using Aion.Core.Modules;
+using Aion.Home.Jobs;
 using Aion.Util;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Quartz;
+using Quartz.Impl.Matchers;
 
 namespace Aion.Home.Controllers;
 
 [ApiController]
 [Route("api")]
-public class SchedulerController(ILogger<SchedulerController> logger) : ControllerBase
+public class SchedulerController
+(
+    ILogger<SchedulerController> logger,
+    FindsTriggers findsTriggers
+) : ControllerBase
 {
     [HttpGet("[controller]/jobs")]
     public async Task<IActionResult> Get
     (
-        [FromServices] WorkflowScheduler.Collection workflowSchedules,
         [FromQuery(Name = "q")] string? filter = null,
         [FromQuery] OrderBy orderBy = OrderBy.Next,
         [FromQuery] Status status = Status.Pending
     )
     {
         var utcNow = DateTimeOffset.UtcNow;
+        var jobGroupMatcher = GroupMatcher<JobKey>.GroupStartsWith(nameof(ExecutesWorkflowOnSchedule));
 
         var query =
-            workflowSchedules
+            findsTriggers
+                .Where(jobGroupMatcher)
                 .Where(trigger => trigger.JobKey.Name.IsLike(filter))
                 .Select(trigger => new
                 {

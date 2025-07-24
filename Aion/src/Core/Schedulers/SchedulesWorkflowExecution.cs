@@ -1,92 +1,86 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Aion.Home;
+using Aion.Core.Modules;
 using Aion.Home.Jobs;
-using Aion.Util.Serilog;
 using Aion.Util.Quartz;
+using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
-using Quartz.Impl.Matchers;
 
-namespace Aion.Core.Modules;
+namespace Aion.Core.Schedulers;
 
 // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
 
-// role: This class provides convenient scheduling methods to other modules.
-public class WorkflowScheduler
+public class SchedulesWorkflowExecution
 (
-    ILogger<WorkflowScheduler> logger,
+    ILogger<SchedulesWorkflowExecution> logger,
     ISchedulerFactory schedulerFactory
 )
 {
-    public async Task<(SynchronizationResult Action, DateTimeOffset? Next)> Synchronize(Workflow workflow)
+    public async Task<ProfileSynchronization> For(Workflow workflow, string profile)
     {
-        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
-
         var scheduler = await schedulerFactory.GetScheduler();
+        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
         if (!workflow.IsOn)
         {
-            if (await scheduler.DeleteJob(workflow.JobKey))
+            if (await scheduler.DeleteJob(workflow.CreatesJobKey(profile)))
             {
                 logger.LogInformation("Workflow no longer enabled: {SynchronizationResult}.", SynchronizationResult.Delete);
-                return (SynchronizationResult.Delete, null);
+                return new ProfileSynchronization(SynchronizationResult.Delete);
             }
 
             logger.LogInformation("Workflow is disabled: {SynchronizationResult}.", SynchronizationResult.Ignore);
-            return (SynchronizationResult.Ignore, null);
+            return new ProfileSynchronization(SynchronizationResult.Ignore);
         }
 
         if (!workflow.Steps.Any(s => s.IsOn))
         {
-            if (await scheduler.DeleteJob(workflow.JobKey))
+            if (await scheduler.DeleteJob(workflow.CreatesJobKey(profile)))
             {
                 logger.LogInformation("Workflow no longer has any enabled steps: {SynchronizationResult}.", SynchronizationResult.Delete);
-                return (SynchronizationResult.Delete, null);
+                return new ProfileSynchronization(SynchronizationResult.Delete);
             }
 
             logger.LogInformation("Workflow has no enabled steps: {SynchronizationResult}.", SynchronizationResult.Ignore);
-            ;
-            return (SynchronizationResult.Ignore, null);
+            return new ProfileSynchronization(SynchronizationResult.Ignore);
         }
 
         // .. This might throw when the Cron property is invalid.
-        var trigger = workflow.Trigger;
+        var trigger = workflow.CreatesCronTrigger(profile);
 
         if (await scheduler.GetTrigger(trigger.Key) is ICronTrigger { CronExpressionString: { } cron } current)
         {
             if (cron.Equals(trigger.CronExpressionString))
             {
                 logger.LogInformation("Workflow is already scheduled: {SynchronizationResult}.", SynchronizationResult.Ignore);
-                return (SynchronizationResult.Ignore, null);
+                return new ProfileSynchronization(SynchronizationResult.Ignore);
             }
 
             if (await scheduler.RescheduleJob(trigger.Key, trigger) is { } next)
             {
                 logger.LogInformation("Workflow schedule has changed: {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Update, next);
-                return (SynchronizationResult.Update, null);
+                return new ProfileSynchronization(SynchronizationResult.Update);
             }
 
             logger.LogInformation("Workflow could not be rescheduled: {SynchronizationResult}.", SynchronizationResult.Ignore);
-            return (SynchronizationResult.Ignore, null);
+            return new ProfileSynchronization(SynchronizationResult.Ignore);
         }
         else
         {
-            var next = await Schedule(workflow);
+            var next = await SchedulesJob(workflow, profile);
             logger.LogInformation("Workflow is new: {SynchronizationResult}. Next execution at '{Next}'.", SynchronizationResult.Create, next);
-            return (SynchronizationResult.Create, null);
+            return new ProfileSynchronization(SynchronizationResult.Create);
         }
     }
 
-    public async Task<DateTimeOffset> StartNow(Workflow workflow)
+    public async Task<DateTimeOffset> Now(Workflow workflow)
     {
         var job =
             JobBuilder
-                .Create<OnDemandWorkflowJob>()
-                .WithIdentity(workflow.Name, JobGroupNames.Workflows)
+                .Create<ExecutesWorkflowOnDemand>()
+                .WithIdentity(workflow.Name, new GroupName<ExecutesWorkflowOnDemand>(""))
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
 
@@ -95,7 +89,7 @@ public class WorkflowScheduler
         var trigger =
             TriggerBuilder
                 .Create()
-                .WithIdentity(workflow.Name, JobGroupNames.Workflows)
+                .WithIdentity(workflow.Name, new GroupName<ExecutesWorkflowOnDemand>())
                 .StartNow()
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
                 .UsingJobData(WorkflowTriggerGroup.StartNow)
@@ -105,12 +99,12 @@ public class WorkflowScheduler
         return await scheduler.ScheduleJob(job, trigger);
     }
 
-    public async Task<DateTimeOffset> StartAt(Workflow workflow, DateTimeOffset startAt)
+    public async Task<DateTimeOffset> At(Workflow workflow, DateTimeOffset startAt)
     {
         var job =
             JobBuilder
-                .Create<OnDemandWorkflowJob>()
-                .WithIdentity(workflow.Name, JobGroupNames.Workflows)
+                .Create<ExecutesWorkflowOnDemand>()
+                .WithIdentity(workflow.Name, new GroupName<ExecutesWorkflowOnDemand>())
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
 
@@ -119,7 +113,7 @@ public class WorkflowScheduler
         var trigger =
             TriggerBuilder
                 .Create()
-                .WithIdentity(workflow.Name, JobGroupNames.Workflows)
+                .WithIdentity(workflow.Name, new GroupName<ExecutesWorkflowOnDemand>())
                 .StartAt(startAt)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
                 .UsingJobData(WorkflowTriggerGroup.StartAt)
@@ -129,12 +123,12 @@ public class WorkflowScheduler
         return await scheduler.ScheduleJob(job, trigger);
     }
 
-    public async Task<DateTimeOffset> StartIn(Workflow workflow, TimeSpan delay)
+    public async Task<DateTimeOffset> In(Workflow workflow, TimeSpan delay)
     {
         var job =
             JobBuilder
-                .Create<OnDemandWorkflowJob>()
-                .WithIdentity(workflow.Name, JobGroupNames.Workflows)
+                .Create<ExecutesWorkflowOnDemand>()
+                .WithIdentity(workflow.Name, new GroupName<ExecutesWorkflowOnDemand>())
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
 
@@ -143,7 +137,7 @@ public class WorkflowScheduler
         var trigger =
             TriggerBuilder
                 .Create()
-                .WithIdentity(workflow.Name, JobGroupNames.Workflows)
+                .WithIdentity(workflow.Name, new GroupName<ExecutesWorkflowOnDemand>())
                 .StartAt(DateTimeOffset.UtcNow + delay)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
                 .UsingJobData(WorkflowTriggerGroup.StartIn)
@@ -153,23 +147,23 @@ public class WorkflowScheduler
         return await scheduler.ScheduleJob(job, trigger);
     }
 
-    public async Task<DateTimeOffset> Schedule(Workflow workflow)
+    private async Task<DateTimeOffset> SchedulesJob(Workflow workflow, string profile)
     {
         var jobDetail =
             JobBuilder
-                .Create<RegularWorkflowJob>()
-                .WithIdentity(workflow.Name, JobGroupNames.Workflows)
+                .Create<ExecutesWorkflowOnSchedule>()
+                .WithIdentity(workflow.Name, new GroupName<ExecutesWorkflowOnDemand>())
                 .UsingJobData(nameof(Workflow.Path), workflow.Path)
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();
-        return await scheduler.ScheduleJob(jobDetail, workflow.Trigger);
+        return await scheduler.ScheduleJob(jobDetail, workflow.CreatesCronTrigger(profile));
     }
 
-    public async Task<bool> Delete(string name)
+    public async Task<bool> NoMore(JobKey jobKey)
     {
         var scheduler = await schedulerFactory.GetScheduler();
-        var jobKey = new JobKey(name, JobGroupNames.Workflows);
+        //var jobKey = new JobKey(name, new GroupName<ExecutesWorkflowOnDemand>());
         return await scheduler.DeleteJob(jobKey);
     }
 
@@ -181,35 +175,17 @@ public class WorkflowScheduler
             throw new WorkflowAlreadyScheduledException();
         }
     }
-
-    public enum SynchronizationResult
-    {
-        Ignore,
-        Create,
-        Update,
-        Delete
-    }
-
-    public class Collection
-    (
-        ILogger<Collection> logger,
-        ISchedulerFactory schedulerFactory
-    ) : IAsyncEnumerable<ITrigger>
-    {
-        public async IAsyncEnumerator<ITrigger> GetAsyncEnumerator(CancellationToken cancellationToken = new())
-        {
-            var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
-            var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobGroupNames.Workflows), cancellationToken);
-            foreach (var jobKey in jobKeys)
-            {
-                foreach (var trigger in await scheduler.GetTriggersOfJob(jobKey, cancellationToken))
-                {
-                    yield return trigger;
-                }
-            }
-        }
-    }
 }
+
+public enum SynchronizationResult
+{
+    Ignore,
+    Create,
+    Update,
+    Delete
+}
+
+public record ProfileSynchronization(SynchronizationResult Result, DateTimeOffset? Next = null);
 
 public enum WorkflowTriggerGroup
 {

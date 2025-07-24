@@ -13,7 +13,7 @@ public class WorkflowLockTest
         var fakeStartsOnUtcNow = new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.Zero);
         var fakeEndsOnUtcNow = new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero);
 
-        var workflowLock = WorkflowLock.StartAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
+        var workflowLock = WorkflowLock.Between(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
 
         Assert.True(workflowLock.IsPending);
         Assert.False(workflowLock.IsRunning);
@@ -30,7 +30,7 @@ public class WorkflowLockTest
         var fakeNowUtc = new FakeTimeProvider(new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.Zero));
         var fakeEndsOnUtcNow = new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero);
 
-        var workflowLock = WorkflowLock.StartAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
+        var workflowLock = WorkflowLock.Between(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
 
         Assert.False(workflowLock.IsPending);
         Assert.True(workflowLock.IsRunning);
@@ -48,7 +48,7 @@ public class WorkflowLockTest
         var fakeUtcNow = new FakeTimeProvider(new DateTimeOffset(2025, 1, 1, 13, 30, 0, TimeSpan.Zero));
         var fakeUtcLater = new FakeTimeProvider(new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero));
 
-        var workflowLock = WorkflowLock.StartAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeUtcNow) with { Clock = fakeUtcLater };
+        var workflowLock = WorkflowLock.Between(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeUtcNow) with { Clock = fakeUtcLater };
 
         Assert.False(workflowLock.IsPending);
         Assert.False(workflowLock.IsRunning);
@@ -65,7 +65,7 @@ public class WorkflowLockTest
         var fakeStartsOnUtcNow = new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.Zero);
         var fakeEndsOnUtcNow = new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero);
 
-        var workflowLock = WorkflowLock.StartAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
+        var workflowLock = WorkflowLock.Between(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await workflowLock.Delete());
     }
@@ -78,7 +78,7 @@ public class WorkflowLockTest
         var fakeStartsOnUtcNow = new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.Zero);
         var fakeEndsOnUtcNow = new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero);
 
-        var workflowLock = WorkflowLock.StartAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
+        var workflowLock = WorkflowLock.Between(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
         var lockPath = await workflowLock.SaveFor(@"workflows\says-hallo.json");
 
         Assert.True(File.Exists(lockPath));

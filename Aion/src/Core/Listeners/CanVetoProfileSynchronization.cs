@@ -1,18 +1,19 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Aion.Core.Listeners;
 
-public class SynchronizationTriggerListener
+public class CanVetoProfileSynchronization
 (
-    ILogger<SynchronizationTriggerListener> logger,
-    IOptions<SynchronizationJobOptions> options
+    ILogger<CanVetoProfileSynchronization> logger,
+    IOptions<EngineOptions> engineOptions
 ) : ITriggerListener
 {
-    public string Name => nameof(SynchronizationTriggerListener);
+    public string Name => nameof(CanVetoProfileSynchronization);
 
     public Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = new())
     {
@@ -21,9 +22,10 @@ public class SynchronizationTriggerListener
 
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = new())
     {
-        if (options.Value.IsOn == false)
+        if (!engineOptions.Value.SyncOn)
         {
-            logger.LogWarning("Synchronization job is disabled - pausing it.");
+            using var scope = logger.BeginScopeFrom(new { TriggerName = trigger.Key.Name, ProfileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName) });
+            logger.LogWarning("Profile synchronization is off - pausing it.");
             await context.Scheduler.PauseJob(context.JobDetail.Key, cancellationToken);
             return true;
         }

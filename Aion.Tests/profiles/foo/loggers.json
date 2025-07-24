@@ -1,0 +1,41 @@
+﻿{
+  "Version": 1,
+  "Profiles": {
+    "Console.Simple": {
+      "Serilog": {
+        "MinimumLevel": {
+          "Default": "Information"
+        },
+        "WriteTo": [
+          {
+            "Name": "File",
+            "Args": {
+              "path": "C:\\temp\\aion\\Aion.Console-{{ workflow.name }}-{{ step.index }}.log",
+              "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ProcessMessageSource} » {Message:lj}{NewLine}",
+              "rollingInterval": "Day",
+              "retainedFileCountLimit": 3
+            }
+          }
+        ]
+      }
+    },
+    "Workflow.Simple": {
+      "Serilog": {
+        "MinimumLevel": {
+          "Default": "Information"
+        },
+        "WriteTo": [
+          {
+            "Name": "File",
+            "Args": {
+              "path": "C:\\temp\\aion\\Aion.Workflow-{{ workflow.name }}.log",
+              "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
+              "rollingInterval": "Day",
+              "retainedFileCountLimit": 3
+            }
+          }
+        ]
+      }
+    }
+  }
+}

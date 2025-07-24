@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Aion.Util;
@@ -11,4 +12,6 @@ public static class StringExtensions
         matcher.AddInclude(pattern ?? "*");
         return matcher.Match(text).HasMatches;
     }
+
+    public static string Join(this IEnumerable<string> values, string separator) => string.Join(separator, values);
 }

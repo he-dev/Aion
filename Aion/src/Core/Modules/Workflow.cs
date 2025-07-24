@@ -6,8 +6,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Aion.Home;
-using Quartz;
 
 namespace Aion.Core.Modules;
 
@@ -21,7 +19,7 @@ public record Workflow
     public string? TimeZoneId { get; init; }
 
     // util: Use the local time-zone if the request did not specify any.
-    private TimeZoneInfo TimeZone =>
+    public TimeZoneInfo TimeZone =>
         string.IsNullOrEmpty(TimeZoneId)
             ? TimeZoneInfo.Local
             : TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
@@ -44,18 +42,7 @@ public record Workflow
 
     public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
 
-    [JsonIgnore]
-    public JobKey JobKey => new(Name, JobGroupNames.Workflows);
 
-    // !! Catch this property as it might throw when the Cron property is invalid.
-    [JsonIgnore]
-    public ICronTrigger Trigger =>
-        (ICronTrigger)TriggerBuilder
-            .Create()
-            .WithIdentity(Name, JobGroupNames.Workflows)
-            .UsingJobData(nameof(Path), Path)
-            .WithCronSchedule(Cron, x => x.InTimeZone(TimeZone))
-            .Build();
 
     #endregion
 

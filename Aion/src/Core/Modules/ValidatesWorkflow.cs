@@ -8,7 +8,7 @@ using Aion.Util.Scriban;
 namespace Aion.Core.Modules;
 
 // core: This class provides extensions that allow us to validate workflows before they are even scheduled.
-public static class WorkflowValidation
+public static class ValidatesWorkflow
 {
     // note:
     // Regex for characters that are "unreserved" in a URI (per RFC 3986) and don't need escaping.
@@ -34,11 +34,11 @@ public static class WorkflowValidation
         var variables = ImmutableList<VariableGroup>.Empty.AddRange([
             new ProfileVariableGroup { Name = "Test" },
             new ArgumentVariableGroup(workflow.Args),
-            new WorkflowVariableGroup(workflowActivity) { Name = "test", Trigger = WorkflowTriggerGroup.Cron }
+            new WorkflowVariableGroup(workflowActivity) { Name = "test" }
         ]);
 
-        workflow.Serilog.RenderPaths(variables);
-        workflow.Console.RenderPaths(variables);
+        workflow.Serilog.RenderPaths(template => VariableTemplate.Render(template, variables));
+        workflow.Console.RenderPaths(template => VariableTemplate.Render(template, variables));
 
         foreach (var step in workflow.Steps)
         {
@@ -51,7 +51,7 @@ public static class WorkflowValidation
     public static void EnsureSchedulable(this Workflow workflow)
     {
         // core: Using the property creates a new trigger each time that would throw an exception if it's invalid.
-        workflow.Trigger.GetFireTimeAfter(DateTimeOffset.UtcNow);
+        workflow.CreatesCronTrigger("test").GetFireTimeAfter(DateTimeOffset.UtcNow);
     }
 }
 

@@ -1,17 +1,17 @@
-﻿using System.Collections.Immutable;
+﻿using System;
 using System.IO;
 using System.Text;
 using System.Text.Json.Nodes;
-using Aion.Util.Scriban;
 using Microsoft.Extensions.Configuration;
 using Serilog;
+using Serilog.Core;
 
 namespace Aion.Util.Json;
 
 public static class JsonObjectExtensions
 {
     // core: Renders each path property it finds that looks like a template.
-    public static JsonObject? RenderPaths(this JsonObject? serilog, IImmutableList<VariableGroup> variables)
+    public static JsonObject? RenderPaths(this JsonObject? serilog, Func<string, string> render)
     {
         // meta: It needs to be cloned otherwise the original object will be modified, which would happen during validation.
         serilog = serilog is null ? null : JsonNode.Parse(serilog.ToJsonString())!.AsObject();
@@ -25,7 +25,7 @@ public static class JsonObjectExtensions
                 if (sink is not null && sink["Name"]?.GetValue<string>() == "File" && sink["Args"] is JsonObject args && args["path"] is JsonValue path)
                 {
                     var template = path.GetValue<string>();
-                    args["path"] = VariableTemplate.Render(template, variables);
+                    args["path"] = render(template);
                 }
             }
         }
@@ -35,9 +35,9 @@ public static class JsonObjectExtensions
 
     // core: Converts a Serilog configuration into a Serilog logger.
     // note: This is a bit tricky, but it's the only way to get the logger to work.
-    public static ILogger? ToLogger(this JsonObject? serilog)
+    public static ILogger ToLogger(this JsonObject? serilog)
     {
-        if (serilog is null) return null;
+        if (serilog is null) return Logger.None;
 
         // meta: This node is required in the appsettings.json for Serilog to find its settings.
         serilog = new JsonObject { ["Serilog"] = serilog };

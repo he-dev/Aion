@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
+using Aion.Core.Providers;
+using Aion.Core.Schedulers;
 using Aion.Util;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -11,16 +13,18 @@ using Microsoft.Extensions.Logging;
 namespace Aion.Home.Controllers;
 
 [ApiController]
-[Route("api")]
-public class MaintenanceController(ILogger<MaintenanceController> logger) : ControllerBase
+[Route("api/[controller]/profiles")]
+public class MaintenanceController
+(
+    ILogger<MaintenanceController> logger,
+    FindsWorkflows findsWorkflows,
+    LocksWorkflows locksWorkflows
+) : ControllerBase
 {
-    [HttpGet("[controller]")]
-    public async Task<IActionResult> Get
-    (
-        [FromServices] WorkflowDirectory workflowDirectory
-    )
+    [HttpGet("{profile}")]
+    public async Task<IActionResult> Get(string profile)
     {
-        var lockFileNames = workflowDirectory.FindFiles(FileFilter.Any, FileExtension.Lock);
+        var lockFileNames = findsWorkflows.Where(profile, FileFilter.Any, FileExtension.Lock);
         var locks = ImmutableList<WorkflowLock>.Empty;
         foreach (var lockFileName in lockFileNames)
         {
@@ -60,18 +64,13 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
         return Ok(query.ToList());
     }
 
-    [HttpPost("[controller]:startIn")]
-    public async Task<IActionResult> StartIn
-    (
-        [FromServices] WorkflowMaintenance workflowMaintenance,
-        [FromBody] StartInBody body
-    )
+    [HttpPost("{profile}:startIn")]
+    public async Task<IActionResult> StartIn(string profile, [FromBody] StartInBody body)
     {
         try
         {
             var workflowLock = body.ToWorkflowLock();
-            ;
-            var lockNames = await workflowMaintenance.Schedule(workflowLock, body.Filter);
+            var lockNames = await locksWorkflows.Where(workflowLock, profile, body.Filter);
             return Ok(new { lockNames });
         }
         catch (Exception ex)
@@ -81,17 +80,13 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
         }
     }
 
-    [HttpPost("[controller]:startAt")]
-    public async Task<IActionResult> StartAt
-    (
-        [FromServices] WorkflowMaintenance workflowMaintenance,
-        [FromBody] StartAtBody body
-    )
+    [HttpPost("{profile}:startAt")]
+    public async Task<IActionResult> StartAt(string profile, [FromBody] StartAtBody body)
     {
         try
         {
             var workflowLock = body.ToWorkflowLock();
-            var lockedWorkflows = await workflowMaintenance.Schedule(workflowLock, body.Filter);
+            var lockedWorkflows = await locksWorkflows.Where(workflowLock, profile, body.Filter);
             return Ok(new { workflowLock, lockedWorkflows });
         }
         catch (Exception ex)
@@ -109,7 +104,7 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
 
         public TimeSpan Duration { get; init; }
 
-        public WorkflowLock ToWorkflowLock() => WorkflowLock.StartIn(Wait, Duration);
+        public WorkflowLock ToWorkflowLock() => WorkflowLock.In(Wait, Duration);
     }
 
     public record StartAtBody
@@ -120,7 +115,7 @@ public class MaintenanceController(ILogger<MaintenanceController> logger) : Cont
 
         public DateTimeOffset EndsOn { get; init; }
 
-        public WorkflowLock ToWorkflowLock() => WorkflowLock.StartAt
+        public WorkflowLock ToWorkflowLock() => WorkflowLock.Between
         (
             StartsOn.UseTimeZoneOffsetOrLocal().ToUniversalTime(),
             EndsOn.UseTimeZoneOffsetOrLocal().ToUniversalTime()

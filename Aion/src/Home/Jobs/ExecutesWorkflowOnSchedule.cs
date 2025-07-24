@@ -1,18 +1,21 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
+using Aion.Core.Schedulers;
+using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
 namespace Aion.Home.Jobs;
 
 [DisallowConcurrentExecution]
-public class RegularWorkflowJob
+public class ExecutesWorkflowOnSchedule
 (
-    ILogger<RegularWorkflowJob> logger,
-    WorkflowScheduler workflowScheduler,
-    WorkflowEngine workflowEngine
+    ILogger<ExecutesWorkflowOnSchedule> logger,
+    SchedulesWorkflowExecution schedulesWorkflowExecution,
+    ExecutesWorkflow executesWorkflow
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -20,32 +23,37 @@ public class RegularWorkflowJob
         var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
         var workflowName = context.JobDetail.Key.Name;
 
+        using var activity = new Activity("ExecuteWorkflowOnSchedule").Start();
+        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflowName, WorkflowTrigger = WorkflowTriggerGroup.Cron });
+
         try
         {
             switch (await Workflow.FromFile(workflowPath))
             {
-                // core: Gets rid of useless workflows.
+                // core: Get rid of useless workflows.
                 case { IsOn: false }:
                     logger.LogWarning("Unscheduling workflow because it is disabled.");
-                    await workflowScheduler.Delete(workflowName);
+                    await schedulesWorkflowExecution.NoMore(context.JobDetail.Key);
                     break;
-                // core: Gets rid of useless workflows.
+                // core: Get rid of useless workflows.
                 case { Steps: { } steps } when steps.Any(s => s.IsOn) == false:
                     logger.LogWarning("Unscheduling workflow because it has no enabled steps.");
-                    await workflowScheduler.Delete(workflowName);
+                    await schedulesWorkflowExecution.NoMore(context.JobDetail.Key);
                     break;
                 // core: This is where the actual magic happens.
                 case var workflow:
-                    await workflowEngine.Start(workflow, WorkflowTriggerGroup.Cron);
+                    await executesWorkflow.Start(workflow);
                     break;
             }
+            activity.Stop();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error executing workflow '{WorkflowName}'.", workflowName);
-            if (await workflowScheduler.Delete(workflowName))
+            activity.Stop();
+            logger.LogError(ex, "Error executing workflow.");
+            if (await schedulesWorkflowExecution.NoMore(context.JobDetail.Key))
             {
-                logger.LogWarning("Workflow '{WorkflowName}' has been unscheduled.", workflowName);
+                logger.LogWarning("Workflow has been unscheduled.");
             }
         }
     }

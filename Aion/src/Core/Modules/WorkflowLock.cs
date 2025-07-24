@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Aion.Core.Providers;
 
 namespace Aion.Core.Modules;
 
@@ -30,7 +31,7 @@ public record WorkflowLock
     public bool IsExpired => EndsOnUtc < Clock.GetUtcNow();
     public bool IsRunning => StartsOnUtc <= Clock.GetUtcNow() && EndsOnUtc > Clock.GetUtcNow();
 
-    public static WorkflowLock StartAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
+    public static WorkflowLock Between(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
         if (startsOnUtc > endsOnUtc)
@@ -50,13 +51,13 @@ public record WorkflowLock
         };
     }
 
-    public static WorkflowLock StartIn(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
+    public static WorkflowLock In(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
         var startsOnUtc = clock.GetUtcNow().Add(wait);
         var endsOnUtc = startsOnUtc.Add(length);
 
-        return StartAt(startsOnUtc, endsOnUtc);
+        return Between(startsOnUtc, endsOnUtc);
     }
 
     public static async Task<WorkflowLock> FromFile(string workflowPath)

@@ -3,6 +3,8 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
+using Aion.Core.Providers;
+using Aion.Core.Schedulers;
 using Aion.Util;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
@@ -11,21 +13,24 @@ using Microsoft.Extensions.Logging;
 namespace Aion.Home.Controllers;
 
 [ApiController]
-[Route("api")]
+[Route("api/[controller]/profiles")]
 public class WorkflowsController
 (
     ILogger<WorkflowsController> logger,
-    WorkflowDirectory workflowDirectory,
-    WorkflowScheduler workflowScheduler
+    FindsWorkflows findsWorkflows,
+    ProfileProvider profileProvider,
+    SchedulesWorkflowExecution schedulesWorkflowExecution
 ) : ControllerBase
 {
-    [HttpGet("[controller]")]
-    public async Task<IActionResult> Get([FromQuery(Name = "q")] string? filter, [FromQuery] bool? isOn = null)
+    [HttpGet("{profile}")]
+    public async Task<IActionResult> Get(string profile, [FromQuery(Name = "q")] string? filter, [FromQuery] bool? isOn = null)
     {
+        await profileProvider.FindLoggerProfile("foo", "bar");
+
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflows = ImmutableList<Workflow>.Empty;
         var errors = ImmutableList<object>.Empty;
-        foreach (var filePath in workflowDirectory.FindFiles(filter ?? FileFilter.Any, FileExtension.Json))
+        foreach (var filePath in findsWorkflows.Where(profile, filter ?? FileFilter.Any, FileExtension.Json))
         {
             try
             {
@@ -41,7 +46,7 @@ public class WorkflowsController
         var utcNow = DateTimeOffset.UtcNow; // note: Keeps the timestamp stable for all items.
         var result =
             from workflow in workflows
-            let next = workflow.Trigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
+            let next = workflow.CreatesCronTrigger(profile).FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
             orderby next.FirstOrDefault(), workflow.Name
             select new
             {
@@ -57,19 +62,19 @@ public class WorkflowsController
 
     // core: This API can synchronize workflows outside the regular synchronization schedule.
     // core: Does not use the synchronization-job here because we want to see the results immediately in the response.
-    [HttpPost("[controller]:sync")]
-    public async Task<IActionResult> Synchronize()
+    [HttpPost("{profile}:sync")]
+    public async Task<IActionResult> Synchronize(string profile)
     {
         var result = ImmutableList<object>.Empty;
         var errors = ImmutableList<object>.Empty;
 
-        foreach (var path in workflowDirectory.FindFiles(FileFilter.Any, FileExtension.Json))
+        foreach (var path in findsWorkflows.Where(profile, FileFilter.Any, FileExtension.Json))
         {
             try
             {
                 if (await Workflow.FromFile(path) is { } workflow)
                 {
-                    var (sync, next) = await workflowScheduler.Synchronize(workflow);
+                    var (sync, next) = await schedulesWorkflowExecution.For(workflow, profile);
                     result = result.Add(new
                     {
                         path,
@@ -96,33 +101,41 @@ public class WorkflowsController
         });
     }
 
-    [HttpPost("[controller]/{name}:startNow")]
-    public async Task<IActionResult> StartNow(string name)
+    [HttpPost("{profile}/{name}:startNow")]
+    public async Task<IActionResult> StartNow(string profile, string name)
     {
-        return await Start(name, async workflow => await workflowScheduler.StartNow(workflow));
+        return await Start(profile, name, async workflow => await schedulesWorkflowExecution.Now(workflow));
     }
 
-    [HttpPost("[controller]/{name}:startIn")]
-    public async Task<IActionResult> StartIn([FromRoute] string name, [FromBody] StartInBody body)
+    [HttpPost("{profile}/{name}:startIn")]
+    public async Task<IActionResult> StartIn(string profile, string name, [FromBody] StartInBody body)
     {
-        return await Start(name, async workflow => await workflowScheduler.StartIn(workflow, body.Wait));
+        return await Start(profile, name, async workflow => await schedulesWorkflowExecution.In(workflow, body.Wait));
     }
 
-    [HttpPost("[controller]/{name}:startAt")]
-    public async Task<IActionResult> StartAt([FromBody] StartAtBody body, [FromRoute] string name)
+    [HttpPost("{profile}/{name}:startAt")]
+    public async Task<IActionResult> StartAt(string profile, string name, [FromBody] StartAtBody body)
     {
         var startAt = body.When.UseTimeZoneOffsetOrLocal().ToUniversalTime();
-        return await Start(name, async workflow => await workflowScheduler.StartAt(workflow, startAt));
+        return await Start(profile, name, async workflow => await schedulesWorkflowExecution.At(workflow, startAt));
     }
 
-    private async Task<IActionResult> Start(string name, Func<Workflow, Task<DateTimeOffset>> action)
+    private async Task<IActionResult> Start(string profile, string name, Func<Workflow, Task<DateTimeOffset>> action)
     {
         try
         {
-            var fileName = workflowDirectory.FindFile(name, FileExtension.Json);
+            var fileName = findsWorkflows.Where(profile, name, FileExtension.Json).SingleOrThrows();
             var workflow = await Workflow.FromFile(fileName);
             var next = await action(workflow);
             return Ok(new { name, next = next.ToLocalTime() });
+        }
+        catch (CollectionEmptyException ex)
+        {
+            return NotFound(new { name }); // todo: say why
+        }
+        catch (AmbiguousResultException ex)
+        {
+            return NotFound(new { name }); // todo: say why
         }
         catch (WorkflowNotFoundException)
         {

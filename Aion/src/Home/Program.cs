@@ -1,10 +1,15 @@
 using System;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Listeners;
 using Aion.Core.Modules;
+using Aion.Core.Providers;
+using Aion.Core.Schedulers;
 using Aion.Home.Jobs;
+using Aion.Util;
+using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -42,25 +47,50 @@ public class Program
     {
         return Host
             .CreateDefaultBuilder(args)
+            .ConfigureAppConfiguration((host, config) => { config.AddJsonFile("appsettings.Serilog.json", optional: true, reloadOnChange: true); })
             .ConfigureLogging(builder => { builder.ClearProviders(); })
             .UseSerilog((context, services, configuration) =>
             {
-                var profile = context.Configuration.GetRequiredSection("Profile").Get<ProfileOptions>()!;
+                var engineOptions = context.Configuration.GetRequiredSection(EngineOptions.SectionName).Get<EngineOptions>()!;
+
+                // note: Main loggers are filtered in the appsettings.Serilog.json as there is no way to set up these filters here.
+                // See https://github.com/serilog/serilog-expressions for all filter expressions.
+
+                var consoleStreamTypes =
+                    ImmutableHashSet<ProcessMessageSource>.Empty
+                        .Add(ProcessMessageSource.StdOut)
+                        .Add(ProcessMessageSource.StdErr);
 
                 configuration
                     .ReadFrom.Configuration(context.Configuration)
+                    .Enrich.With<EnrichesLogEventWithActivityIds>()
                     .Enrich.WithProperty("AppName", Program.Name)
-                    .Enrich.WithProperty("ProfileName", profile.Name)
+                    .Enrich.WithProperty("ProfileName", engineOptions.Name)
                     .Enrich.With(new TimeSpanEnricher(ts => Math.Round(ts.TotalSeconds, 1)))
-                    .WriteTo.Sink(services.GetRequiredService<WorkflowSink>());
+                    .WriteTo.Logger(logger =>
+                    {
+                        logger
+                            // core: The workflow-sink may only log events that contain the workflow-name property.
+                            .Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(WorkflowLoggerKey.WorkflowName)))
+                            // core: Don't log raw console output.
+                            .Filter.ByExcluding(e => e.TryGetScalar(nameof(ProcessMessageSource), out ProcessMessageSource processMessageSource) && consoleStreamTypes.Contains(processMessageSource))
+                            .WriteTo.Sink(services.GetRequiredService<MapSink<WorkflowLoggerKey>>());
+                    })
+                    .WriteTo.Logger(logger =>
+                    {
+                        logger
+                            // core: The console-sink may only log events that contain the stream type.
+                            .Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(ProcessMessageSource)))
+                            .WriteTo.Sink(services.GetRequiredService<MapSink<ConsoleLoggerKey>>());
+                    })
+                    ;
             })
             .ConfigureServices((context, services) =>
             {
-                services.Configure<WorkflowDirectoryOptions>(context.Configuration.GetSection("WorkflowDirectory"));
-                services.Configure<SynchronizationJobOptions>(context.Configuration.GetSection("SynchronizationJob"));
-
-                services.AddSingleton<IPostConfigureOptions<WorkflowDirectoryOptions>, WorkflowDirectoryPostConfigure>();
-                services.AddSingleton<WorkflowSink>();
+                services.Configure<EngineOptions>(context.Configuration.GetSection(EngineOptions.SectionName));
+                services.AddSingleton<IPostConfigureOptions<EngineOptions>, EngineOptions.RenderPaths>();
+                services.AddSingleton<MapSink<WorkflowLoggerKey>>();
+                services.AddSingleton<MapSink<ConsoleLoggerKey>>();
 
                 services
                     .AddControllers()
@@ -85,43 +115,59 @@ public class Program
 
                 services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
 
-                services.AddSingleton<WorkflowScheduler>();
-                services.AddSingleton<WorkflowScheduler.Collection>();
-                services.AddSingleton<WorkflowEngine>();
-                services.AddSingleton<WorkflowDirectory>();
-                services.AddSingleton<WorkflowMaintenance>();
+                services.AddSingleton<SchedulesWorkflowExecution>();
+                services.AddSingleton<FindsTriggers>();
+                services.AddSingleton<ExecutesWorkflow>();
+                services.AddSingleton<FindsWorkflows>();
+                services.AddSingleton<LocksWorkflows>();
 
-                services.AddScoped<RegularWorkflowJob>();
-                services.AddScoped<OnDemandWorkflowJob>();
-                services.AddScoped<SynchronizationJob>();
+                services.AddSingleton<ProfileProvider>();
 
-                services.AddSingleton<SynchronizationTriggerListener>();
-                services.AddSingleton<RegularWorkflowTriggerListener>();
+                services.AddScoped<ExecutesWorkflowOnSchedule>();
+                services.AddScoped<ExecutesWorkflowOnDemand>();
+                services.AddScoped<SynchronizesProfile>();
+
+                services.AddSingleton<CanVetoProfileSynchronization>();
+                services.AddSingleton<CanVetoWorkflowExecution>();
 
                 services.AddQuartz(q =>
                 {
-                    var synchronizationJobOptions = context.Configuration.GetRequiredSection("SynchronizationJob").Get<SynchronizationJobOptions>()!;
-                    var jobDetail = SynchronizationJob.CreateJobDetail();
+                    var engineOptions = context.Configuration.GetRequiredSection(EngineOptions.SectionName).Get<EngineOptions>()!;
 
-                    q.ScheduleJob<SynchronizationJob>(trigger =>
+                    foreach (var profile in engineOptions.Profiles)
                     {
-                        trigger
-                            .ForJob(jobDetail)
-                            .WithIdentity("sync-jobs-by-cron", JobGroupNames.Services)
-                            .WithCronSchedule(CronScheduleBuilder.CronSchedule(synchronizationJobOptions.Cron));
-                    });
+                        var jobDetail = JobBuilder
+                            .Create<SynchronizesProfile>()
+                            .WithIdentity("sync-profile", new GroupName<SynchronizesProfile>(profile.Name))
+                            .UsingJobData(JobDataKeys.ProfileName, profile.Name)
+                            .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
+                            .Build();
 
-                    q.ScheduleJob<SynchronizationJob>(trigger =>
-                    {
-                        trigger
-                            .ForJob(jobDetail)
-                            .WithIdentity("sync-jobs-by-start-now", JobGroupNames.Services)
-                            .StartNow()
-                            .WithSimpleSchedule(x => x.WithRepeatCount(0));
-                    });
 
-                    q.AddTriggerListener<SynchronizationTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(JobGroupNames.Services));
-                    q.AddTriggerListener<RegularWorkflowTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals(JobGroupNames.Workflows));
+                        q.ScheduleJob<SynchronizesProfile>(trigger =>
+                        {
+                            trigger
+                                .ForJob(jobDetail)
+                                .WithIdentity("run-by-cron", new GroupName<SynchronizesProfile>(profile.Name))
+                                .UsingJobData(JobDataKeys.ProfileName, profile.Name)
+                                .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
+                                .WithCronSchedule(CronScheduleBuilder.CronSchedule(profile.Sync));
+                        });
+
+                        q.ScheduleJob<SynchronizesProfile>(trigger =>
+                        {
+                            trigger
+                                .ForJob(jobDetail)
+                                .WithIdentity("run-once", new GroupName<SynchronizesProfile>(profile.Name))
+                                .UsingJobData(JobDataKeys.ProfileName, profile.Name)
+                                .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
+                                .StartNow()
+                                .WithSimpleSchedule(x => x.WithRepeatCount(0));
+                        });
+                    }
+
+                    q.AddTriggerListener<CanVetoProfileSynchronization>(GroupMatcher<TriggerKey>.GroupStartsWith(new GroupName<SynchronizesProfile>()));
+                    q.AddTriggerListener<CanVetoWorkflowExecution>(GroupMatcher<TriggerKey>.GroupStartsWith(new GroupName<ExecutesWorkflowOnSchedule>()));
 
                     // note: The docs say that the default is 1 minute.
                     q.MisfireThreshold = TimeSpan.FromMinutes(2);
@@ -155,4 +201,9 @@ public class Program
                 });
             });
     }
+}
+
+public record QuartzServerOptions
+{
+    public int StartDelaySeconds { get; init; }
 }

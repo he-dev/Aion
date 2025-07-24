@@ -8,12 +8,12 @@ using Quartz;
 
 namespace Aion.Core.Listeners;
 
-public class RegularWorkflowTriggerListener
+public class CanVetoWorkflowExecution
 (
-    ILogger<RegularWorkflowTriggerListener> logger
+    ILogger<CanVetoWorkflowExecution> logger
 ) : ITriggerListener
 {
-    public string Name => nameof(RegularWorkflowTriggerListener);
+    public string Name => nameof(CanVetoWorkflowExecution);
 
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
