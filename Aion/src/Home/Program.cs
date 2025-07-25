@@ -1,18 +1,22 @@
 using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Listeners;
+using Aion.Core.Features;
+using Aion.Core.Features.WhenTriggersFire;
 using Aion.Core.Modules;
-using Aion.Core.Providers;
-using Aion.Core.Schedulers;
 using Aion.Home.Jobs;
 using Aion.Util;
 using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.ActionConstraints;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,6 +26,7 @@ using Quartz;
 using Quartz.AspNetCore;
 using Quartz.Impl.Matchers;
 using Serilog;
+using Serilog.Events;
 
 namespace Aion.Home;
 
@@ -71,17 +76,23 @@ public class Program
                     {
                         logger
                             // core: The workflow-sink may only log events that contain the workflow-name property.
-                            .Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(WorkflowLoggerKey.WorkflowName)))
+                            .Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(WorkflowLogEventSignature.WorkflowName)))
                             // core: Don't log raw console output.
-                            .Filter.ByExcluding(e => e.TryGetScalar(nameof(ProcessMessageSource), out ProcessMessageSource processMessageSource) && consoleStreamTypes.Contains(processMessageSource))
-                            .WriteTo.Sink(services.GetRequiredService<MapSink<WorkflowLoggerKey>>());
+                            .Filter.ByExcluding(e =>
+                            {
+                                return
+                                    e.Properties.TryGetValue(nameof(ProcessMessageSource), out var value)
+                                    && value is ScalarValue { Value: string scalar }
+                                    && consoleStreamTypes.Contains(Enum.Parse<ProcessMessageSource>(scalar));
+                            })
+                            .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>());
                     })
                     .WriteTo.Logger(logger =>
                     {
                         logger
                             // core: The console-sink may only log events that contain the stream type.
                             .Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(ProcessMessageSource)))
-                            .WriteTo.Sink(services.GetRequiredService<MapSink<ConsoleLoggerKey>>());
+                            .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>());
                     })
                     ;
             })
@@ -89,11 +100,11 @@ public class Program
             {
                 services.Configure<EngineOptions>(context.Configuration.GetSection(EngineOptions.SectionName));
                 services.AddSingleton<IPostConfigureOptions<EngineOptions>, EngineOptions.RenderPaths>();
-                services.AddSingleton<MapSink<WorkflowLoggerKey>>();
-                services.AddSingleton<MapSink<ConsoleLoggerKey>>();
+                services.AddSingleton<MapsLogEvents>();
+                services.AddSingleton<MapsLogEvents>();
 
                 services
-                    .AddControllers()
+                    .AddControllers(options => { options.Conventions.Add(new CreatesAbsoluteRouteWhenStartsWithColon()); })
                     // meta: This is a must for endpoints.MapControllers to work.
                     .AddApplicationPart(typeof(Program).Assembly);
                 //.AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new WorkflowIssueConverter()); });
@@ -121,7 +132,7 @@ public class Program
                 services.AddSingleton<FindsWorkflows>();
                 services.AddSingleton<LocksWorkflows>();
 
-                services.AddSingleton<ProfileProvider>();
+                services.AddSingleton<FindsLoggingPreset>();
 
                 services.AddScoped<ExecutesWorkflowOnSchedule>();
                 services.AddScoped<ExecutesWorkflowOnDemand>();
@@ -206,4 +217,46 @@ public class Program
 public record QuartzServerOptions
 {
     public int StartDelaySeconds { get; init; }
+}
+
+public class CreatesAbsoluteRouteWhenStartsWithColon : IApplicationModelConvention
+{
+    public void Apply(ApplicationModel application)
+    {
+        foreach (var controller in application.Controllers)
+        {
+            // meta: Find all route templates defined on the controller
+            var controllerRouteTemplates =
+                controller
+                    .Selectors
+                    .Select(s => s.AttributeRouteModel?.Template)
+                    .Where(t => t is not null)
+                    .ToList();
+
+            if (!controllerRouteTemplates.Any())
+            {
+                // note: This actually should be an error...
+            }
+
+            foreach (var action in controller.Actions)
+            {
+                foreach (var selector in action.Selectors)
+                {
+                    if (selector.AttributeRouteModel is { Template: { } actionRouteTemplate } && actionRouteTemplate.StartsWith(":"))
+                    {
+                        // core: Create an absolute route to override automatic joining.
+                        var combinedTemplate = "/" + controllerRouteTemplates.First() + actionRouteTemplate;
+
+                        // core: Overwrite the action's original route.
+                        selector.AttributeRouteModel = new AttributeRouteModel
+                        {
+                            Template = combinedTemplate,
+                            Name = selector.AttributeRouteModel.Name,
+                            Order = selector.AttributeRouteModel.Order,
+                        };
+                    }
+                }
+            }
+        }
+    }
 }

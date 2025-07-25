@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Aion.Util.Scriban;
+using JetBrains.Annotations;
 using Microsoft.Extensions.Options;
 
 namespace Aion.Core;
@@ -16,6 +17,8 @@ public record EngineOptions
 
     public ProfileInfo[] Profiles { get; init; } = null!;
 
+    public ProfileInfo this[string name] => Profiles.Single(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
     public class RenderPaths : IPostConfigureOptions<EngineOptions>
     {
         public void PostConfigure(string? name, EngineOptions options)
@@ -23,7 +26,7 @@ public record EngineOptions
             // core: Render the path of each profile.
             foreach (var profile in options.Profiles)
             {
-                profile.Path = VariableTemplate.Render(profile.Path, []);
+                profile.Path = RendersTemplates.In(profile.Path, []);
             }
         }
     }
@@ -44,10 +47,11 @@ public static class EngineOptionsExtensions
     }
 }
 
+[UsedImplicitly]
 public record ProfileInfo
 {
-    public string Name { get; set; } = null!;
     public string Path { get; set; } = null!;
+    public string Name => System.IO.Path.GetFileName(Path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
     public string Sync { get; set; } = null!;
 }
 

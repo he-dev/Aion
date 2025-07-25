@@ -4,9 +4,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Aion.Core.Providers;
+using Aion.Core.Modules;
 
-namespace Aion.Core.Modules;
+namespace Aion.Core;
 
 // core: Represents a single workflow-lock that carries the same name, but a different extension.
 public record WorkflowLock

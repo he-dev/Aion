@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -10,14 +11,24 @@ namespace Aion.Util.Json;
 
 public static class JsonObjectExtensions
 {
-    // core: Renders each path property it finds that looks like a template.
-    public static JsonObject? RenderPaths(this JsonObject? serilog, Func<string, string> render)
+    [return: NotNullIfNotNull(nameof(source))]
+    public static JsonObject? Clone(this JsonObject? source)
     {
-        // meta: It needs to be cloned otherwise the original object will be modified, which would happen during validation.
-        serilog = serilog is null ? null : JsonNode.Parse(serilog.ToJsonString())!.AsObject();
+        return source is null ? null : JsonNode.Parse(source.ToJsonString())!.AsObject();
+    }
+
+    // core: Renders each path property it finds that looks like a template.
+    [return: NotNullIfNotNull(nameof(serilog))]
+    public static JsonObject? RenderFilePaths(this JsonObject? serilog, Func<string, string> render)
+    {
+        // core: Nothing to do.
+        if (serilog is null) return null;
+
+        // meta: It needs to be cloned otherwise the original object will be modified, and that's a bad thing.
+        serilog = serilog.Clone();
 
         // core: Scan sinks for the "path" property and run it through the template engine.
-        if (serilog?["WriteTo"] is JsonArray writeTo)
+        if (serilog["WriteTo"] is JsonArray writeTo)
         {
             foreach (var sink in writeTo)
             {

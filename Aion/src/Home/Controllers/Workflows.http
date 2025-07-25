@@ -1,5 +1,5 @@
 @host=http://localhost:5049
-@workflows={{host}}/api/workflows
+@workflows={{host}}/api/profiles/main/workflows
 
 ### Fetch all workflows or by filter and/or other parameters.
 GET {{workflows}}
@@ -14,7 +14,7 @@ GET {{workflows}}/_routes
 POST {{workflows}}:sync
 
 ### Start a workflow now only once; 202 Accepted
-POST {{workflows}}/says-hallo:startNow
+POST {{workflows}}/profiles/main/says-hallo:startNow
 
 ### Start a workflow now only once; 202 Accepted
 POST {{workflows}}/says-hallo-with-timeout:startNow

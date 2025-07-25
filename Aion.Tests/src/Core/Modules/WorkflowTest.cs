@@ -1,4 +1,5 @@
-﻿using Aion.Core.Modules;
+﻿using Aion.Core;
+using Aion.Core.Features;
 
 namespace Aion.Tests.Core.Modules;
 

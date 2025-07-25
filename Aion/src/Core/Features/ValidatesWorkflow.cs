@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
 
-namespace Aion.Core.Modules;
+namespace Aion.Core.Features;
 
 // core: This class provides extensions that allow us to validate workflows before they are even scheduled.
 public static class ValidatesWorkflow
@@ -15,7 +15,6 @@ public static class ValidatesWorkflow
     // This includes alphanumeric characters, hyphen, period, underscore, and tilde.
     // The Regex is compiled for better performance since it will be reused.
     private static readonly Regex UrlSafeChars = new("^[a-zA-Z0-9._~-]+$", RegexOptions.Compiled);
-
 
     public static void EnsureUrlSafeName(this Workflow workflow)
     {
@@ -37,8 +36,7 @@ public static class ValidatesWorkflow
             new WorkflowVariableGroup(workflowActivity) { Name = "test" }
         ]);
 
-        workflow.Serilog.RenderPaths(template => VariableTemplate.Render(template, variables));
-        workflow.Console.RenderPaths(template => VariableTemplate.Render(template, variables));
+        workflow.Logging.RenderFilePaths(template => RendersTemplates.In(template, variables));
 
         foreach (var step in workflow.Steps)
         {

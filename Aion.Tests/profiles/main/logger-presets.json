@@ -1,7 +1,8 @@
 ﻿{
   "Version": 1,
-  "Profiles": {
-    "Console.Simple": {
+  "Presets": [
+    {
+      "Name": "Console.Simple",
       "Serilog": {
         "MinimumLevel": {
           "Default": "Information"
@@ -19,7 +20,8 @@
         ]
       }
     },
-    "Workflow.Simple": {
+    {
+      "Name": "Workflow.Simple",
       "Serilog": {
         "MinimumLevel": {
           "Default": "Information"
@@ -37,5 +39,5 @@
         ]
       }
     }
-  }
+  ]
 }

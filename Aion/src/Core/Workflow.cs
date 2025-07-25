@@ -6,8 +6,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Aion.Core.Features;
 
-namespace Aion.Core.Modules;
+namespace Aion.Core;
 
 public record Workflow
 {
@@ -30,9 +31,8 @@ public record Workflow
     // .. Workflows without steps don't make sense, so make it a required field.
     public List<Step> Steps { get; init; } = [];
 
-    public JsonObject? Serilog { get; init; }
-
-    public JsonObject? Console { get; init; }
+    [JsonPropertyName("SerilogOrPresetRef")]
+    public JsonObject? Logging { get; init; }
 
     #region Meta
 
@@ -41,8 +41,6 @@ public record Workflow
     public string Path { get; init; } = string.Empty;
 
     public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
-
-
 
     #endregion
 
@@ -74,7 +72,8 @@ public record Workflow
 
         public TimeSpan Timeout { get; init; } = System.Threading.Timeout.InfiniteTimeSpan;
 
-        public JsonObject? Console { get; init; }
+        [JsonPropertyName("SerilogOrPresetRef")]
+        public JsonObject? Logging { get; init; }
 
         public string? DependsOn { get; init; }
 

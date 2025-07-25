@@ -6,7 +6,7 @@ using Aion.Util.Quartz;
 using Aion.Util.Scriban;
 using Quartz;
 
-namespace Aion.Core.Modules;
+namespace Aion.Core;
 
 public static class ExtendsWorkflow
 {
@@ -26,10 +26,10 @@ public static class ExtendsWorkflow
     {
         return step with
         {
-            File = VariableTemplate.Render(step.File, variables),
-            Args = step.Args.Select(arg => VariableTemplate.Render(arg, variables)).ToList(),
-            WorkingDirectory = VariableTemplate.Render(step.WorkingDirectory ?? string.Empty, variables),
-            Console = step.Console.RenderPaths(template => VariableTemplate.Render(template, variables))
+            File = RendersTemplates.In(step.File, variables),
+            Args = step.Args.Select(arg => RendersTemplates.In(arg, variables)).ToList(),
+            WorkingDirectory = RendersTemplates.In(step.WorkingDirectory ?? string.Empty, variables),
+            Logging = step.Logging.RenderFilePaths(template => RendersTemplates.In(template, variables))
         };
     }
 }

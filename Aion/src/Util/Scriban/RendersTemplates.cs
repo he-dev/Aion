@@ -30,14 +30,14 @@ public abstract class VariableGroup(string name) : IEnumerable<KeyValuePair<stri
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-public static class VariableTemplate
+public class RendersTemplates
 {
-    public static string Render(string template, IImmutableList<VariableGroup> variableGroups)
+    public static string In(string template, IImmutableList<VariableGroup> variableGroups)
     {
         // note: Scriban's documentation recommends creating everything from scratch each time.
 
         var customFunctions = new ScriptObject(StringComparer.OrdinalIgnoreCase);
-        customFunctions.Import("env", EnvironmentVariable.Get);
+        customFunctions.Import("env", GetsEnvironmentVariable.For);
 
         var customContext = new TemplateContext
         {
@@ -45,10 +45,7 @@ public static class VariableTemplate
             StrictVariables = true,
             // ReSharper disable once ConvertToLambdaExpression
             // hack: Scriban does not always throw exceptions when variables are missing despite the above flag. This way it does.
-            TryGetMember = ((TemplateContext context, SourceSpan span, object target, string member, out object value) =>
-            {
-                throw new ScriptRuntimeException(span, $"Variable '{member}' not found.");
-            })
+            TryGetMember = ((TemplateContext context, SourceSpan span, object target, string member, out object value) => { throw new ScriptRuntimeException(span, $"Variable '{member}' not found."); })
         };
         customContext.PushGlobal(customFunctions);
         foreach (var variableGroup in variableGroups)
@@ -80,11 +77,11 @@ public static class VariableTemplate
     }
 }
 
-public static class EnvironmentVariable
+public static class GetsEnvironmentVariable
 {
     // core: The template engine should throw an exception when the variable is missing, or empty.
     // hack: Custom function lets us do that.
-    public static string Get(TemplateContext context, SourceSpan span, string name)
+    public static string For(TemplateContext context, SourceSpan span, string name)
     {
         var value = Environment.GetEnvironmentVariable(name);
         if (string.IsNullOrEmpty(value))

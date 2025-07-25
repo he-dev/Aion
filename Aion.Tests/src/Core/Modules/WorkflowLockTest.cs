@@ -1,4 +1,4 @@
-﻿using Aion.Core.Modules;
+﻿using Aion.Core;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Aion.Tests.Core.Modules;

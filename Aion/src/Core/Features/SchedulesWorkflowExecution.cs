@@ -1,14 +1,13 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Modules;
 using Aion.Home.Jobs;
 using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Schedulers;
+namespace Aion.Core.Features;
 
 // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
 

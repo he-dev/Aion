@@ -12,7 +12,7 @@
         "--sleep 5",
         "--message \"Hallo NPC!\""
       ],
-      "Console": {
+      "SerilogOrPresetRef": {
         "MinimumLevel": {
           "Default": "Information"
         },
@@ -30,20 +30,8 @@
       }
     }
   ],
-  "Serilog": {
-    "MinimumLevel": {
-      "Default": "Information"
-    },
-    "WriteTo": [
-      {
-        "Name": "File",
-        "Args": {
-          "path": "C:\\temp\\aion\\Aion.Workflow-{{ workflow.name }}.log",
-          "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
-          "rollingInterval": "Day",
-          "retainedFileCountLimit": 3
-        }
-      }
-    ]
+  "SerilogOrPresetRef": {
+    "File": "logger-presets.json",
+    "Name": "Workflow.Simple"
   }
 }

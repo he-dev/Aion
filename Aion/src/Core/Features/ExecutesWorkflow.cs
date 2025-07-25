@@ -3,8 +3,11 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Aion.Core.Modules;
 using Aion.Util;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
@@ -12,7 +15,7 @@ using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Modules;
+namespace Aion.Core.Features;
 
 // core: Executes workflow's enabled steps.
 public class ExecutesWorkflow
@@ -20,15 +23,14 @@ public class ExecutesWorkflow
     ILogger<ExecutesWorkflow> logger,
     ILoggerFactory loggerFactory,
     IOptions<EngineOptions> engineOptions,
-    MapSink<WorkflowLoggerKey> workflowSink,
-    MapSink<ConsoleLoggerKey> consoleSink
+    MapsLogEvents mapsLogEvents
 )
 {
     private static readonly Regex IntArrayRegex = new(@"^\[(-?\d+(?:,-?\d+)*)?\]$", RegexOptions.Compiled);
 
-    public async Task Start(Workflow workflow)
+    public async Task Now(Workflow workflow, ProfileInfo profile)
     {
-        using var activity = new Activity("ExecuteWorkflow");
+        using var activity = new Activity("ExecutingWorkflow");
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange
         ([
@@ -36,15 +38,18 @@ public class ExecutesWorkflow
             new ArgumentVariableGroup(workflow.Args),
             new WorkflowVariableGroup(activity) { Name = workflow.Name }
         ]);
-        var serilogConfig = workflow.Serilog.RenderPaths(template => VariableTemplate.Render(template, variables));
-        using var sink = workflowSink.Push(new WorkflowLoggerKey(workflow.Name), serilogConfig.ToLogger());
+
+        // core: Register the workflow's logger or try to fall back to the preset.
+        var logging = await workflow.Logging.OrPreset(logger, async presetRef => await FindsLoggingPreset.Where(profile.Path, presetRef));
+        logging = logging.RenderFilePaths(template => RendersTemplates.In(template, variables));
+        using var tempMapping = mapsLogEvents.By(new WorkflowLogEventSignature(workflow.Name), to: logging.ToLogger());
 
         var exitCodes = ImmutableList<int?>.Empty;
 
         activity.Start();
         logger.LogInformation("Executing workflow...");
 
-        // core: Do not filter out disabled steps because we want them logged.
+        // core: Does not filter out disabled steps because we want them logged.
         foreach (var step in workflow.Steps)
         {
             using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name });
@@ -55,7 +60,7 @@ public class ExecutesWorkflow
                 continue;
             }
 
-            var exitCode = await ExecuteStep(workflow, step, variables);
+            var exitCode = await ExecuteStep(workflow, step, profile, variables);
             exitCodes = exitCodes.Add(exitCode);
         }
 
@@ -91,12 +96,7 @@ public class ExecutesWorkflow
         return true;
     }
 
-    private async Task<int?> ExecuteStep
-    (
-        Workflow workflow,
-        Workflow.Step step,
-        IImmutableList<VariableGroup> variables
-    )
+    private async Task<int?> ExecuteStep(Workflow workflow, Workflow.Step step, ProfileInfo profile, IImmutableList<VariableGroup> variables)
     {
         // meta: Setup logging contexts.
         using var activity = new Activity("ExecuteStep");
@@ -109,8 +109,11 @@ public class ExecutesWorkflow
             // core: Failing to render variables also counts as a failed step.
             step = step.RenderTemplates(stepVariables);
 
-            // core: Register step's console logger or try to fall back to the workflow.
-            using var console = consoleSink.Push(new ConsoleLoggerKey(workflow.Name, step.Index), (step.Console ?? workflow.Console).ToLogger());
+            // core: Register the workflow's logger or try to fall back to the preset.
+            var logging = await step.Logging.OrPreset(logger, async presetRef => await FindsLoggingPreset.Where(profile.Path, presetRef));
+            logging = logging.RenderFilePaths(template => RendersTemplates.In(template, variables));
+            using var tempMapping = mapsLogEvents.By(new ConsoleLogEventSignature(workflow.Name, step.Index), to: logging.ToLogger());
+
 
             var asyncProcess = new AsyncProcess(loggerFactory.CreateLogger<AsyncProcess>())
             {
@@ -170,5 +173,36 @@ public class StepDependsOnPrevious(ILogger<StepDependsOnPrevious> logger) : ISte
     public bool CanExecute(Workflow.Step step, IImmutableList<int?> exitCodes)
     {
         return false;
+    }
+}
+
+public static class ExtendsJsonObject
+{
+    public static async Task<JsonObject?> OrPreset(this JsonObject? logging, ILogger logger, Func<LoggingPresetRef, Task<JsonObject?>> getsLoggingPreset)
+    {
+        // core: There is no configuration.
+        if (logging is null)
+        {
+            logger.LogDebug("Logging is not specified.");
+            return null;
+        }
+
+        // core: Use the logger configuration that is embedded in the workflow.
+        if (logging.ContainsKey("WriteTo"))
+        {
+            logger.LogDebug("Logging is specified by the workflow.");
+            return await Task.FromResult(logging);
+        }
+
+        // core: Use the logger configuration that is specified by the preset.
+        if (logging.TryGetPropertyValue("Preset", out var node) && node is JsonObject)
+        {
+            var presetInfo = node.Deserialize<LoggingPresetRef>()!;
+            logger.LogDebug("Logging is specified by the preset '{Preset}'.", presetInfo);
+            return await getsLoggingPreset(presetInfo);
+        }
+
+        // core: Something else has been specified.
+        throw new InvalidOperationException("Unknown logging configuration.");
     }
 }

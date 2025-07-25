@@ -2,11 +2,10 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Aion.Core.Modules;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Listeners;
+namespace Aion.Core.Features.WhenTriggersFire;
 
 public class CanVetoWorkflowExecution
 (

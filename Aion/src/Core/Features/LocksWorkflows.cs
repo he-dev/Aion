@@ -2,10 +2,9 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Modules;
-using Aion.Core.Providers;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Core.Schedulers;
+namespace Aion.Core.Features;
 
 public class LocksWorkflows
 (

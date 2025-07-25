@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using Aion.Util.Scriban;
 
-namespace Aion.Core.Modules;
+namespace Aion.Core;
 
 public class ProfileVariableGroup() : VariableGroup("Profile")
 {

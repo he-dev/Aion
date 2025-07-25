@@ -2,9 +2,8 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
+using Aion.Core.Features;
 using Aion.Core.Modules;
-using Aion.Core.Providers;
-using Aion.Core.Schedulers;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;

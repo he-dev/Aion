@@ -6,7 +6,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Providers;
+namespace Aion.Core.Modules;
 
 public class FindsWorkflows(IOptions<EngineOptions> options)
 {
