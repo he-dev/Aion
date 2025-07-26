@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Aion.Core.Features;
+using Aion.Core.Skills;
 
 namespace Aion.Core;
 

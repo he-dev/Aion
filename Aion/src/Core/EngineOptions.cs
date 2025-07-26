@@ -2,7 +2,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Aion.Util.Scriban;
-using JetBrains.Annotations;
 using Microsoft.Extensions.Options;
 
 namespace Aion.Core;
@@ -47,7 +46,6 @@ public static class EngineOptionsExtensions
     }
 }
 
-[UsedImplicitly]
 public record ProfileInfo
 {
     public string Path { get; set; } = null!;

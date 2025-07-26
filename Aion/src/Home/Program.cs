@@ -1,22 +1,17 @@
 using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Features;
-using Aion.Core.Features.WhenTriggersFire;
-using Aion.Core.Modules;
+using Aion.Core.Skills;
+using Aion.Core.Skills.WhenTriggersFire;
 using Aion.Home.Jobs;
+using Aion.Meta.Mvc;
 using Aion.Util;
 using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.ActionConstraints;
-using Microsoft.AspNetCore.Mvc.ApplicationModels;
-using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -127,16 +122,15 @@ public class Program
                 services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
 
                 services.AddSingleton<SchedulesWorkflowExecution>();
-                services.AddSingleton<FindsTriggers>();
-                services.AddSingleton<ExecutesWorkflow>();
-                services.AddSingleton<FindsWorkflows>();
-                services.AddSingleton<LocksWorkflows>();
-
-                services.AddSingleton<FindsLoggingPreset>();
 
                 services.AddScoped<ExecutesWorkflowOnSchedule>();
                 services.AddScoped<ExecutesWorkflowOnDemand>();
                 services.AddScoped<SynchronizesProfile>();
+
+                services.AddSingleton<ExecutesWorkflow>();
+                services.AddSingleton<FindsTriggers>();
+                services.AddSingleton<FindsWorkflows>();
+                services.AddSingleton<FindsLoggingPreset>();
 
                 services.AddSingleton<CanVetoProfileSynchronization>();
                 services.AddSingleton<CanVetoWorkflowExecution>();
@@ -217,46 +211,4 @@ public class Program
 public record QuartzServerOptions
 {
     public int StartDelaySeconds { get; init; }
-}
-
-public class CreatesAbsoluteRouteWhenStartsWithColon : IApplicationModelConvention
-{
-    public void Apply(ApplicationModel application)
-    {
-        foreach (var controller in application.Controllers)
-        {
-            // meta: Find all route templates defined on the controller
-            var controllerRouteTemplates =
-                controller
-                    .Selectors
-                    .Select(s => s.AttributeRouteModel?.Template)
-                    .Where(t => t is not null)
-                    .ToList();
-
-            if (!controllerRouteTemplates.Any())
-            {
-                // note: This actually should be an error...
-            }
-
-            foreach (var action in controller.Actions)
-            {
-                foreach (var selector in action.Selectors)
-                {
-                    if (selector.AttributeRouteModel is { Template: { } actionRouteTemplate } && actionRouteTemplate.StartsWith(":"))
-                    {
-                        // core: Create an absolute route to override automatic joining.
-                        var combinedTemplate = "/" + controllerRouteTemplates.First() + actionRouteTemplate;
-
-                        // core: Overwrite the action's original route.
-                        selector.AttributeRouteModel = new AttributeRouteModel
-                        {
-                            Template = combinedTemplate,
-                            Name = selector.AttributeRouteModel.Name,
-                            Order = selector.AttributeRouteModel.Order,
-                        };
-                    }
-                }
-            }
-        }
-    }
 }

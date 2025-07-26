@@ -1,16 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Aion.Core.Modules;
 
 namespace Aion.Core;
 
 // core: Represents a single workflow-lock that carries the same name, but a different extension.
-public record WorkflowLock
+public record MaintenancePeriod
 {
+    public const string FileExtension = ".lock";
+
     private static readonly SemaphoreSlim Lock = new(1, 1);
 
     // util: Provides the means to override it for tests.
@@ -31,7 +33,7 @@ public record WorkflowLock
     public bool IsExpired => EndsOnUtc < Clock.GetUtcNow();
     public bool IsRunning => StartsOnUtc <= Clock.GetUtcNow() && EndsOnUtc > Clock.GetUtcNow();
 
-    public static WorkflowLock Between(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
+    public static MaintenancePeriod StartsAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
         if (startsOnUtc > endsOnUtc)
@@ -44,25 +46,25 @@ public record WorkflowLock
             throw new ArgumentException("Workflow lock's expiry must be in the future.", nameof(endsOnUtc));
         }
 
-        return new WorkflowLock
+        return new MaintenancePeriod
         {
             StartsOnUtc = startsOnUtc,
             EndsOnUtc = endsOnUtc,
         };
     }
 
-    public static WorkflowLock In(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
+    public static MaintenancePeriod StartsIn(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
         var startsOnUtc = clock.GetUtcNow().Add(wait);
         var endsOnUtc = startsOnUtc.Add(length);
 
-        return Between(startsOnUtc, endsOnUtc);
+        return StartsAt(startsOnUtc, endsOnUtc);
     }
 
-    public static async Task<WorkflowLock> FromFile(string workflowPath)
+    public static async Task<MaintenancePeriod> FromFile(string workflowPath)
     {
-        var workflowLockPath = Path.ChangeExtension(workflowPath, FileExtension.Lock);
+        var workflowLockPath = Path.ChangeExtension(workflowPath, FileExtension);
 
         if (!Path.Exists(workflowLockPath))
         {
@@ -74,7 +76,7 @@ public record WorkflowLock
         try
         {
             await using var fileStream = new FileStream(workflowLockPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            if (await JsonSerializer.DeserializeAsync<WorkflowLock>(fileStream) is { } workflowLock)
+            if (await JsonSerializer.DeserializeAsync<MaintenancePeriod>(fileStream) is { } workflowLock)
             {
                 return workflowLock with { FileName = workflowLockPath };
             }
@@ -87,9 +89,17 @@ public record WorkflowLock
         throw new WorkflowLockNullException(workflowPath);
     }
 
-    public async Task<string> SaveFor(string workflowPath)
+    public async Task ApplyTo(IEnumerable<string> workflowPaths)
     {
-        var lockPath = Path.ChangeExtension(workflowPath, FileExtension.Lock);
+        foreach (var workflowFile in workflowPaths)
+        {
+            await ToFile(workflowFile);
+        }
+    }
+
+    public async Task<string> ToFile(string workflowPath)
+    {
+        var lockPath = Path.ChangeExtension(workflowPath, FileExtension);
 
         // core: Avoid race conditions by locking file operations.
         await Lock.WaitAsync();
@@ -111,7 +121,7 @@ public record WorkflowLock
         return lockPath;
     }
 
-    public async ValueTask Delete()
+    public async ValueTask Cancel()
     {
         // util: Prevent these two bugs that won't happen during normal operation, but only due to mistakes.
         if (FileName is null) throw new InvalidOperationException("Cannot delete a lock that is not saved.");

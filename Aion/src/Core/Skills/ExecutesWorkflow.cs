@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Aion.Core.Modules;
 using Aion.Util;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
@@ -15,7 +14,7 @@ using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Features;
+namespace Aion.Core.Skills;
 
 // core: Executes workflow's enabled steps.
 public class ExecutesWorkflow
@@ -115,7 +114,7 @@ public class ExecutesWorkflow
             using var tempMapping = mapsLogEvents.By(new ConsoleLogEventSignature(workflow.Name, step.Index), to: logging.ToLogger());
 
 
-            var asyncProcess = new AsyncProcess(loggerFactory.CreateLogger<AsyncProcess>())
+            var asyncProcess = new StartsProcessAsync(loggerFactory.CreateLogger<StartsProcessAsync>())
             {
                 File = step.File,
                 Args = step.Args
@@ -123,7 +122,7 @@ public class ExecutesWorkflow
 
             activity.Start();
             logger.LogInformation("Executing step...");
-            var exitCode = await asyncProcess.StartAsync(step.Timeout);
+            var exitCode = await asyncProcess.Now(step.Timeout);
             activity.Stop();
 
             switch (exitCode)

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Features.WhenTriggersFire;
+namespace Aion.Core.Skills.WhenTriggersFire;
 
 public class CanVetoWorkflowExecution
 (
@@ -20,12 +20,12 @@ public class CanVetoWorkflowExecution
 
         try
         {
-            if (await WorkflowLock.FromFile(workflowPath) is { } workflowLock)
+            if (await MaintenancePeriod.FromFile(workflowPath) is { } workflowLock)
             {
                 if (workflowLock.IsExpired)
                 {
                     logger.LogWarning("Workflow lock has expired on {ExpiresOn} and will be deleted.", workflowLock.EndsOnUtc.ToLocalTime());
-                    await workflowLock.Delete();
+                    await workflowLock.Cancel();
                 }
 
                 return workflowLock.IsRunning;

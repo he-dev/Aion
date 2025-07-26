@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using JetBrains.Annotations;
 
 namespace Aion.Core;
 
@@ -27,7 +26,6 @@ public record LoggingPresetGroup
     }
 }
 
-[UsedImplicitly]
 public record LoggingPreset
 {
     public string Name { get; init; } = null!;

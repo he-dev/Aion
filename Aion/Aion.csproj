@@ -9,7 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="JetBrains.Annotations" Version="2025.2.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.17" />
         <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="9.0.6" />
         <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="9.0.6" />

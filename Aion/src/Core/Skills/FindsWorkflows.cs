@@ -6,13 +6,13 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Modules;
+namespace Aion.Core.Skills;
 
 public class FindsWorkflows(IOptions<EngineOptions> options)
 {
     public const string WorkflowsDirectory = "workflows";
 
-    public IEnumerable<string> Where(string profile, string fileNameFilter, FileExtension extension)
+    public IEnumerable<string> Where(string profile, string fileNameFilter)
     {
         if (options.Value.TryGetProfile(profile, out var profileInfo) == false)
         {
@@ -22,7 +22,7 @@ public class FindsWorkflows(IOptions<EngineOptions> options)
         if (string.IsNullOrEmpty(fileNameFilter)) throw new ArgumentException("Value cannot be null or empty.", nameof(fileNameFilter));
 
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
-        matcher.AddInclude($"**\\{fileNameFilter}.{extension}");
+        matcher.AddInclude($"**\\{fileNameFilter}.json");
 
         var profilePath = Path.Join(profileInfo.Path, profile, WorkflowsDirectory);
         return
@@ -31,24 +31,11 @@ public class FindsWorkflows(IOptions<EngineOptions> options)
     }
 }
 
-
-
-public record FileExtension(string Name)
-{
-    public static readonly FileExtension Json = new("json");
-    public static readonly FileExtension Lock = new("lock");
-
-    public override string ToString() => Name;
-
-    public static implicit operator string(FileExtension extension) => extension.ToString();
-}
-
 public record FileFilter(string Value)
 {
     public static readonly FileFilter Any = new("*");
 
     public static implicit operator string(FileFilter filter) => filter.Value;
 }
-
 
 public class WorkflowNotFoundException(string filter) : Exception($"Filter '{filter}' does not match any workflows.");

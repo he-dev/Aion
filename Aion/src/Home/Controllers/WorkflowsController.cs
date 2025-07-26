@@ -3,8 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Features;
-using Aion.Core.Modules;
+using Aion.Core.Skills;
 using Aion.Util;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +26,7 @@ public class WorkflowsController
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflows = ImmutableList<Workflow>.Empty;
         var errors = ImmutableList<object>.Empty;
-        foreach (var filePath in findsWorkflows.Where(profileName, filter ?? FileFilter.Any, FileExtension.Json))
+        foreach (var filePath in findsWorkflows.Where(profileName, filter ?? FileFilter.Any))
         {
             try
             {
@@ -65,7 +64,7 @@ public class WorkflowsController
         var result = ImmutableList<object>.Empty;
         var errors = ImmutableList<object>.Empty;
 
-        foreach (var path in findsWorkflows.Where(profileName, FileFilter.Any, FileExtension.Json))
+        foreach (var path in findsWorkflows.Where(profileName, FileFilter.Any))
         {
             try
             {
@@ -121,7 +120,7 @@ public class WorkflowsController
     {
         try
         {
-            var fileName = findsWorkflows.Where(profile, name, FileExtension.Json).SingleOrThrows();
+            var fileName = findsWorkflows.Where(profile, name).SingleOrThrows();
             var workflow = await Workflow.FromFile(fileName);
             var next = await action(workflow);
             return Ok(new { name, next = next.ToLocalTime() });

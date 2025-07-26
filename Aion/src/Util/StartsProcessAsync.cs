@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Aion.Util;
 
-public class AsyncProcess(ILogger<AsyncProcess> logger)
+public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 {
     public required string File { get; init; }
 
@@ -18,7 +18,7 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
     public string? WorkingDirectory { get; init; }
 
     // note: Not using external cancellation as this app does not support such a scenario.
-    public async Task<int> StartAsync(TimeSpan timeout)
+    public async Task<int> Now(TimeSpan timeout)
     {
         // note: If you run a bash-script on Linux, it is possible that ExitCode can be 255.
         // To fix it, you can try to add the "#!/bin/bash" header to the script.

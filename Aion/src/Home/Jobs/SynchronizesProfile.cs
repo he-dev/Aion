@@ -2,8 +2,7 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Features;
-using Aion.Core.Modules;
+using Aion.Core.Skills;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -27,7 +26,7 @@ internal class SynchronizesProfile
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         logger.LogInformation("Synchronizing profile...");
 
-        foreach (var workflowPath in findsWorkflows.Where(profileName, FileFilter.Any, FileExtension.Json))
+        foreach (var workflowPath in findsWorkflows.Where(profileName, FileFilter.Any))
         {
             try
             {

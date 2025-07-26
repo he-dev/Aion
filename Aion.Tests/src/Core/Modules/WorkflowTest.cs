@@ -1,5 +1,5 @@
 ﻿using Aion.Core;
-using Aion.Core.Features;
+using Aion.Core.Skills;
 
 namespace Aion.Tests.Core.Modules;
 

@@ -1,36 +1,34 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Features;
-using Aion.Core.Modules;
-using Aion.Util;
+using Aion.Core.Skills;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
 namespace Aion.Home.Controllers;
 
 [ApiController]
-[Route("api/[controller]/profiles")]
+[Route("api/profiles/{profileName}/[controller]")]
 public class MaintenanceController
 (
     ILogger<MaintenanceController> logger,
-    FindsWorkflows findsWorkflows,
-    LocksWorkflows locksWorkflows
+    FindsWorkflows findsWorkflows
 ) : ControllerBase
 {
-    [HttpGet("{profile}")]
-    public async Task<IActionResult> Get(string profile)
+    [HttpGet]
+    public async Task<IActionResult> Get(string profileName)
     {
-        var lockFileNames = findsWorkflows.Where(profile, FileFilter.Any, FileExtension.Lock);
-        var locks = ImmutableList<WorkflowLock>.Empty;
+        var lockFileNames = findsWorkflows.Where(profileName, FileFilter.Any);
+        var locks = ImmutableList<MaintenancePeriod>.Empty;
         foreach (var lockFileName in lockFileNames)
         {
             try
             {
-                if (await WorkflowLock.FromFile(lockFileName) is { } lockFile)
+                if (await MaintenancePeriod.FromFile(lockFileName) is { } lockFile)
                 {
                     locks = locks.Add(lockFile);
                 }
@@ -64,14 +62,14 @@ public class MaintenanceController
         return Ok(query.ToList());
     }
 
-    [HttpPost("{profile}:startIn")]
-    public async Task<IActionResult> StartIn(string profile, [FromBody] StartInBody body)
+    [HttpPost(":start-in")]
+    public async Task<IActionResult> StartIn(string profileName, [FromBody] StartInBody body)
     {
         try
         {
-            var workflowLock = body.ToWorkflowLock();
-            var lockNames = await locksWorkflows.Where(workflowLock, profile, body.Filter);
-            return Ok(new { lockNames });
+            var maintenancePeriod = MaintenancePeriod.StartsIn(body.Wait, body.Duration);
+            var lockedWorkflows = await Apply(profileName, body.Filter, maintenancePeriod).ToListAsync();
+            return Ok(new { lockedWorkflows });
         }
         catch (Exception ex)
         {
@@ -80,14 +78,14 @@ public class MaintenanceController
         }
     }
 
-    [HttpPost("{profile}:startAt")]
-    public async Task<IActionResult> StartAt(string profile, [FromBody] StartAtBody body)
+    [HttpPost(":start-at")]
+    public async Task<IActionResult> StartAt(string profileName, [FromBody] StartAtBody body)
     {
         try
         {
-            var workflowLock = body.ToWorkflowLock();
-            var lockedWorkflows = await locksWorkflows.Where(workflowLock, profile, body.Filter);
-            return Ok(new { workflowLock, lockedWorkflows });
+            var maintenancePeriod = MaintenancePeriod.StartsAt(body.StartsOnUtc, body.EndsOnUtc);
+            var lockedWorkflows = await Apply(profileName, body.Filter, maintenancePeriod).ToListAsync();
+            return Ok(new { lockedWorkflows });
         }
         catch (Exception ex)
         {
@@ -96,29 +94,43 @@ public class MaintenanceController
         }
     }
 
-    public record StartInBody
+    private async IAsyncEnumerable<string> Apply(string profileName, string workflowFilter, MaintenancePeriod maintenancePeriod)
+    {
+        var lockCount = 0;
+        foreach (var workflowFile in findsWorkflows.Where(profileName, workflowFilter))
+        {
+            var workflowLockPath = await maintenancePeriod.ToFile(workflowFile);
+            logger.LogInformation("Workflow '{WorkflowFile}' has been locked.", workflowFile);
+            yield return workflowLockPath;
+            lockCount++;
+        }
+
+        if (lockCount == 0)
+        {
+            throw new WorkflowNotFoundException(workflowFilter);
+        }
+    }
+
+    public abstract record StartBody
     {
         public string Filter { get; init; } = null!;
+    }
 
+    public record StartInBody : StartBody
+    {
         public TimeSpan Wait { get; init; }
 
         public TimeSpan Duration { get; init; }
-
-        public WorkflowLock ToWorkflowLock() => WorkflowLock.In(Wait, Duration);
     }
 
-    public record StartAtBody
+    public record StartAtBody : StartBody
     {
-        public string Filter { get; init; } = null!;
+        public DateTime StartsOn { get; init; }
 
-        public DateTimeOffset StartsOn { get; init; }
+        public DateTimeOffset StartsOnUtc => StartsOn.ToUniversalTime();
 
-        public DateTimeOffset EndsOn { get; init; }
+        public DateTime EndsOn { get; init; }
 
-        public WorkflowLock ToWorkflowLock() => WorkflowLock.Between
-        (
-            StartsOn.UseTimeZoneOffsetOrLocal().ToUniversalTime(),
-            EndsOn.UseTimeZoneOffsetOrLocal().ToUniversalTime()
-        );
+        public DateTimeOffset EndsOnUtc => EndsOn.ToUniversalTime();
     }
 }

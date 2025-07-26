@@ -3,7 +3,7 @@ using System.IO;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
-namespace Aion.Core.Modules;
+namespace Aion.Core.Skills;
 
 public class FindsLoggingPreset
 {

@@ -1,5 +1,5 @@
 @host=http://localhost:5049
-@maintenance={{host}}/api/maintenance
+@maintenance={{host}}/api/profiles/main/maintenance
 
 
 ### Fetch all active maintenance tokens; 200 OK
@@ -9,7 +9,7 @@ GET {{maintenance}}
 GET {{maintenance}}?q={filter}&orderBy=createdOn&orderBy=expiresIn
 
 ### Start maintenance relative from now; 201 Created or an error when period in the past; include location header pointing to the new location
-POST {{maintenance}}:startIn
+POST {{maintenance}}:start-in
 Content-Type: application/json
 
 {

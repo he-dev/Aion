@@ -7,7 +7,7 @@ using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Features;
+namespace Aion.Core.Skills;
 
 // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
 
