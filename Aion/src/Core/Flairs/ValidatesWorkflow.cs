@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
 
-namespace Aion.Core.Skills;
+namespace Aion.Core.Flairs;
 
 // core: This class provides extensions that allow us to validate workflows before they are even scheduled.
 public static class ValidatesWorkflow

@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Aion.Core.Skills;
+using Aion.Core.Flairs;
 
 namespace Aion.Core;
 
@@ -121,6 +121,13 @@ public record Workflow
             ReadCommentHandling = JsonCommentHandling.Skip
         });
     }
+}
+
+public record WorkflowPath(string ProfilePath, string RelativePath)
+{
+    public override string ToString() => Path.Join(ProfilePath, RelativePath);
+
+    public static implicit operator string(WorkflowPath path) => path.ToString();
 }
 
 public class WorkflowNullException(string path) : Exception($"Workflow '{path}' is null.");

@@ -1,8 +1,14 @@
 @host=http://localhost:5049
 @workflows={{host}}/api/profiles/main/workflows
 
+@one={{host}}/api/profiles/one/workflows
+@two={{host}}/api/profiles/two/workflows
+
 ### Fetch all workflows or by filter and/or other parameters.
-GET {{workflows}}
+GET {{one}}
+
+## Gets all workflows in two.
+GET {{two}}
 
 ### Fetch all workflows or by filter and/or other parameters.
 GET {{workflows}}/api/workflows?q={filter}&enabled={enabled}
@@ -11,16 +17,16 @@ GET {{workflows}}/api/workflows?q={filter}&enabled={enabled}
 GET {{workflows}}/_routes
 
 ### Synchronize workflows with the scheduler.
-POST {{workflows}}:sync
+POST {{one}}:sync
 
 ### Start a workflow now only once; 202 Accepted
-POST {{workflows}}/profiles/main/says-hallo:startNow
+POST {{one}}/says-hallo:startNow
 
 ### Start a workflow now only once; 202 Accepted
-POST {{workflows}}/says-hallo-with-timeout:startNow
+POST {{one}}/says-hallo-with-timeout:startNow
 
 ### Start a workflow now only once; 202 Accepted
-POST {{workflows}}/uses-all-vars:startNow
+POST {{one}}/uses-all-vars:startNow
 
 
 

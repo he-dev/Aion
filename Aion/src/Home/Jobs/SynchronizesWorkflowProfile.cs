@@ -2,7 +2,8 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Skills;
+using Aion.Core.Flairs;
+using Aion.Core.Flairs.Scheduling;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -10,11 +11,11 @@ using Quartz;
 namespace Aion.Home.Jobs;
 
 [DisallowConcurrentExecution]
-internal class SynchronizesProfile
+internal class SynchronizesWorkflowProfile
 (
-    ILogger<SynchronizesProfile> logger,
+    ILogger<SynchronizesWorkflowProfile> logger,
     FindsWorkflows findsWorkflows,
-    SchedulesWorkflowExecution schedulesWorkflowExecution
+    SynchronizesWorkflowCron synchronizesWorkflowCron
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -22,28 +23,22 @@ internal class SynchronizesProfile
         var profileName = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfileName)!;
         var profilePath = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfilePath)!;
 
-        using var activity = new Activity(nameof(SynchronizesProfile)).Start();
+        using var activity = new Activity(nameof(SynchronizesWorkflowProfile)).Start();
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
-        logger.LogInformation("Synchronizing profile...");
+        logger.LogInformation("Scheduling profile...");
 
         foreach (var workflowPath in findsWorkflows.Where(profileName, FileFilter.Any))
         {
             try
             {
                 var workflow = await Workflow.FromFile(workflowPath);
-                await schedulesWorkflowExecution.For(workflow, profileName);
+                var result = await synchronizesWorkflowCron.For(profileName, workflow);
+                logger.LogInformation("Workflow '{WorkflowPath}' has been scheduled.", workflowPath);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to synchronize workflow '{WorkflowPath}'.", workflowPath);
+                logger.LogError(ex, "Unable to load '{WorkflowPath}'.", workflowPath);
             }
         }
     }
-}
-
-public record SynchronizationJobOptions
-{
-    public string Cron { get; init; } = null!;
-
-    public bool IsOn { get; init; } = true;
 }

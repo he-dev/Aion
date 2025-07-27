@@ -4,15 +4,20 @@ using System.IO;
 using System.Linq;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Skills;
+namespace Aion.Core.Flairs;
 
-public class FindsWorkflows(IOptions<EngineOptions> options)
+public class FindsWorkflows
+(
+    ILogger<FindsWorkflows> logger,
+    IOptions<EngineOptions> options
+)
 {
     public const string WorkflowsDirectory = "workflows";
 
-    public IEnumerable<string> Where(string profile, string fileNameFilter)
+    public IEnumerable<WorkflowPath> Where(string profile, string fileNameFilter)
     {
         if (options.Value.TryGetProfile(profile, out var profileInfo) == false)
         {
@@ -21,15 +26,20 @@ public class FindsWorkflows(IOptions<EngineOptions> options)
 
         if (string.IsNullOrEmpty(fileNameFilter)) throw new ArgumentException("Value cannot be null or empty.", nameof(fileNameFilter));
 
+        var workflowFilter = $"**\\{fileNameFilter}.json";
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
-        matcher.AddInclude($"**\\{fileNameFilter}.json");
+        matcher.AddInclude(workflowFilter);
 
-        var profilePath = Path.Join(profileInfo.Path, profile, WorkflowsDirectory);
+        var profilePath = Path.Join(profileInfo.Path, WorkflowsDirectory);
+        logger.LogDebug("Searching for workflows like '{WorkflowFilter}' in '{ProfilePath}'.", workflowFilter, profilePath);
+
         return
             from path in matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(profilePath))).Files
-            select Path.Join(profileInfo.Path, path.Path);
+            select new WorkflowPath(profilePath, path.Path);
     }
 }
+
+
 
 public record FileFilter(string Value)
 {

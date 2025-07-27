@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
 
-namespace Aion.Core.Skills.WhenTriggersFire;
+namespace Aion.Core.Flairs.WhenTriggersFire;
 
 public class CanVetoProfileSynchronization
 (

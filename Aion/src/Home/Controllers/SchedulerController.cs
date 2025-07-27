@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Skills;
+using Aion.Core.Flairs;
 using Aion.Home.Jobs;
 using Aion.Util;
 using Aion.Util.Quartz;
@@ -30,7 +30,7 @@ public class SchedulerController
     )
     {
         var utcNow = DateTimeOffset.UtcNow;
-        var jobGroupMatcher = GroupMatcher<JobKey>.GroupStartsWith(nameof(ExecutesWorkflowOnSchedule));
+        var jobGroupMatcher = GroupMatcher<JobKey>.GroupStartsWith(nameof(ExecutesWorkflowCron));
 
         var query =
             findsTriggers

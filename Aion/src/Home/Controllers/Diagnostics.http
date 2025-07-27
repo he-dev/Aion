@@ -1,0 +1,7 @@
+@host=http://localhost:5049
+@diagnostics={{host}}/api/diagnostics
+
+
+### Fetch all workflows or by filter and/or other parameters.
+GET {{diagnostics}}/_routes
+

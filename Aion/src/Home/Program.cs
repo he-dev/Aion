@@ -3,8 +3,9 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Skills;
-using Aion.Core.Skills.WhenTriggersFire;
+using Aion.Core.Flairs;
+using Aion.Core.Flairs.Scheduling;
+using Aion.Core.Flairs.WhenTriggersFire;
 using Aion.Home.Jobs;
 using Aion.Meta.Mvc;
 using Aion.Util;
@@ -121,11 +122,13 @@ public class Program
 
                 services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
 
-                services.AddSingleton<SchedulesWorkflowExecution>();
+                services.AddSingleton<SynchronizesWorkflowCron>();
+                services.AddSingleton<SchedulesWorkflowOnce>();
+                services.AddSingleton<CancelsWorkflowSchedule>();
 
-                services.AddScoped<ExecutesWorkflowOnSchedule>();
-                services.AddScoped<ExecutesWorkflowOnDemand>();
-                services.AddScoped<SynchronizesProfile>();
+                services.AddScoped<ExecutesWorkflowCron>();
+                services.AddScoped<ExecutesWorkflowOnce>();
+                services.AddScoped<SynchronizesWorkflowProfile>();
 
                 services.AddSingleton<ExecutesWorkflow>();
                 services.AddSingleton<FindsTriggers>();
@@ -142,28 +145,28 @@ public class Program
                     foreach (var profile in engineOptions.Profiles)
                     {
                         var jobDetail = JobBuilder
-                            .Create<SynchronizesProfile>()
-                            .WithIdentity("sync-profile", new GroupName<SynchronizesProfile>(profile.Name))
+                            .Create<SynchronizesWorkflowProfile>()
+                            .WithIdentity("sync-profile", new GroupName<SynchronizesWorkflowProfile>(profile.Name))
                             .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                             .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
                             .Build();
 
 
-                        q.ScheduleJob<SynchronizesProfile>(trigger =>
+                        q.ScheduleJob<SynchronizesWorkflowProfile>(trigger =>
                         {
                             trigger
                                 .ForJob(jobDetail)
-                                .WithIdentity("run-by-cron", new GroupName<SynchronizesProfile>(profile.Name))
+                                .WithIdentity("run-by-cron", new GroupName<SynchronizesWorkflowProfile>(profile.Name))
                                 .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                                 .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
                                 .WithCronSchedule(CronScheduleBuilder.CronSchedule(profile.Sync));
                         });
 
-                        q.ScheduleJob<SynchronizesProfile>(trigger =>
+                        q.ScheduleJob<SynchronizesWorkflowProfile>(trigger =>
                         {
                             trigger
                                 .ForJob(jobDetail)
-                                .WithIdentity("run-once", new GroupName<SynchronizesProfile>(profile.Name))
+                                .WithIdentity("run-once", new GroupName<SynchronizesWorkflowProfile>(profile.Name))
                                 .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                                 .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
                                 .StartNow()
@@ -171,8 +174,8 @@ public class Program
                         });
                     }
 
-                    q.AddTriggerListener<CanVetoProfileSynchronization>(GroupMatcher<TriggerKey>.GroupStartsWith(new GroupName<SynchronizesProfile>()));
-                    q.AddTriggerListener<CanVetoWorkflowExecution>(GroupMatcher<TriggerKey>.GroupStartsWith(new GroupName<ExecutesWorkflowOnSchedule>()));
+                    q.AddTriggerListener<CanVetoProfileSynchronization>(GroupMatcher<TriggerKey>.GroupStartsWith(new GroupName<SynchronizesWorkflowProfile>()));
+                    q.AddTriggerListener<CanVetoWorkflowExecution>(GroupMatcher<TriggerKey>.GroupStartsWith(new GroupName<ExecutesWorkflowCron>()));
 
                     // note: The docs say that the default is 1 minute.
                     q.MisfireThreshold = TimeSpan.FromMinutes(2);

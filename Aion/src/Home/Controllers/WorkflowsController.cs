@@ -3,11 +3,13 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Skills;
+using Aion.Core.Flairs;
+using Aion.Core.Flairs.Scheduling;
 using Aion.Util;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Aion.Home.Controllers;
 
@@ -16,8 +18,10 @@ namespace Aion.Home.Controllers;
 public class WorkflowsController
 (
     ILogger<WorkflowsController> logger,
+    IOptions<EngineOptions> engineOptions,
     FindsWorkflows findsWorkflows,
-    SchedulesWorkflowExecution schedulesWorkflowExecution
+    SchedulesWorkflowOnce schedulesWorkflowOnce,
+    SynchronizesWorkflowCron synchronizesWorkflowCron
 ) : ControllerBase
 {
     [HttpGet]
@@ -26,16 +30,17 @@ public class WorkflowsController
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflows = ImmutableList<Workflow>.Empty;
         var errors = ImmutableList<object>.Empty;
-        foreach (var filePath in findsWorkflows.Where(profileName, filter ?? FileFilter.Any))
+        foreach (var workflowPath in findsWorkflows.Where(profileName, filter ?? FileFilter.Any))
         {
             try
             {
-                workflows = workflows.Add(await Workflow.FromFile(filePath));
+                workflows = workflows.Add(await Workflow.FromFile(workflowPath));
+                logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowPath);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to load workflow from '{WorkflowPath}'.", filePath);
-                errors = errors.Add(new { path = filePath, exception = ex.ToString() });
+                logger.LogError(ex, "Unable to load workflow from '{WorkflowPath}'.", workflowPath);
+                errors = errors.Add(new { path = workflowPath.ToString(), exception = ex.ToString() });
             }
         }
 
@@ -53,11 +58,15 @@ public class WorkflowsController
                 jobs = workflow.Steps.Count(s => s.IsOn),
             };
 
-        return Ok(new { result, errors });
+        return Ok(new
+        {
+            profile = engineOptions.Value[profileName].Path,
+            result,
+            errors
+        });
     }
 
-    // core: This API can synchronize workflows outside the regular synchronization schedule.
-    // core: Does not use the synchronization-job here because we want to see the results immediately in the response.
+    // core: Synchronizes workflows outside the regular synchronization schedule.
     [HttpPost(":sync")]
     public async Task<IActionResult> Synchronize(string profileName)
     {
@@ -70,11 +79,13 @@ public class WorkflowsController
             {
                 if (await Workflow.FromFile(path) is { } workflow)
                 {
-                    var (sync, next) = await schedulesWorkflowExecution.For(workflow, profileName);
+                    // core: Not using the synchronization-job because we want to see the results immediately in the response.
+                    var (sync, deleted, next) = await synchronizesWorkflowCron.For(profileName, workflow);
                     result = result.Add(new
                     {
                         path,
                         sync,
+                        deleted,
                         next = next?.ToLocalTime(),
                     });
                 }
@@ -92,57 +103,58 @@ public class WorkflowsController
 
         return Ok(new
         {
+            profile = engineOptions.Value[profileName].Path,
             result,
             errors
         });
     }
 
-    [HttpPost("{workflowName}:startNow")]
+    [HttpPost("{workflowName}:start-now")]
     public async Task<IActionResult> StartNow(string profileName, string workflowName)
     {
-        return await Start(profileName, workflowName, async workflow => await schedulesWorkflowExecution.Now(workflow));
+        return await Start(profileName, workflowName, async workflow => await schedulesWorkflowOnce.Now(workflow));
     }
 
-    [HttpPost("{workflowName}:startIn")]
+    [HttpPost("{workflowName}:start-in")]
     public async Task<IActionResult> StartIn(string profileName, string workflowName, [FromBody] StartInBody body)
     {
-        return await Start(profileName, workflowName, async workflow => await schedulesWorkflowExecution.In(workflow, body.Wait));
+        return await Start(profileName, workflowName, async workflow => await schedulesWorkflowOnce.In(workflow, body.Wait));
     }
 
-    [HttpPost("{workflowName}:startAt")]
+    [HttpPost("{workflowName}:start-at")]
     public async Task<IActionResult> StartAt(string profileName, string workflowName, [FromBody] StartAtBody body)
     {
         var startAt = body.When.UseTimeZoneOffsetOrLocal().ToUniversalTime();
-        return await Start(profileName, workflowName, async workflow => await schedulesWorkflowExecution.At(workflow, startAt));
+        return await Start(profileName, workflowName, async workflow => await schedulesWorkflowOnce.At(workflow, startAt));
     }
 
-    private async Task<IActionResult> Start(string profile, string name, Func<Workflow, Task<DateTimeOffset>> action)
+    private async Task<IActionResult> Start(string profile, string workflowName, Func<Workflow, Task<DateTimeOffset>> action)
     {
         try
         {
-            var fileName = findsWorkflows.Where(profile, name).SingleOrThrows();
+            var fileName = findsWorkflows.Where(profile, workflowName).SingleOrThrows();
             var workflow = await Workflow.FromFile(fileName);
             var next = await action(workflow);
-            return Ok(new { name, next = next.ToLocalTime() });
+            return Ok(new { workflowFilter = workflowName, next = next.ToLocalTime() });
         }
         catch (CollectionEmptyException ex)
         {
-            return NotFound(new { name }); // todo: say why
+            return NotFound(new { workflowFilter = workflowName }); // todo: say why
         }
         catch (AmbiguousResultException ex)
         {
-            return NotFound(new { name }); // todo: say why
+            return NotFound(new { workflowFilter = workflowName }); // todo: say why
         }
         catch (WorkflowNotFoundException)
         {
-            return NotFound(new { name });
+            return NotFound(new { workflowFilter = workflowName });
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unable to schedule workflow '{WorkflowName}'.", name);
+            logger.LogError(ex, "Unable to schedule workflow '{WorkflowName}'.", workflowName);
             return Problem(
                 detail: ex.ToString(),
-                title: $"Unable to schedule workflow '{name}'.",
+                title: $"Unable to schedule workflow '{workflowName}'.",
                 statusCode: 500,
                 instance: Request.Path
             );

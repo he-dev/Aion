@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Skills.WhenTriggersFire;
+namespace Aion.Core.Flairs.WhenTriggersFire;
 
 public class CanVetoWorkflowExecution
 (

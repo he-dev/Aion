@@ -14,7 +14,7 @@ using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Skills;
+namespace Aion.Core.Flairs;
 
 // core: Executes workflow's enabled steps.
 public class ExecutesWorkflow

@@ -3,7 +3,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Skills;
+using Aion.Core.Flairs;
+using Aion.Core.Flairs.Scheduling;
 using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
@@ -12,9 +13,9 @@ using Quartz;
 
 namespace Aion.Home.Jobs;
 
-public class ExecutesWorkflowOnDemand
+public class ExecutesWorkflowOnce
 (
-    ILogger<ExecutesWorkflowOnSchedule> logger,
+    ILogger<ExecutesWorkflowOnce> logger,
     IOptions<EngineOptions> engineOptions,
     ExecutesWorkflow executesWorkflow
 ) : IJob

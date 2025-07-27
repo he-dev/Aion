@@ -3,7 +3,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Skills;
+using Aion.Core.Flairs;
+using Aion.Core.Flairs.Scheduling;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,11 +13,11 @@ using Quartz;
 namespace Aion.Home.Jobs;
 
 [DisallowConcurrentExecution]
-public class ExecutesWorkflowOnSchedule
+public class ExecutesWorkflowCron
 (
-    ILogger<ExecutesWorkflowOnSchedule> logger,
+    ILogger<ExecutesWorkflowCron> logger,
     IOptions<EngineOptions> engineOptions,
-    SchedulesWorkflowExecution schedulesWorkflowExecution,
+    CancelsWorkflowSchedule cancelsWorkflowSchedule,
     ExecutesWorkflow executesWorkflow
 ) : IJob
 {
@@ -42,12 +43,12 @@ public class ExecutesWorkflowOnSchedule
                 // core: Get rid of useless workflows.
                 case { IsOn: false }:
                     logger.LogWarning("Unscheduling workflow because it is disabled.");
-                    await schedulesWorkflowExecution.NoMore(context.JobDetail.Key);
+                    await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
                     break;
                 // core: Get rid of useless workflows.
                 case { Steps: { } steps } when steps.Any(s => s.IsOn) == false:
                     logger.LogWarning("Unscheduling workflow because it has no enabled steps.");
-                    await schedulesWorkflowExecution.NoMore(context.JobDetail.Key);
+                    await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
                     break;
                 // core: This is where the actual magic happens.
                 case var workflow:
@@ -61,7 +62,7 @@ public class ExecutesWorkflowOnSchedule
         {
             activity.Stop();
             logger.LogError(ex, "Error executing workflow.");
-            if (await schedulesWorkflowExecution.NoMore(context.JobDetail.Key))
+            if (await cancelsWorkflowSchedule.Where(context.JobDetail.Key))
             {
                 logger.LogWarning("Workflow has been unscheduled.");
             }
