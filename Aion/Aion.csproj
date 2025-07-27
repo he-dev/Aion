@@ -45,6 +45,10 @@
       <_ContentIncludedByDefault Remove="workflows\sub\qux.json" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="src.zip" />
+    </ItemGroup>
+
 
 
 </Project>
