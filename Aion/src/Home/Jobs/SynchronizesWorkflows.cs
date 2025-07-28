@@ -11,9 +11,9 @@ using Quartz;
 namespace Aion.Home.Jobs;
 
 [DisallowConcurrentExecution]
-internal class SynchronizesWorkflowProfile
+internal class SynchronizesWorkflows
 (
-    ILogger<SynchronizesWorkflowProfile> logger,
+    ILogger<SynchronizesWorkflows> logger,
     FindsWorkflows findsWorkflows,
     SynchronizesWorkflowCron synchronizesWorkflowCron
 ) : IJob
@@ -23,7 +23,7 @@ internal class SynchronizesWorkflowProfile
         var profileName = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfileName)!;
         var profilePath = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfilePath)!;
 
-        using var activity = new Activity(nameof(SynchronizesWorkflowProfile)).Start();
+        using var activity = new Activity(nameof(SynchronizesWorkflows)).Start();
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         logger.LogInformation("Scheduling profile...");
 

@@ -16,13 +16,13 @@ public class MapsLogEvents : ILogEventSink
 {
     private ConcurrentDictionary<ILogEventSignature, ILogger> Loggers { get; } = new();
 
-    public IDisposable By(ILogEventSignature key, ILogger to)
+    public Pop By(ILogEventSignature key, ILogger to)
     {
         // core: Register the new logger.
         Loggers.GetOrAdd(key, _ => to);
 
         // core: Make the caller remove it when done.
-        return new Pop(() => Loggers.TryRemove(key, out _));
+        return new Pop(() => Loggers.TryRemove(key, out _), to);
     }
 
     public void Emit(LogEvent logEvent)
@@ -38,8 +38,11 @@ public class MapsLogEvents : ILogEventSink
     }
 
     // meta: Discard the logger as it's no logger necessary.
-    private class Pop(Action pop) : IDisposable
+    public class Pop(Action pop, ILogger logger) : IDisposable
     {
+        // util: Expose the logger back to the caller for convenience to avoids helper variables.
+        public ILogger Logger => logger;
+
         public void Dispose() => pop();
     }
 }

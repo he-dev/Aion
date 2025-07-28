@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Flairs;
-using Aion.Core.Flairs.Scheduling;
 using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
@@ -22,14 +21,14 @@ public class ExecutesWorkflowOnce
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        var profileName = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfileName)!;
+        var profileName = context.Trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
         var profileInfo = engineOptions.Value[profileName];
-        var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
-        var workflowName = context.JobDetail.Key.Name;
-        var workflowTrigger = context.Trigger.JobDataMap.GetEnum<WorkflowTriggerGroup>();
+        var workflowPath = context.Trigger.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
+        var workflowName = context.Trigger.Key.Name;
+        var triggerType = context.Trigger.JobDataMap.GetEnum<WorkflowTriggerType>();
 
-        using var activity = new Activity("ExecuteWorkflowOnDemand").Start();
-        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflowName, WorkflowTrigger = workflowTrigger });
+        using var activity = new Activity("ExecutingWorkflowOnDemand").Start();
+        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflowName, TriggerType = triggerType });
 
         try
         {
@@ -44,11 +43,11 @@ public class ExecutesWorkflowOnce
                     await executesWorkflow.Now(workflow, profileInfo);
                     break;
             }
-            activity.Stop();
+            activity.SetStatus(ActivityStatusCode.Ok).Stop();
         }
         catch (Exception ex)
         {
-            activity.Stop();
+            activity.SetStatus(ActivityStatusCode.Error).Stop();
             logger.LogError(ex, "Error executing workflow.");
         }
     }

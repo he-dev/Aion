@@ -11,13 +11,13 @@ using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Impl.Matchers;
 
-namespace Aion.Home.Controllers;
+namespace Aion.Home.Endpoints.Schedules;
 
 [ApiController]
-[Route("api")]
-public class SchedulerController
+[Route("api/profiles/{profileName}/schedules")]
+public class ListsSchedulesOnGet
 (
-    ILogger<SchedulerController> logger,
+    ILogger<ListsSchedulesOnGet> logger,
     FindsTriggers findsTriggers
 ) : ControllerBase
 {

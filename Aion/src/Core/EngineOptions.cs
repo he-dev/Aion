@@ -49,7 +49,10 @@ public static class EngineOptionsExtensions
 public record ProfileInfo
 {
     public string Path { get; set; } = null!;
+
+    // core: The last directory name is the name of the profile.
     public string Name => System.IO.Path.GetFileName(Path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
+
     public string Sync { get; set; } = null!;
 }
 

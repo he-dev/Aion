@@ -1,0 +1,40 @@
+@host=http://localhost:5049
+@workflows={{host}}/api/profiles/main/workflows
+
+@one={{host}}/api/profiles/one/workflows
+@two={{host}}/api/profiles/two/workflows
+
+### Start a workflow now only once; 202 Accepted
+POST {{one}}/says-hallo:start-now
+
+### Start a workflow now only once; 202 Accepted
+POST {{one}}/says-hallo-with-timeout:start-now
+
+### Start a workflow now only once; 202 Accepted
+POST {{one}}/uses-all-vars:start-now
+
+
+### Starts workflow with a delay once.
+POST {{one}}/says-hallo:start-in
+Content-Type: application/json
+
+{
+    "wait": "00:00:15"
+}
+
+
+### Starts workflow at the specified time.
+POST {{one}}/says-hallo:start-at
+Content-Type: application/json
+
+{
+    "when": "2025-07-15T10:05Z"
+}
+
+### Fauks to start workflow that does not exist.
+POST {{workflows}}/says-hallo-2:startAt
+Content-Type: application/json
+
+{
+    "when": "2020-07-01T22:00Z"
+}

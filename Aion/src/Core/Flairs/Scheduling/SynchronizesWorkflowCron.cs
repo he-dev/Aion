@@ -115,12 +115,6 @@ public record WorkflowSynchronizationSummary
     DateTimeOffset? NextUtc = null
 );
 
-public enum WorkflowTriggerGroup
-{
-    Cron,
-    StartNow,
-    StartIn,
-    StartAt
-}
+
 
 public class WorkflowAlreadyScheduledException : Exception;

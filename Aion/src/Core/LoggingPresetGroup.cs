@@ -9,6 +9,7 @@ namespace Aion.Core;
 
 public record LoggingPresetGroup
 {
+    // meta: The version of the logging-presets-file. Currently, not in use.
     public int Version { get; init; } = 1;
 
     public LoggingPreset[] Presets { get; init; } = [];
@@ -33,4 +34,5 @@ public record LoggingPreset
     public JsonObject Serilog { get; init; } = null!;
 }
 
-public record LoggingPresetRef(string File, string Name);
+// core: Used in workflows to reference logging presets.
+public record LoggingPresetInfo(string File, string Name);

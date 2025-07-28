@@ -13,21 +13,9 @@
         "--message \"Hallo NPC!\""
       ],
       "Timeout": "0:00:05",
-      "Console": {
-        "MinimumLevel": {
-          "Default": "Information"
-        },
-        "WriteTo": [
-          {
-            "Name": "File",
-            "Args": {
-              "path": "C:\\temp\\{{ workflow.name }}-{{ step.index }}.log",
-              "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ProcessMessageSource} » {Message:lj}{NewLine}",
-              "rollingInterval": "Day",
-              "retainedFileCountLimit": 3
-            }
-          }
-        ]
+      "SerilogOrPresetInfo": {
+        "File": "logger-presets.json",
+        "Name": "Console.Simple"
       }
     }
   ],

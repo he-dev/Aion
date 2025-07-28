@@ -12,7 +12,7 @@
         "--sleep 5",
         "--message \"Hallo NPC!\""
       ],
-      "SerilogOrPresetRef": {
+      "SerilogOrPresetInfo": {
         "MinimumLevel": {
           "Default": "Information"
         },
@@ -30,7 +30,7 @@
       }
     }
   ],
-  "SerilogOrPresetRef": {
+  "SerilogOrPresetInfo": {
     "File": "logger-presets.json",
     "Name": "Workflow.Simple"
   }

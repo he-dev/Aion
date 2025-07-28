@@ -1,0 +1,14 @@
+@host=http://localhost:5049
+@workflows={{host}}/api/profiles/main/workflows
+
+@one={{host}}/api/profiles/one/workflows
+@two={{host}}/api/profiles/two/workflows
+
+### Lists workflows in one.
+GET {{one}}
+
+### Lists workflows in two.
+GET {{two}}
+
+### Lists workflows matching the filter..
+GET {{one}}?q=says-*

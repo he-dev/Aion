@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Flairs;
 using Aion.Core.Flairs.Scheduling;
+using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -25,42 +26,38 @@ public class ExecutesWorkflowCron
     {
         var profileName = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfileName)!;
         var profileInfo = engineOptions.Value[profileName];
-        var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
+        var workflowPath = context.JobDetail.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
         var workflowName = context.JobDetail.Key.Name;
+        var triggerType = context.Trigger.JobDataMap.GetEnum<WorkflowTriggerType>();
 
-        using var activity = new Activity("ExecuteWorkflowOnSchedule").Start();
-        using var scope = logger.BeginScopeFrom(new
-        {
-            ProfileName = profileName,
-            WorkflowName = workflowName,
-            WorkflowTrigger = WorkflowTriggerGroup.Cron
-        });
+        using var activity = new Activity("ExecutingWorkflowOnSchedule").Start();
+        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName, WorkflowName = workflowName, WorkflowTrigger = triggerType });
 
         try
         {
             switch (await Workflow.FromFile(workflowPath))
             {
-                // core: Get rid of useless workflows.
+                // core: Do not execute disabled workflows.
                 case { IsOn: false }:
                     logger.LogWarning("Unscheduling workflow because it is disabled.");
                     await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
                     break;
-                // core: Get rid of useless workflows.
+                // core: Do not execute workflows without any enabled steps.
                 case { Steps: { } steps } when steps.Any(s => s.IsOn) == false:
                     logger.LogWarning("Unscheduling workflow because it has no enabled steps.");
                     await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
                     break;
-                // core: This is where the actual magic happens.
+                // core: This workflow is fine.
                 case var workflow:
                     await executesWorkflow.Now(workflow, profileInfo);
                     break;
             }
 
-            activity.Stop();
+            activity.SetStatus(ActivityStatusCode.Ok).Stop();
         }
         catch (Exception ex)
         {
-            activity.Stop();
+            activity.SetStatus(ActivityStatusCode.Error).Stop();
             logger.LogError(ex, "Error executing workflow.");
             if (await cancelsWorkflowSchedule.Where(context.JobDetail.Key))
             {

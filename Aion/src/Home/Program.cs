@@ -6,6 +6,7 @@ using Aion.Core;
 using Aion.Core.Flairs;
 using Aion.Core.Flairs.Scheduling;
 using Aion.Core.Flairs.WhenTriggersFire;
+using Aion.Core.StepExecutionRules;
 using Aion.Home.Jobs;
 using Aion.Meta.Mvc;
 using Aion.Util;
@@ -64,32 +65,33 @@ public class Program
 
                 configuration
                     .ReadFrom.Configuration(context.Configuration)
-                    .Enrich.With<EnrichesLogEventWithActivityIds>()
+                    .Enrich.With<EnrichesLogEventWithActivity>()
                     .Enrich.WithProperty("AppName", Program.Name)
                     .Enrich.WithProperty("ProfileName", engineOptions.Name)
-                    .Enrich.With(new TimeSpanEnricher(ts => Math.Round(ts.TotalSeconds, 1)))
-                    .WriteTo.Logger(logger =>
-                    {
-                        logger
-                            // core: The workflow-sink may only log events that contain the workflow-name property.
-                            .Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(WorkflowLogEventSignature.WorkflowName)))
-                            // core: Don't log raw console output.
-                            .Filter.ByExcluding(e =>
-                            {
-                                return
-                                    e.Properties.TryGetValue(nameof(ProcessMessageSource), out var value)
-                                    && value is ScalarValue { Value: string scalar }
-                                    && consoleStreamTypes.Contains(Enum.Parse<ProcessMessageSource>(scalar));
-                            })
-                            .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>());
-                    })
-                    .WriteTo.Logger(logger =>
-                    {
-                        logger
-                            // core: The console-sink may only log events that contain the stream type.
-                            .Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(ProcessMessageSource)))
-                            .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>());
-                    })
+                    .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
+                    .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>())
+                    // .WriteTo.Logger(logger =>
+                    // {
+                    //     logger
+                    //         // core: The workflow-sink may only log events that contain the workflow-name property.
+                    //         .Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(WorkflowLogEventSignature.WorkflowName)))
+                    //         // core: Don't log raw console output.
+                    //         .Filter.ByExcluding(e =>
+                    //         {
+                    //             return
+                    //                 e.Properties.TryGetValue(nameof(ProcessMessageSource), out var value)
+                    //                 && value is ScalarValue { Value: string scalar }
+                    //                 && consoleStreamTypes.Contains(Enum.Parse<ProcessMessageSource>(scalar));
+                    //         })
+                    //         .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>());
+                    // })
+                    // .WriteTo.Logger(logger =>
+                    // {
+                    //     logger
+                    //         // core: The console-sink may only log events that contain the stream type.
+                    //         //.Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(ProcessMessageSource)))
+                    //         .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>());
+                    // })
                     ;
             })
             .ConfigureServices((context, services) =>
@@ -128,9 +130,13 @@ public class Program
 
                 services.AddScoped<ExecutesWorkflowCron>();
                 services.AddScoped<ExecutesWorkflowOnce>();
-                services.AddScoped<SynchronizesWorkflowProfile>();
+                services.AddScoped<SynchronizesWorkflows>();
 
-                services.AddSingleton<ExecutesWorkflow>();
+                services.AddScoped<ExecutesWorkflow>();
+                services.AddScoped<IStepExecutionRule, StepMustBeEnabled>();
+                services.AddScoped<IStepExecutionRule, StepDependsOnPrevious>();
+
+
                 services.AddSingleton<FindsTriggers>();
                 services.AddSingleton<FindsWorkflows>();
                 services.AddSingleton<FindsLoggingPreset>();
@@ -145,28 +151,28 @@ public class Program
                     foreach (var profile in engineOptions.Profiles)
                     {
                         var jobDetail = JobBuilder
-                            .Create<SynchronizesWorkflowProfile>()
-                            .WithIdentity("sync-profile", new GroupName<SynchronizesWorkflowProfile>(profile.Name))
+                            .Create<SynchronizesWorkflows>()
+                            .WithIdentity("sync-profile", new GroupName<SynchronizesWorkflows>(profile.Name))
                             .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                             .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
                             .Build();
 
 
-                        q.ScheduleJob<SynchronizesWorkflowProfile>(trigger =>
+                        q.ScheduleJob<SynchronizesWorkflows>(trigger =>
                         {
                             trigger
                                 .ForJob(jobDetail)
-                                .WithIdentity("run-by-cron", new GroupName<SynchronizesWorkflowProfile>(profile.Name))
+                                .WithIdentity("run-by-cron", new GroupName<SynchronizesWorkflows>(profile.Name))
                                 .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                                 .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
                                 .WithCronSchedule(CronScheduleBuilder.CronSchedule(profile.Sync));
                         });
 
-                        q.ScheduleJob<SynchronizesWorkflowProfile>(trigger =>
+                        q.ScheduleJob<SynchronizesWorkflows>(trigger =>
                         {
                             trigger
                                 .ForJob(jobDetail)
-                                .WithIdentity("run-once", new GroupName<SynchronizesWorkflowProfile>(profile.Name))
+                                .WithIdentity("run-once", new GroupName<SynchronizesWorkflows>(profile.Name))
                                 .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                                 .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
                                 .StartNow()
@@ -174,7 +180,7 @@ public class Program
                         });
                     }
 
-                    q.AddTriggerListener<CanVetoProfileSynchronization>(GroupMatcher<TriggerKey>.GroupStartsWith(new GroupName<SynchronizesWorkflowProfile>()));
+                    q.AddTriggerListener<CanVetoProfileSynchronization>(GroupMatcher<TriggerKey>.GroupStartsWith(new GroupName<SynchronizesWorkflows>()));
                     q.AddTriggerListener<CanVetoWorkflowExecution>(GroupMatcher<TriggerKey>.GroupStartsWith(new GroupName<ExecutesWorkflowCron>()));
 
                     // note: The docs say that the default is 1 minute.

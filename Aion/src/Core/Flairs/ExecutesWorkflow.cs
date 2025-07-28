@@ -1,12 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Aion.Core.StepExecutionRules;
 using Aion.Util;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
@@ -22,11 +22,10 @@ public class ExecutesWorkflow
     ILogger<ExecutesWorkflow> logger,
     ILoggerFactory loggerFactory,
     IOptions<EngineOptions> engineOptions,
+    IEnumerable<IStepExecutionRule> stepExecutionRules,
     MapsLogEvents mapsLogEvents
 )
 {
-    private static readonly Regex IntArrayRegex = new(@"^\[(-?\d+(?:,-?\d+)*)?\]$", RegexOptions.Compiled);
-
     public async Task Now(Workflow workflow, ProfileInfo profile)
     {
         using var activity = new Activity("ExecutingWorkflow");
@@ -53,7 +52,7 @@ public class ExecutesWorkflow
         {
             using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name });
 
-            if (!CanExecute(step, exitCodes))
+            if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(step, exitCodes)))
             {
                 exitCodes = exitCodes.Add(null);
                 continue;
@@ -63,42 +62,14 @@ public class ExecutesWorkflow
             exitCodes = exitCodes.Add(exitCode);
         }
 
-        activity.Stop();
-        logger.LogInformation("Workflow completed in {Elapsed}.", activity.Duration);
-    }
-
-    private bool CanExecute(Workflow.Step step, IImmutableList<int?> exitCodes)
-    {
-        if (!step.IsOn)
-        {
-            logger.LogWarning("Cannot execute this step because it is disabled.");
-            return false;
-        }
-
-        // note: Currently, there is only one DependsOn rule: "$previous".
-        // core: This check is irrelevant for the first step, so ignore it.
-        if (step is { Index: > 0, DependsOn: not null })
-        {
-            if (step is { DependsOn: "$previous" } && exitCodes.Last() is not 0)
-            {
-                logger.LogWarning("Cannot execute this step because it depends on the previous one and it failed.");
-                return false;
-            }
-
-            if (TryParseIntArray(step.DependsOn, out var indices) && indices.Any(i => exitCodes[i] is not 0))
-            {
-                logger.LogWarning("Cannot execute this step because it depends on [{DependsOn}] and one of them failed.", indices);
-                return false;
-            }
-        }
-
-        return true;
+        activity.SetStatus(ActivityStatusCode.Ok).Stop();
+        logger.LogInformation("Workflow completed in {Duration}.", activity.Duration);
     }
 
     private async Task<int?> ExecuteStep(Workflow workflow, Workflow.Step step, ProfileInfo profile, IImmutableList<VariableGroup> variables)
     {
         // meta: Setup logging contexts.
-        using var activity = new Activity("ExecuteStep");
+        using var activity = new Activity("ExecutingStep");
 
         // core: We need one more variable-group to render a step, its own.
         var stepVariables = variables.Add(new StepVariableGroup(activity) { Index = step.Index, Name = step.Name });
@@ -109,10 +80,9 @@ public class ExecutesWorkflow
             step = step.RenderTemplates(stepVariables);
 
             // core: Register the workflow's logger or try to fall back to the preset.
-            var logging = await step.Logging.OrPreset(logger, async presetRef => await FindsLoggingPreset.Where(profile.Path, presetRef));
-            logging = logging.RenderFilePaths(template => RendersTemplates.In(template, variables));
+            var logging = await step.Logging.OrPreset(logger, async presetInfo => await FindsLoggingPreset.Where(profile.Path, presetInfo));
+            logging = logging.RenderFilePaths(template => RendersTemplates.In(template, stepVariables));
             using var tempMapping = mapsLogEvents.By(new ConsoleLogEventSignature(workflow.Name, step.Index), to: logging.ToLogger());
-
 
             var asyncProcess = new StartsProcessAsync(loggerFactory.CreateLogger<StartsProcessAsync>())
             {
@@ -123,7 +93,7 @@ public class ExecutesWorkflow
             activity.Start();
             logger.LogInformation("Executing step...");
             var exitCode = await asyncProcess.Now(step.Timeout);
-            activity.Stop();
+            activity.SetStatus(ActivityStatusCode.Ok).Stop();
 
             switch (exitCode)
             {
@@ -135,49 +105,22 @@ public class ExecutesWorkflow
         }
         catch (ProcessTimeoutException)
         {
-            activity.Stop();
-            logger.LogWarning("Step was cancelled in {Elapsed} by timeout.", activity.Duration);
+            activity.SetStatus(ActivityStatusCode.Error).Stop();
+            logger.LogWarning("Step was cancelled in {Duration} by timeout.", activity.Duration);
             return null; // note: In case of a cancellation, there is no exit-code to use.
         }
         catch (Exception ex)
         {
-            activity.Stop();
-            logger.LogError(ex, "Step failed in {Elapsed} with an exception.", activity.Duration);
+            activity.SetStatus(ActivityStatusCode.Error).Stop();
+            logger.LogError(ex, "Step failed in {Duration} with an exception.", activity.Duration);
             return null; // note: In case of an exception, there is no exit-code to use.
         }
-    }
-
-    public static bool TryParseIntArray(string value, [MaybeNullWhen(false)] out ImmutableList<int> result)
-    {
-        value = value.Replace(" ", string.Empty);
-
-        if (IntArrayRegex.Matches(value) is { Count: > 0 } matches)
-        {
-            result = matches.Select(m => int.Parse(m.Value)).ToImmutableList();
-            return true;
-        }
-
-        result = null;
-        return false;
-    }
-}
-
-public interface IStepExecutionRule
-{
-    bool CanExecute(Workflow.Step step, IImmutableList<int?> exitCodes);
-}
-
-public class StepDependsOnPrevious(ILogger<StepDependsOnPrevious> logger) : IStepExecutionRule
-{
-    public bool CanExecute(Workflow.Step step, IImmutableList<int?> exitCodes)
-    {
-        return false;
     }
 }
 
 public static class ExtendsJsonObject
 {
-    public static async Task<JsonObject?> OrPreset(this JsonObject? logging, ILogger logger, Func<LoggingPresetRef, Task<JsonObject?>> getsLoggingPreset)
+    public static async Task<JsonObject?> OrPreset(this JsonObject? logging, ILogger logger, Func<LoggingPresetInfo, Task<JsonObject?>> getsLoggingPreset)
     {
         // core: There is no configuration.
         if (logging is null)
@@ -194,14 +137,17 @@ public static class ExtendsJsonObject
         }
 
         // core: Use the logger configuration that is specified by the preset.
-        if (logging.TryGetPropertyValue("Preset", out var node) && node is JsonObject)
+        if (logging.ContainsKey(nameof(LoggingPresetInfo.File)) && logging.ContainsKey(nameof(LoggingPresetInfo.Name)))
         {
-            var presetInfo = node.Deserialize<LoggingPresetRef>()!;
-            logger.LogDebug("Logging is specified by the preset '{Preset}'.", presetInfo);
+            var presetInfo = logging.Deserialize<LoggingPresetInfo>()!;
+            logger.LogDebug("Logging is specified by the preset '{PresetInfo}'.", presetInfo);
             return await getsLoggingPreset(presetInfo);
         }
 
         // core: Something else has been specified.
-        throw new InvalidOperationException("Unknown logging configuration.");
+        throw new InvalidLoggingConfigurationException();
     }
 }
+
+public class InvalidLoggingConfigurationException()
+    : Exception("Unknown logging configuration. Expected either 'WriteTo' property or logging preset reference.");

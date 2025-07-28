@@ -31,7 +31,7 @@ public record Workflow
     // .. Workflows without steps don't make sense, so make it a required field.
     public List<Step> Steps { get; init; } = [];
 
-    [JsonPropertyName("SerilogOrPresetRef")]
+    [JsonPropertyName("SerilogOrPresetInfo")]
     public JsonObject? Logging { get; init; }
 
     #region Meta
@@ -72,7 +72,7 @@ public record Workflow
 
         public TimeSpan Timeout { get; init; } = System.Threading.Timeout.InfiniteTimeSpan;
 
-        [JsonPropertyName("SerilogOrPresetRef")]
+        [JsonPropertyName("SerilogOrPresetInfo")]
         public JsonObject? Logging { get; init; }
 
         public string? DependsOn { get; init; }

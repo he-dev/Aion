@@ -16,7 +16,7 @@ public class CanVetoWorkflowExecution
 
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        var workflowPath = context.JobDetail.JobDataMap.GetString(nameof(Workflow.Path))!;
+        var workflowPath = context.JobDetail.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
 
         try
         {

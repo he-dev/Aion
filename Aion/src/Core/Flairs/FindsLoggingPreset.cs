@@ -7,20 +7,21 @@ namespace Aion.Core.Flairs;
 
 public class FindsLoggingPreset
 {
-    public static async Task<JsonObject> Where(string profilePath, LoggingPresetRef presetRef)
+    public static async Task<JsonObject> Where(string profilePath, LoggingPresetInfo presetInfo)
     {
         // meta: Create the path to the logging-presets-file and load it.
-        var presetPath = Path.Combine(profilePath, presetRef.File);
+        var presetPath = Path.Combine(profilePath, presetInfo.File);
         if (await LoggingPresetGroup.FromJson(presetPath) is { } loggingPresetGroup)
         {
             try
             {
                 // core: Return the configuration.
-                return loggingPresetGroup[presetRef.Name].Serilog;
+                return loggingPresetGroup[presetInfo.Name].Serilog;
             }
+            // meta: Single will throw this, so let's translate it to something meaningful.
             catch (InvalidOperationException)
             {
-                throw new LoggingPresetNotFoundException(presetRef.File, presetRef.Name);
+                throw new LoggingPresetNotFoundException(presetInfo.File, presetInfo.Name);
             }
         }
 
