@@ -16,6 +16,15 @@ public static class ValidatesWorkflow
     // The Regex is compiled for better performance since it will be reused.
     private static readonly Regex UrlSafeChars = new("^[a-zA-Z0-9._~-]+$", RegexOptions.Compiled);
 
+    public static Workflow EnsureValid(this Workflow workflow)
+    {
+        workflow.EnsureUrlSafeName();
+        workflow.EnsureRenderable();
+        workflow.EnsureSchedulable();
+
+        return workflow;
+    }
+
     public static void EnsureUrlSafeName(this Workflow workflow)
     {
         if (!UrlSafeChars.IsMatch(workflow.Name))

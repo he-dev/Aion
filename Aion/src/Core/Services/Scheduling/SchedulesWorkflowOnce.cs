@@ -20,7 +20,7 @@ public class SchedulesWorkflowOnce
         return
             JobBuilder
                 .Create<ExecutesWorkflowOnce>()
-                .WithIdentity(workflowName, new GroupName<ExecutesWorkflowOnce>(profileName));
+                .WithIdentity(workflowName, JobGroupName.From<ExecutesWorkflowOnce>(profileName));
     }
 
     private TriggerBuilder CreatesDefaultTriggerBuilder(string profileName, string workflowPath, string workflowName, WorkflowTriggerType workflowTriggerType)
@@ -28,7 +28,7 @@ public class SchedulesWorkflowOnce
         return
             TriggerBuilder
                 .Create()
-                .WithIdentity(workflowName, new GroupName<ExecutesWorkflowOnce>(profileName))
+                .WithIdentity(workflowName, JobGroupName.From<ExecutesWorkflowOnce>(profileName))
                 .UsingJobData(JobDataKeys.ProfileName, profileName)
                 .UsingJobData(JobDataKeys.WorkflowPath, workflowPath)
                 .UsingJobData(workflowTriggerType)

@@ -11,14 +11,10 @@ namespace Aion.Util;
 
 public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 {
-    public required string File { get; init; }
-
-    public required IEnumerable<string> Args { get; init; }
-
-    public string? WorkingDirectory { get; init; }
+    //public string? WorkingDirectory { get; init; }
 
     // note: Not using external cancellation as this app does not support such a scenario.
-    public async Task<int> Now(TimeSpan timeout)
+    public async Task<int> Now(string file, IEnumerable<string> args, string? workingDirectory, TimeSpan timeout)
     {
         // note: If you run a bash-script on Linux, it is possible that ExitCode can be 255.
         // To fix it, you can try to add the "#!/bin/bash" header to the script.
@@ -26,10 +22,10 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = File,
+                FileName = file,
                 // note: Not using the ArgumentList as it does not correctly transfer the arguments. Let the process handle them.
-                Arguments = string.Join(' ', Args.Select(a => a.Trim())),
-                WorkingDirectory = WorkingDirectory,
+                Arguments = string.Join(' ', args.Select(a => a.Trim())),
+                WorkingDirectory = workingDirectory,
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardInput = true,
@@ -51,7 +47,7 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 
         try
         {
-            logger.LogInformation("Starting process '{File}' with arguments [{Args}].", File, process.StartInfo.Arguments);
+            logger.LogInformation("Starting process '{File}' with arguments [{Args}].", file, process.StartInfo.Arguments);
 
             if (process.Start())
             {

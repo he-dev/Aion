@@ -30,7 +30,7 @@ public abstract class VariableGroup(string name) : IEnumerable<KeyValuePair<stri
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-public class RendersTemplates
+public static class RendersTemplates
 {
     public static string In(string template, IImmutableList<VariableGroup> variableGroups)
     {
@@ -45,7 +45,11 @@ public class RendersTemplates
             StrictVariables = true,
             // ReSharper disable once ConvertToLambdaExpression
             // hack: Scriban does not always throw exceptions when variables are missing despite the above flag. This way it does.
-            TryGetMember = ((TemplateContext context, SourceSpan span, object target, string member, out object value) => { throw new ScriptRuntimeException(span, $"Variable '{member}' not found."); })
+            TryGetMember = ((TemplateContext context, SourceSpan span, object target, string member, out object value) =>
+            {
+                // hack: This is a fake comment, so that ReSharper does not put everything in a single line.
+                throw new ScriptRuntimeException(span, $"Variable '{member}' not found.");
+            })
         };
         customContext.PushGlobal(customFunctions);
         foreach (var variableGroup in variableGroups)

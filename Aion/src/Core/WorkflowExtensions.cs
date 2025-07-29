@@ -10,13 +10,13 @@ namespace Aion.Core;
 
 public static class ExtendsWorkflow
 {
-    public static JobKey CreatesJobKey(this Workflow workflow, string profileName) => new(workflow.Name, new GroupName<ExecutesWorkflowCron>(profileName));
+    public static JobKey CreatesJobKey(this Workflow workflow, string profileName) => new(workflow.Name, JobGroupName.From<ExecutesWorkflowCron>(profileName));
 
     // note: Catch this property as it might throw when the Cron property is invalid.
     public static ICronTrigger CreatesCronTrigger(this Workflow workflow, string profileName) =>
         (ICronTrigger)TriggerBuilder
             .Create()
-            .WithIdentity(workflow.Name, new GroupName<ExecutesWorkflowCron>(profileName))
+            .WithIdentity(workflow.Name, JobGroupName.From<ExecutesWorkflowCron>(profileName))
             .UsingJobData(JobDataKeys.WorkflowPath, workflow.Path)
             .UsingJobData(JobDataKeys.ProfileName, profileName)
             .UsingJobData(WorkflowTriggerType.Cron)

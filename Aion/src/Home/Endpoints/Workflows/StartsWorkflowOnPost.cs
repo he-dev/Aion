@@ -47,7 +47,7 @@ public class StartsWorkflowOnPost
             );
             var workflow = await Workflow.FromFile(fileName);
             var next = await action(workflow);
-            return Ok(new { workflowFilter = workflowName, next = next.ToLocalTime() });
+            return Accepted(new { next = next.ToLocalTime() });
         }
         catch (WorkflowNotFoundException)
         {

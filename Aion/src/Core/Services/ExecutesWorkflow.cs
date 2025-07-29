@@ -20,10 +20,10 @@ namespace Aion.Core.Services;
 public class ExecutesWorkflow
 (
     ILogger<ExecutesWorkflow> logger,
-    ILoggerFactory loggerFactory,
     IOptions<EngineOptions> engineOptions,
     IEnumerable<IStepExecutionRule> stepExecutionRules,
-    MapsLogEvent mapsLogEvent
+    MapsLogEvent mapsLogEvent,
+    StartsProcessAsync asyncProcess
 )
 {
     public async Task Now(Workflow workflow, ProfileInfo profile)
@@ -84,15 +84,9 @@ public class ExecutesWorkflow
             logging = logging.RenderFilePaths(template => RendersTemplates.In(template, stepVariables));
             using var tempMapping = mapsLogEvent.By(new ConsoleLogEventSignature(workflow.Name, step.Index), to: logging.ToLogger());
 
-            var asyncProcess = new StartsProcessAsync(loggerFactory.CreateLogger<StartsProcessAsync>())
-            {
-                File = step.File,
-                Args = step.Args
-            };
-
             activity.Start();
             logger.LogInformation("Executing step...");
-            var exitCode = await asyncProcess.Now(step.Timeout);
+            var exitCode = await asyncProcess.Now(step.File, step.Args, step.WorkingDirectory, step.Timeout);
             activity.SetStatus(ActivityStatusCode.Ok).Stop();
 
             switch (exitCode)

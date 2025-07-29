@@ -1,9 +1,19 @@
 
-# @name=says-hallo Start a workflow now only once; 202 Accepted
+### Starts workflow now.
 POST {{host}}{{profiles.one}}/says-hallo:start-now
 
-### Start a workflow now only once; 202 Accepted
-POST {{host}}{{profiles.one}}/says-hallo-with-timeout:start-now
+> {%
+    client.test("Workflow scheduled successfully.", function() {
+        client.assert(response.status === 202, "Expected status 202 Accepted.");
+        client.assert(response.body, "Response should have a body.");
+        client.assert(response.body.next, "Response should contain next execution time");
+        console.log("Workflow scheduled for:", response.body.next);
+    });
+%}
+
+
+### Starts workflow now but it times out.
+POST {{host}}{{profiles.one}}/times-out:start-now
 
 ### Start a workflow now only once; 202 Accepted
 POST {{host}}{{profiles.one}}/uses-all-vars:start-now

@@ -25,24 +25,16 @@ public record Workflow
             ? TimeZoneInfo.Local
             : TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
 
-    // .. Variables are optional and can be empty.
     public Dictionary<string, object?> Args { get; init; } = new();
 
-    // .. Workflows without steps don't make sense, so make it a required field.
     public List<Step> Steps { get; init; } = [];
 
     [JsonPropertyName("SerilogOrPresetInfo")]
     public JsonObject? Logging { get; init; }
 
-    #region Meta
-
-    // .. A couple of extra fields that are being set after the workflow has been loaded.
-
     public string Path { get; init; } = string.Empty;
 
     public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
-
-    #endregion
 
     // !! We need to ensure workflows are unique since we can load them both from JSON, or YAML.
     public virtual bool Equals(Workflow? other)
@@ -106,11 +98,7 @@ public record Workflow
             Steps = workflow.Steps.Select((step, index) => step with { Index = index }).ToList()
         };
 
-        workflow.EnsureUrlSafeName();
-        workflow.EnsureRenderable();
-        workflow.EnsureSchedulable();
-
-        return workflow;
+        return workflow.EnsureValid();
     }
 
     public static async Task<Workflow?> FromJson(string path)

@@ -1,7 +1,0 @@
-enabled: false
-cron: 0/15 * * * * ?
-variables:
-  exe: '{{ env "DEV_HOME" }}\Aion\Aion.Npc\bin\Debug\net8.0\Aion.Npc-fake.exe'
-
-steps:
-  - script: '{{ exe }}'

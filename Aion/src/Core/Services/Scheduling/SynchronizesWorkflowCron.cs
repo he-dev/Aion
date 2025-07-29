@@ -34,7 +34,7 @@ public class SynchronizesWorkflowCron
         var jobDetail =
             JobBuilder
                 .Create<ExecutesWorkflowCron>()
-                .WithIdentity(workflow.Name, new GroupName<ExecutesWorkflowCron>(profileName))
+                .WithIdentity(workflow.Name, JobGroupName.From<ExecutesWorkflowCron>(profileName))
                 .UsingJobData(JobDataKeys.ProfileName, profileName)
                 .UsingJobData(JobDataKeys.WorkflowPath, workflow.Path)
                 .Build();
