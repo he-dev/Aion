@@ -1,5 +1,5 @@
 ﻿using Aion.Core;
-using Aion.Core.Flairs;
+using Aion.Core.Services;
 
 namespace Aion.Tests.Core.Modules;
 

@@ -4,7 +4,7 @@ using System.Threading;
 using Quartz;
 using Quartz.Impl.Matchers;
 
-namespace Aion.Core.Flairs;
+namespace Aion.Core.Services;
 
 public class FindsTriggers(ISchedulerFactory schedulerFactory)
 {

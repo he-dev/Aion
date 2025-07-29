@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Aion.Core.Flairs;
+using Aion.Core.Services;
 
 namespace Aion.Core;
 
@@ -129,5 +129,3 @@ public record WorkflowPath(string ProfilePath, string RelativePath)
 
     public static implicit operator string(WorkflowPath path) => path.ToString();
 }
-
-public class WorkflowNullException(string path) : Exception($"Workflow '{path}' is null.");

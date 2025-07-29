@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Flairs;
-using Aion.Core.Flairs.Scheduling;
+using Aion.Core.Services;
+using Aion.Core.Services.Scheduling;
 using Aion.Util;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -40,22 +40,22 @@ public class StartsWorkflowOnPost
     {
         try
         {
-            var fileName = findsWorkflows.Where(profile, workflowName).SingleOrThrows();
+            var fileName = findsWorkflows.Where(profile, workflowName).SingleOrThrows
+            (
+                onEmpty: () => new WorkflowNotFoundException(workflowName),
+                onAmbiguous: () => new MultipleWorkflowsFoundException(workflowName)
+            );
             var workflow = await Workflow.FromFile(fileName);
             var next = await action(workflow);
             return Ok(new { workflowFilter = workflowName, next = next.ToLocalTime() });
         }
-        catch (CollectionEmptyException ex)
-        {
-            return NotFound(new { workflowFilter = workflowName }); // todo: say why
-        }
-        catch (AmbiguousResultException ex)
-        {
-            return NotFound(new { workflowFilter = workflowName }); // todo: say why
-        }
         catch (WorkflowNotFoundException)
         {
-            return NotFound(new { workflowFilter = workflowName });
+            return NotFound("No workflow matches the name '{$workflowName}'.");
+        }
+        catch (MultipleWorkflowsFoundException)
+        {
+            return BadRequest("Multiple workflows match the name '{$workflowName}'.");
         }
         catch (Exception ex)
         {

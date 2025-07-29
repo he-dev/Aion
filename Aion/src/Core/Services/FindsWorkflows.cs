@@ -7,7 +7,7 @@ using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Flairs;
+namespace Aion.Core.Services;
 
 public class FindsWorkflows
 (
@@ -47,5 +47,3 @@ public record FileFilter(string Value)
 
     public static implicit operator string(FileFilter filter) => filter.Value;
 }
-
-public class WorkflowNotFoundException(string filter) : Exception($"Filter '{filter}' does not match any workflows.");

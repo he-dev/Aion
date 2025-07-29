@@ -5,30 +5,38 @@ namespace Aion.Util;
 
 public static class EnumerableExtensions
 {
-    public static T SingleOrThrows<T>(this IEnumerable<T> source)
+    /// <summary>
+    /// Tries to get the only element of a collection by throwing more specific exceptions that the built-in Single in case it was not possible.
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="onEmpty"></param>
+    /// <param name="onAmbiguous"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    /// <exception cref="CollectionEmptyException">The collection has no elements at all.</exception>
+    /// <exception cref="AmbiguousResultException">The collection has more than one element.</exception>
+    public static T SingleOrThrows<T>(this IEnumerable<T> source, Func<Exception> onEmpty, Func<Exception> onAmbiguous)
     {
         using var enumerator = source.GetEnumerator();
 
-        // meta: Try to advance to the first item.
+        // core: Try to advance to the first item.
         if (!enumerator.MoveNext())
         {
-            throw new CollectionEmptyException();
+            throw onEmpty();
         }
 
         var first = enumerator.Current;
 
-        // meta: Try to advance to the second item.
+        // core: Try to advance to the second item.
         if (enumerator.MoveNext())
         {
             // Multiple matches.
-            throw new AmbiguousResultException();
+            throw onAmbiguous();
         }
 
         return first;
     }
 }
-
-// $"Multiple workflows match filter '{fileNameFilter}': {string.Join(',', fileNames)}."
 
 public class CollectionEmptyException : Exception;
 

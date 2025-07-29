@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Flairs.Scheduling;
+namespace Aion.Core.Services.Scheduling;
 
 public class CancelsWorkflowSchedule
 (

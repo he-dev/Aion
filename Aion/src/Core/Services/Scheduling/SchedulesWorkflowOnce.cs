@@ -5,7 +5,7 @@ using Aion.Util.Quartz;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Flairs.Scheduling;
+namespace Aion.Core.Services.Scheduling;
 
 // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
 

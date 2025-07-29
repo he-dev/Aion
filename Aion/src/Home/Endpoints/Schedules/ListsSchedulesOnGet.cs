@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Flairs;
+using Aion.Core.Services;
 using Aion.Home.Jobs;
 using Aion.Util;
 using Aion.Util.Quartz;

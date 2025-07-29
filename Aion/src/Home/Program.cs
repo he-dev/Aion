@@ -3,9 +3,9 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Flairs;
-using Aion.Core.Flairs.Scheduling;
-using Aion.Core.Flairs.WhenTriggersFire;
+using Aion.Core.Services;
+using Aion.Core.Services.Scheduling;
+using Aion.Core.Services.WhenTriggersFire;
 using Aion.Core.StepExecutionRules;
 using Aion.Home.Jobs;
 using Aion.Meta.Mvc;
@@ -23,7 +23,6 @@ using Quartz;
 using Quartz.AspNetCore;
 using Quartz.Impl.Matchers;
 using Serilog;
-using Serilog.Events;
 
 namespace Aion.Home;
 
@@ -59,9 +58,9 @@ public class Program
                 // See https://github.com/serilog/serilog-expressions for all filter expressions.
 
                 var consoleStreamTypes =
-                    ImmutableHashSet<ProcessMessageSource>.Empty
-                        .Add(ProcessMessageSource.StdOut)
-                        .Add(ProcessMessageSource.StdErr);
+                    ImmutableHashSet<ConsoleStreamType>.Empty
+                        .Add(ConsoleStreamType.StdOut)
+                        .Add(ConsoleStreamType.StdErr);
 
                 configuration
                     .ReadFrom.Configuration(context.Configuration)
@@ -69,7 +68,7 @@ public class Program
                     .Enrich.WithProperty("AppName", Program.Name)
                     .Enrich.WithProperty("ProfileName", engineOptions.Name)
                     .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
-                    .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>())
+                    .WriteTo.Sink(services.GetRequiredService<MapsLogEvent>())
                     // .WriteTo.Logger(logger =>
                     // {
                     //     logger
@@ -98,8 +97,8 @@ public class Program
             {
                 services.Configure<EngineOptions>(context.Configuration.GetSection(EngineOptions.SectionName));
                 services.AddSingleton<IPostConfigureOptions<EngineOptions>, EngineOptions.RenderPaths>();
-                services.AddSingleton<MapsLogEvents>();
-                services.AddSingleton<MapsLogEvents>();
+                services.AddSingleton<MapsLogEvent>();
+                services.AddSingleton<MapsLogEvent>();
 
                 services
                     .AddControllers(options => { options.Conventions.Add(new CreatesAbsoluteRouteWhenStartsWithColon()); })

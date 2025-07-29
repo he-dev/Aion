@@ -12,17 +12,17 @@ public interface ILogEventSignature
 }
 
 // meta: This sink redirects log events into the custom logger.
-public class MapsLogEvents : ILogEventSink
+public class MapsLogEvent : ILogEventSink
 {
     private ConcurrentDictionary<ILogEventSignature, ILogger> Loggers { get; } = new();
 
-    public Pop By(ILogEventSignature key, ILogger to)
+    public IDisposable By(ILogEventSignature signature, ILogger to)
     {
         // core: Register the new logger.
-        Loggers.GetOrAdd(key, _ => to);
+        Loggers.GetOrAdd(signature, _ => to);
 
         // core: Make the caller remove it when done.
-        return new Pop(() => Loggers.TryRemove(key, out _), to);
+        return new RemovesLogger(() => Loggers.TryRemove(signature, out _));
     }
 
     public void Emit(LogEvent logEvent)
@@ -38,11 +38,8 @@ public class MapsLogEvents : ILogEventSink
     }
 
     // meta: Discard the logger as it's no logger necessary.
-    public class Pop(Action pop, ILogger logger) : IDisposable
+    private class RemovesLogger(Action dispose) : IDisposable
     {
-        // util: Expose the logger back to the caller for convenience to avoids helper variables.
-        public ILogger Logger => logger;
-
-        public void Dispose() => pop();
+        public void Dispose() => dispose();
     }
 }

@@ -21,7 +21,7 @@
             "Name": "File",
             "Args": {
               "path": "C:\\temp\\aion\\Aion.Console-{{ workflow.name }}-{{ step.index }}.log",
-              "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ProcessMessageSource} » {Message:lj}{NewLine}",
+              "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ConsoleStreamType} » {Message:lj}{NewLine}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 3
             }

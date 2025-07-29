@@ -14,7 +14,7 @@ using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Flairs;
+namespace Aion.Core.Services;
 
 // core: Executes workflow's enabled steps.
 public class ExecutesWorkflow
@@ -23,7 +23,7 @@ public class ExecutesWorkflow
     ILoggerFactory loggerFactory,
     IOptions<EngineOptions> engineOptions,
     IEnumerable<IStepExecutionRule> stepExecutionRules,
-    MapsLogEvents mapsLogEvents
+    MapsLogEvent mapsLogEvent
 )
 {
     public async Task Now(Workflow workflow, ProfileInfo profile)
@@ -40,7 +40,7 @@ public class ExecutesWorkflow
         // core: Register the workflow's logger or try to fall back to the preset.
         var logging = await workflow.Logging.OrPreset(logger, async presetRef => await FindsLoggingPreset.Where(profile.Path, presetRef));
         logging = logging.RenderFilePaths(template => RendersTemplates.In(template, variables));
-        using var tempMapping = mapsLogEvents.By(new WorkflowLogEventSignature(workflow.Name), to: logging.ToLogger());
+        using var tempMapping = mapsLogEvent.By(new WorkflowLogEventSignature(workflow.Name), to: logging.ToLogger());
 
         var exitCodes = ImmutableList<int?>.Empty;
 
@@ -82,7 +82,7 @@ public class ExecutesWorkflow
             // core: Register the workflow's logger or try to fall back to the preset.
             var logging = await step.Logging.OrPreset(logger, async presetInfo => await FindsLoggingPreset.Where(profile.Path, presetInfo));
             logging = logging.RenderFilePaths(template => RendersTemplates.In(template, stepVariables));
-            using var tempMapping = mapsLogEvents.By(new ConsoleLogEventSignature(workflow.Name, step.Index), to: logging.ToLogger());
+            using var tempMapping = mapsLogEvent.By(new ConsoleLogEventSignature(workflow.Name, step.Index), to: logging.ToLogger());
 
             var asyncProcess = new StartsProcessAsync(loggerFactory.CreateLogger<StartsProcessAsync>())
             {

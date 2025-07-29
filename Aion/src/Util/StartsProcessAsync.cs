@@ -44,10 +44,10 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
         var stdOutCompletion = new TaskCompletionSource<bool>();
         var stdErrCompletion = new TaskCompletionSource<bool>();
 
-        process.OutputDataReceived += (_, e) => OnDataReceived(e, stdOutCompletion, ProcessMessageSource.StdOut, stopwatch);
-        process.ErrorDataReceived += (_, e) => OnDataReceived(e, stdErrCompletion, ProcessMessageSource.StdErr, stopwatch);
+        process.OutputDataReceived += (_, e) => OnDataReceived(e, stdOutCompletion, ConsoleStreamType.StdOut, stopwatch);
+        process.ErrorDataReceived += (_, e) => OnDataReceived(e, stdErrCompletion, ConsoleStreamType.StdErr, stopwatch);
 
-        using var scope = logger.BeginScopeFrom(new { ProcessMessageSource = ProcessMessageSource.Engine });
+        using var scope = logger.BeginScopeFrom(new { ConsoleStreamType = ConsoleStreamType.Engine });
 
         try
         {
@@ -77,8 +77,8 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 
                 switch (process.ExitCode)
                 {
-                    case 0: logger.LogInformation("Process completed in {Elapsed}.", stopwatch.Elapsed); break;
-                    default: logger.LogError("Process failed in {Elapsed} with exit-code {ExitCode}.", stopwatch.Elapsed, process.ExitCode); break;
+                    case 0: logger.LogInformation("Process completed in {Duration} ms.", stopwatch.Elapsed); break;
+                    default: logger.LogError("Process failed in {Duration} ms with exit-code {ExitCode}.", stopwatch.Elapsed, process.ExitCode); break;
                 }
 
                 return process.ExitCode;
@@ -89,7 +89,7 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
         catch (OperationCanceledException)
         {
             // core: This exception is thrown when the timeout is reached.
-            logger.LogWarning("Process timed out after {Elapsed}.", stopwatch.Elapsed);
+            logger.LogWarning("Process timed out after {Duration} ms.", stopwatch.Elapsed);
             try
             {
                 if (!process.HasExited)
@@ -116,10 +116,10 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
     }
 
     // util: Let's not write this code twice...
-    private void OnDataReceived(DataReceivedEventArgs e, TaskCompletionSource<bool> stdStreamCompletion, ProcessMessageSource processMessageSource, Stopwatch stopwatch)
+    private void OnDataReceived(DataReceivedEventArgs e, TaskCompletionSource<bool> stdStreamCompletion, ConsoleStreamType consoleStreamType, Stopwatch stopwatch)
     {
         // core: Allow the user to use this property in the message template.
-        using var scope = logger.BeginScopeFrom(new { ProcessMessageSource = processMessageSource });
+        using var scope = logger.BeginScopeFrom(new { ConsoleStreamType = consoleStreamType });
 
         // meta: The output stream has been closed, i.e., the process has terminated.
         if (e.Data is null)
@@ -127,17 +127,17 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
             stdStreamCompletion.TrySetResult(true);
 
             // core: Allow the user to use this property in the message template.
-            logger.LogDebug("EOF in {Elapsed}", stopwatch.Elapsed);
+            logger.LogDebug("EOF in {Duration}", stopwatch.Elapsed);
         }
         else
         {
-            switch (processMessageSource)
+            switch (consoleStreamType)
             {
-                case ProcessMessageSource.StdOut: logger.LogInformation("{Line}", e.Data); break;
-                case ProcessMessageSource.StdErr: logger.LogError("{Line}", e.Data); break;
-                case ProcessMessageSource.Engine:
+                case ConsoleStreamType.StdOut: logger.LogInformation("{Line}", e.Data); break;
+                case ConsoleStreamType.StdErr: logger.LogError("{Line}", e.Data); break;
+                case ConsoleStreamType.Engine:
                 default:
-                    // note: This case is impossible to occur, but makes the compiler happy.
+                    // meta: This case is impossible to occur, but makes the compiler happy.
                     break;
             }
         }
@@ -145,7 +145,7 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 }
 
 // core: Allows us to distinguish the source of various log entries.
-public enum ProcessMessageSource
+public enum ConsoleStreamType
 {
     Engine,
     StdOut,
