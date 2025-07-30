@@ -1,7 +1,7 @@
 ﻿using Aion.Core;
 using Microsoft.Extensions.Time.Testing;
 
-namespace Aion.Tests.Core.Modules;
+namespace Aion.Tests.Core;
 
 public class MaintenancePeriodTest
 {
@@ -15,9 +15,7 @@ public class MaintenancePeriodTest
 
         var workflowLock = MaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
 
-        Assert.True(workflowLock.IsPending);
-        Assert.False(workflowLock.IsRunning);
-        Assert.False(workflowLock.IsExpired);
+        Assert.Equal(MaintenancePeriodStatus.Pending, workflowLock.Status);
         Assert.Equal(TimeSpan.FromHours(2), workflowLock.Remaining);
         Assert.Equal(TimeSpan.FromHours(1), workflowLock.Duration);
     }
@@ -32,9 +30,7 @@ public class MaintenancePeriodTest
 
         var workflowLock = MaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
 
-        Assert.False(workflowLock.IsPending);
-        Assert.True(workflowLock.IsRunning);
-        Assert.False(workflowLock.IsExpired);
+        Assert.Equal(MaintenancePeriodStatus.Running, workflowLock.Status);
         Assert.Equal(TimeSpan.FromHours(1), workflowLock.Remaining);
         Assert.Equal(TimeSpan.FromHours(2), workflowLock.Duration);
     }
@@ -50,9 +46,7 @@ public class MaintenancePeriodTest
 
         var workflowLock = MaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeUtcNow) with { Clock = fakeUtcLater };
 
-        Assert.False(workflowLock.IsPending);
-        Assert.False(workflowLock.IsRunning);
-        Assert.True(workflowLock.IsExpired);
+        Assert.Equal(MaintenancePeriodStatus.Expired, workflowLock.Status);
         Assert.Equal(TimeSpan.FromHours(-1), workflowLock.Remaining);
         Assert.Equal(TimeSpan.FromHours(1), workflowLock.Duration);
     }
@@ -86,9 +80,7 @@ public class MaintenancePeriodTest
         workflowLock = await MaintenancePeriod.FromFile(lockPath);
         workflowLock = workflowLock with { Clock = fakeNowUtc };
 
-        Assert.True(workflowLock.IsPending);
-        Assert.False(workflowLock.IsRunning);
-        Assert.False(workflowLock.IsExpired);
+        Assert.Equal(MaintenancePeriodStatus.Pending, workflowLock.Status);
         Assert.Equal(TimeSpan.FromHours(2), workflowLock.Remaining);
         Assert.Equal(TimeSpan.FromHours(1), workflowLock.Duration);
 

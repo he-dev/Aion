@@ -1,7 +1,7 @@
 ﻿using Aion.Core;
 using Aion.Core.Services;
 
-namespace Aion.Tests.Core.Modules;
+namespace Aion.Tests.Core;
 
 public class WorkflowTest
 {

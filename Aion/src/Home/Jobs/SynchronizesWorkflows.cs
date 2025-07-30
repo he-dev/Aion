@@ -21,13 +21,12 @@ internal class SynchronizesWorkflows
     public async Task Execute(IJobExecutionContext context)
     {
         var profileName = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfileName)!;
-        var profilePath = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfilePath)!;
 
         using var activity = new Activity(nameof(SynchronizesWorkflows)).Start();
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         logger.LogInformation("Scheduling profile...");
 
-        foreach (var workflowPath in findsWorkflows.Where(profileName, FileFilter.Any))
+        foreach (var workflowPath in findsWorkflows.Where(profileName))
         {
             try
             {

@@ -19,6 +19,7 @@ public class ExecutesWorkflowCron
     ILogger<ExecutesWorkflowCron> logger,
     IOptions<EngineOptions> engineOptions,
     CancelsWorkflowSchedule cancelsWorkflowSchedule,
+    FindsWorkflows findsWorkflows,
     ExecutesWorkflow executesWorkflow
 ) : IJob
 {
@@ -26,7 +27,7 @@ public class ExecutesWorkflowCron
     {
         var profileName = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfileName)!;
         var profileInfo = engineOptions.Value[profileName];
-        var workflowPath = context.JobDetail.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
+        //var workflowPath = context.JobDetail.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
         var workflowName = context.JobDetail.Key.Name;
         var triggerType = context.Trigger.JobDataMap.GetEnum<WorkflowTriggerType>();
 
@@ -35,6 +36,7 @@ public class ExecutesWorkflowCron
 
         try
         {
+            var workflowPath = findsWorkflows.Single(profileName, workflowName);
             switch (await Workflow.FromFile(workflowPath))
             {
                 // core: Do not execute disabled workflows.

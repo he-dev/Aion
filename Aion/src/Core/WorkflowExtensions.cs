@@ -17,7 +17,7 @@ public static class ExtendsWorkflow
         (ICronTrigger)TriggerBuilder
             .Create()
             .WithIdentity(workflow.Name, JobGroupName.From<ExecutesWorkflowCron>(profileName))
-            .UsingJobData(JobDataKeys.WorkflowPath, workflow.Path)
+            .UsingJobData(JobDataKeys.WorkflowName, workflow.Name)
             .UsingJobData(JobDataKeys.ProfileName, profileName)
             .UsingJobData(WorkflowTriggerType.Cron)
             .WithCronSchedule(workflow.Cron, x => x.InTimeZone(workflow.TimeZone))

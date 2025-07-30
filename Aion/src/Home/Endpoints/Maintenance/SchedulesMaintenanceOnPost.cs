@@ -62,7 +62,7 @@ public class SchedulesMaintenanceOnPost
 
         if (lockCount == 0)
         {
-            throw new WorkflowNotFoundException(workflowFilter);
+            throw new NoMatchException(profileName, workflowFilter);
         }
     }
 

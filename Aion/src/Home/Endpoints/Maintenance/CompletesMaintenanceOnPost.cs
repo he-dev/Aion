@@ -18,53 +18,10 @@ public class CompletesMaintenanceOnPost
     FindsWorkflows findsWorkflows
 ) : ControllerBase
 {
-    [HttpPost("{workflowName}:complete")]
-    public async Task<IActionResult> DeleteWhere(string profileName, string workflowName)
-    {
-        var lockFileNames = findsWorkflows.Where(profileName, FileFilter.Any);
-        var locks = ImmutableList<MaintenancePeriod>.Empty;
-        foreach (var lockFileName in lockFileNames)
-        {
-            try
-            {
-                if (await MaintenancePeriod.FromFile(lockFileName) is { } lockFile)
-                {
-                    locks = locks.Add(lockFile);
-                }
-            }
-            catch (FileNotFoundException)
-            {
-                // core: Ignore this error as it is by design.
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Unable to load lock file '{LockFileName}'.", lockFileName);
-            }
-        }
-
-        var query =
-            from s in locks
-            orderby s.Remaining descending
-            select new
-            {
-                s.FileName,
-                s.CreatedOnUtc,
-                s.StartsOnUtc,
-                s.EndsOnUtc,
-                s.Duration,
-                s.Remaining,
-                s.IsPending,
-                s.IsRunning,
-                s.IsExpired,
-            };
-
-        return Ok(query.ToList());
-    }
-
     [HttpPost(":complete")]
     public async Task<IActionResult> DeleteWhere(string profileName, [FromBody] CompleteBody body)
     {
-        var lockFileNames = findsWorkflows.Where(profileName, FileFilter.Any);
+        var lockFileNames = findsWorkflows.Where(profileName, body.Filter);
         var locks = ImmutableList<MaintenancePeriod>.Empty;
         foreach (var lockFileName in lockFileNames)
         {
@@ -91,14 +48,12 @@ public class CompletesMaintenanceOnPost
             select new
             {
                 s.FileName,
-                s.CreatedOnUtc,
-                s.StartsOnUtc,
-                s.EndsOnUtc,
+                CreatedOn = s.CreatedOnUtc.ToLocalTime(),
+                StartsOn = s.StartsOnUtc.ToLocalTime(),
+                EndsOn = s.EndsOnUtc.ToLocalTime(),
                 s.Duration,
                 s.Remaining,
-                s.IsPending,
-                s.IsRunning,
-                s.IsExpired,
+                s.Status
             };
 
         return Ok(query.ToList());

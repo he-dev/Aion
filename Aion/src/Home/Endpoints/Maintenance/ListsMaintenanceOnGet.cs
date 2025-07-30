@@ -21,7 +21,7 @@ public class ListsMaintenanceOnGet
     [HttpGet]
     public async Task<IActionResult> Get(string profileName)
     {
-        var lockFileNames = findsWorkflows.Where(profileName, FileFilter.Any);
+        var lockFileNames = findsWorkflows.Where(profileName);
         var locks = ImmutableList<MaintenancePeriod>.Empty;
         foreach (var lockFileName in lockFileNames)
         {
@@ -53,10 +53,9 @@ public class ListsMaintenanceOnGet
                 s.EndsOnUtc,
                 s.Duration,
                 s.Remaining,
-                s.IsPending,
-                s.IsRunning,
-                s.IsExpired,
-            };
+                s.Status
+            }
+            ;
 
         return Ok(query.ToList());
     }

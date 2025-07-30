@@ -29,9 +29,17 @@ public record MaintenancePeriod
     public TimeSpan Duration => EndsOnUtc - StartsOnUtc;
     public TimeSpan Remaining => EndsOnUtc - Clock.GetUtcNow();
 
-    public bool IsPending => StartsOnUtc > Clock.GetUtcNow();
-    public bool IsExpired => EndsOnUtc < Clock.GetUtcNow();
-    public bool IsRunning => StartsOnUtc <= Clock.GetUtcNow() && EndsOnUtc > Clock.GetUtcNow();
+    public MaintenancePeriodStatus Status
+    {
+        get
+        {
+            if (EndsOnUtc <= Clock.GetUtcNow()) return MaintenancePeriodStatus.Expired;
+            if (StartsOnUtc <= Clock.GetUtcNow() && EndsOnUtc > Clock.GetUtcNow()) return MaintenancePeriodStatus.Running;
+            if (StartsOnUtc > Clock.GetUtcNow()) return MaintenancePeriodStatus.Pending;
+
+            throw new InvalidOperationException("This case is impossible!");
+        }
+    }
 
     public static MaintenancePeriod StartsAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
     {
@@ -140,6 +148,13 @@ public record MaintenancePeriod
             }
         }
     }
+}
+
+public enum MaintenancePeriodStatus
+{
+    Pending,
+    Running,
+    Expired,
 }
 
 public class WorkflowLockNullException(string path) : Exception($"Workflow '{path}' is null.");

@@ -16,6 +16,7 @@ public class ExecutesWorkflowOnce
 (
     ILogger<ExecutesWorkflowOnce> logger,
     IOptions<EngineOptions> engineOptions,
+    FindsWorkflows findsWorkflows,
     ExecutesWorkflow executesWorkflow
 ) : IJob
 {
@@ -23,7 +24,7 @@ public class ExecutesWorkflowOnce
     {
         var profileName = context.Trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
         var profileInfo = engineOptions.Value[profileName];
-        var workflowPath = context.Trigger.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
+        //var workflowPath = context.Trigger.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
         var workflowName = context.Trigger.Key.Name;
         var triggerType = context.Trigger.JobDataMap.GetEnum<WorkflowTriggerType>();
 
@@ -32,6 +33,7 @@ public class ExecutesWorkflowOnce
 
         try
         {
+            var workflowPath = findsWorkflows.Single(profileName, workflowName);
             switch (await Workflow.FromFile(workflowPath))
             {
                 // util: Logging.

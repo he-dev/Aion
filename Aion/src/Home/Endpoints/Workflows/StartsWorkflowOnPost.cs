@@ -36,24 +36,24 @@ public class StartsWorkflowOnPost
         return await Start(profileName, workflowName, async workflow => await schedulesWorkflowOnce.At(profileName, workflow, body.WhenUtc));
     }
 
-    private async Task<IActionResult> Start(string profile, string workflowName, Func<Workflow, Task<DateTimeOffset>> action)
+    private async Task<IActionResult> Start(string profileName, string workflowName, Func<Workflow, Task<DateTimeOffset>> action)
     {
         try
         {
-            var fileName = findsWorkflows.Where(profile, workflowName).SingleOrThrows
+            var fileName = findsWorkflows.Where(profileName, workflowName).SingleOrThrows
             (
-                onEmpty: () => new WorkflowNotFoundException(workflowName),
-                onAmbiguous: () => new MultipleWorkflowsFoundException(workflowName)
+                onEmpty: () => new NoMatchException(profileName, workflowName),
+                onAmbiguous: () => new AmbiguousMatchException(profileName, workflowName)
             );
             var workflow = await Workflow.FromFile(fileName);
             var next = await action(workflow);
             return Accepted(new { next = next.ToLocalTime() });
         }
-        catch (WorkflowNotFoundException)
+        catch (NoMatchException)
         {
             return NotFound("No workflow matches the name '{$workflowName}'.");
         }
-        catch (MultipleWorkflowsFoundException)
+        catch (AmbiguousMatchException)
         {
             return BadRequest("Multiple workflows match the name '{$workflowName}'.");
         }

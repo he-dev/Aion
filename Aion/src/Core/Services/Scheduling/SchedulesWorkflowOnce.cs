@@ -30,7 +30,7 @@ public class SchedulesWorkflowOnce
                 .Create()
                 .WithIdentity(workflowName, JobGroupName.From<ExecutesWorkflowOnce>(profileName))
                 .UsingJobData(JobDataKeys.ProfileName, profileName)
-                .UsingJobData(JobDataKeys.WorkflowPath, workflowPath)
+                .UsingJobData(JobDataKeys.WorkflowName, workflowPath)
                 .UsingJobData(workflowTriggerType)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0));
     }

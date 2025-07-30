@@ -161,7 +161,6 @@ public class Program
                                 .ForJob(jobDetail)
                                 .WithIdentity("sync-workflows-cron", JobGroupName.From<SynchronizesWorkflows>(profile.Name))
                                 .UsingJobData(JobDataKeys.ProfileName, profile.Name)
-                                .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
                                 .WithCronSchedule(CronScheduleBuilder.CronSchedule(profile.Sync));
                         });
 
@@ -171,7 +170,6 @@ public class Program
                                 .ForJob(jobDetail)
                                 .WithIdentity("sync-workflows-now", JobGroupName.From<SynchronizesWorkflows>(profile.Name))
                                 .UsingJobData(JobDataKeys.ProfileName, profile.Name)
-                                .UsingJobData(JobDataKeys.ProfilePath, profile.Path)
                                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
                                 .StartNow();
                         });

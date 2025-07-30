@@ -9,26 +9,29 @@ namespace Aion.Core.Services.WhenTriggersFire;
 
 public class CanVetoWorkflowExecution
 (
-    ILogger<CanVetoWorkflowExecution> logger
+    ILogger<CanVetoWorkflowExecution> logger,
+    FindsWorkflows findsWorkflows
 ) : ITriggerListener
 {
     public string Name => nameof(CanVetoWorkflowExecution);
 
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        var workflowPath = context.JobDetail.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
+        var profileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
+        var workflowName = trigger.JobDataMap.GetString(JobDataKeys.WorkflowName)!;
 
         try
         {
+            var workflowPath = findsWorkflows.Single(profileName, workflowName);
             if (await MaintenancePeriod.FromFile(workflowPath) is { } workflowLock)
             {
-                if (workflowLock.IsExpired)
+                if (workflowLock.Status == MaintenancePeriodStatus.Expired)
                 {
                     logger.LogWarning("Workflow lock has expired on {ExpiresOn} and will be deleted.", workflowLock.EndsOnUtc.ToLocalTime());
                     await workflowLock.Cancel();
                 }
 
-                return workflowLock.IsRunning;
+                return workflowLock.Status == MaintenancePeriodStatus.Running;
             }
         }
         catch (FileNotFoundException)

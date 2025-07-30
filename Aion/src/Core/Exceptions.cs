@@ -2,10 +2,12 @@
 
 namespace Aion.Core;
 
-
+public class ProfileNotFoundException(string profileName) : Exception($"Profile '{profileName}' not found.");
 
 public class WorkflowNullException(string path) : Exception($"Workflow '{path}' is null.");
 
-public class WorkflowNotFoundException(string filter) : Exception($"Filter '{filter}' does not match any workflows.");
+public class NoMatchException(string profileName, string workflowNameOrFilter)
+    : Exception($"No workflows in '{profileName}' matches '{workflowNameOrFilter}'.");
 
-public class MultipleWorkflowsFoundException(string filter) : Exception($"Filter '{filter}' matches multiple workflows.");
+public class AmbiguousMatchException(string profileName, string workflowNameOrFilter)
+    : Exception($"More than one workflow in '{profileName}' matches '{workflowNameOrFilter}'.");

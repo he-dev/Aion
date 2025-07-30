@@ -27,7 +27,7 @@ public class SynchronizesWorkflowsOnPost
         var result = ImmutableList<object>.Empty;
         var errors = ImmutableList<object>.Empty;
 
-        foreach (var path in findsWorkflows.Where(profileName, FileFilter.Any))
+        foreach (var path in findsWorkflows.Where(profileName))
         {
             try
             {

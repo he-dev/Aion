@@ -26,7 +26,7 @@ public class ListsWorkflowsOnGet
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflows = ImmutableList<Workflow>.Empty;
         var errors = ImmutableList<object>.Empty;
-        foreach (var workflowPath in findsWorkflows.Where(profileName, filter ?? FileFilter.Any))
+        foreach (var workflowPath in findsWorkflows.Where(profileName, filter))
         {
             try
             {
