@@ -3,22 +3,24 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Services;
+using Aion.Util.Mvc;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Aion.Home.Endpoints.Maintenance;
 
 [ApiController]
 [Route("api/profiles/{profileName}/maintenance")]
-public class SchedulesMaintenanceOnPost
+public class SchedulesProfileMaintenance
 (
-    ILogger<SchedulesMaintenanceOnPost> logger,
-    FindsWorkflows findsWorkflows
+    ILogger<SchedulesProfileMaintenance> logger,
+    IOptionsSnapshot<EngineOptions> engineOptions
 ) : ControllerBase
 {
-    [HttpPost(":start-in")]
-    public async Task<IActionResult> StartIn(string profileName, [FromBody] StartInBody body)
+    [HttpPost(":to-start-in")]
+    [EnsuresProfileExists]
+    public async Task<IActionResult> ToStartIn(string profileName, [FromBody] StartInBody body)
     {
         try
         {
@@ -33,8 +35,9 @@ public class SchedulesMaintenanceOnPost
         }
     }
 
-    [HttpPost(":start-at")]
-    public async Task<IActionResult> StartAt(string profileName, [FromBody] StartAtBody body)
+    [HttpPost(":to-start-at")]
+    [EnsuresProfileExists]
+    public async Task<IActionResult> ToStartAt(string profileName, [FromBody] StartAtBody body)
     {
         try
         {
@@ -51,11 +54,12 @@ public class SchedulesMaintenanceOnPost
 
     private async IAsyncEnumerable<string> Apply(string profileName, string workflowFilter, MaintenancePeriod maintenancePeriod)
     {
+        var profile = engineOptions.Value[profileName];
         var lockCount = 0;
-        foreach (var workflowFile in findsWorkflows.Where(profileName, workflowFilter))
+        foreach (var workflowMatch in profile.Workflows(workflowFilter))
         {
-            var workflowLockPath = await maintenancePeriod.ToFile(workflowFile);
-            logger.LogInformation("Workflow '{WorkflowFile}' has been locked.", workflowFile);
+            var workflowLockPath = await maintenancePeriod.ToFile(workflowMatch.Path);
+            logger.LogInformation("Workflow '{WorkflowName}' has been locked.", workflowMatch.Name);
             yield return workflowLockPath;
             lockCount++;
         }
@@ -66,20 +70,19 @@ public class SchedulesMaintenanceOnPost
         }
     }
 
-    public abstract record StartBody
+    public record StartInBody
     {
         public string Filter { get; init; } = null!;
-    }
 
-    public record StartInBody : StartBody
-    {
         public TimeSpan Wait { get; init; }
 
         public TimeSpan Duration { get; init; }
     }
 
-    public record StartAtBody : StartBody
+    public record StartAtBody
     {
+        public string Filter { get; init; } = null!;
+
         public DateTime StartsOn { get; init; }
 
         public DateTimeOffset StartsOnUtc => StartsOn.ToUniversalTime();

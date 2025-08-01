@@ -76,7 +76,7 @@ public record MaintenancePeriod
 
         if (!Path.Exists(workflowLockPath))
         {
-            throw new FileNotFoundException($"Workflow lock file '{workflowLockPath}' not found.", fileName: workflowLockPath);
+            throw new FileNotFoundException($"Workflow not locked.", fileName: workflowLockPath);
         }
 
         // core: Avoid race conditions by locking file operations.
@@ -94,7 +94,7 @@ public record MaintenancePeriod
             Lock.Release();
         }
 
-        throw new WorkflowLockNullException(workflowPath);
+        throw new InvalidWorkflowLockException(workflowPath);
     }
 
     public async Task ApplyTo(IEnumerable<string> workflowPaths)
@@ -157,4 +157,4 @@ public enum MaintenancePeriodStatus
     Expired,
 }
 
-public class WorkflowLockNullException(string path) : Exception($"Workflow '{path}' is null.");
+public class InvalidWorkflowLockException(string path) : Exception($"The '{path}' is not a valid workflow-lock-file.");

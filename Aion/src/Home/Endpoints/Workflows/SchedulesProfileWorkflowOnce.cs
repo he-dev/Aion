@@ -6,47 +6,44 @@ using Aion.Core.Services.Scheduling;
 using Aion.Util;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Aion.Home.Endpoints.Workflows;
 
 [ApiController]
 [Route("api/profiles/{profileName}/workflows")]
-public class StartsWorkflowOnPost
+public class SchedulesProfileWorkflowOnce
 (
-    ILogger<StartsWorkflowOnPost> logger,
-    FindsWorkflows findsWorkflows,
+    ILogger<SchedulesProfileWorkflowOnce> logger,
+    IOptions<EngineOptions> engineOptions,
     SchedulesWorkflowOnce schedulesWorkflowOnce
 ) : ControllerBase
 {
-    [HttpPost("{workflowName}:start-now")]
-    public async Task<IActionResult> StartNow(string profileName, string workflowName)
+    [HttpPost("{workflowName}:to-start-now")]
+    public async Task<IActionResult> ToStartNow(string profileName, string workflowName)
     {
-        return await Start(profileName, workflowName, async workflow => await schedulesWorkflowOnce.Now(profileName, workflow));
+        return await Start(profileName, workflowName, async workflowMatch => await schedulesWorkflowOnce.ToStartNow(workflowMatch));
     }
 
-    [HttpPost("{workflowName}:start-in")]
-    public async Task<IActionResult> StartIn(string profileName, string workflowName, [FromBody] StartInBody body)
+    [HttpPost("{workflowName}:to-start-in")]
+    public async Task<IActionResult> ToStartIn(string profileName, string workflowName, [FromBody] StartInBody body)
     {
-        return await Start(profileName, workflowName, async workflow => await schedulesWorkflowOnce.In(profileName, workflow, body.Wait));
+        return await Start(profileName, workflowName, async workflowMatch => await schedulesWorkflowOnce.ToStartIn(workflowMatch, body.Wait));
     }
 
-    [HttpPost("{workflowName}:start-at")]
-    public async Task<IActionResult> StartAt(string profileName, string workflowName, [FromBody] StartAtBody body)
+    [HttpPost("{workflowName}:to-start-at")]
+    public async Task<IActionResult> ToStartAt(string profileName, string workflowName, [FromBody] StartAtBody body)
     {
-        return await Start(profileName, workflowName, async workflow => await schedulesWorkflowOnce.At(profileName, workflow, body.WhenUtc));
+        return await Start(profileName, workflowName, async workflowMatch => await schedulesWorkflowOnce.ToStartAt(workflowMatch, body.WhenUtc));
     }
 
-    private async Task<IActionResult> Start(string profileName, string workflowName, Func<Workflow, Task<DateTimeOffset>> action)
+    private async Task<IActionResult> Start(string profileName, string workflowName, Func<WorkflowMatch, Task<DateTimeOffset>> action)
     {
         try
         {
-            var fileName = findsWorkflows.Where(profileName, workflowName).SingleOrThrows
-            (
-                onEmpty: () => new NoMatchException(profileName, workflowName),
-                onAmbiguous: () => new AmbiguousMatchException(profileName, workflowName)
-            );
-            var workflow = await Workflow.FromFile(fileName);
-            var next = await action(workflow);
+            var profile = engineOptions.Value[profileName];
+            var workflowMatch = await profile.Workflow(workflowName).Load();
+            var next = await action(workflowMatch);
             return Accepted(new { next = next.ToLocalTime() });
         }
         catch (NoMatchException)

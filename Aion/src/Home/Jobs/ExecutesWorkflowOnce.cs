@@ -16,25 +16,22 @@ public class ExecutesWorkflowOnce
 (
     ILogger<ExecutesWorkflowOnce> logger,
     IOptions<EngineOptions> engineOptions,
-    FindsWorkflows findsWorkflows,
     ExecutesWorkflow executesWorkflow
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
         var profileName = context.Trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
-        var profileInfo = engineOptions.Value[profileName];
-        //var workflowPath = context.Trigger.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
-        var workflowName = context.Trigger.Key.Name;
-        var triggerType = context.Trigger.JobDataMap.GetEnum<WorkflowTriggerType>();
-
-        using var activity = new Activity("ExecutingWorkflowOnDemand").Start();
-        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflowName, TriggerType = triggerType });
+        var workflowName = context.Trigger.JobDataMap.GetString(JobDataKeys.WorkflowName)!;
+        var workflowStart = context.Trigger.JobDataMap.GetEnum<WorkflowStart>();
+        var profile = engineOptions.Value[profileName];
+        using var activity = new Activity($"ExecutingWorkflow{workflowStart}").Start();
+        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName, WorkflowName = workflowName, WorkflowStart = workflowStart });
 
         try
         {
-            var workflowPath = findsWorkflows.Single(profileName, workflowName);
-            switch (await Workflow.FromFile(workflowPath))
+            var workflowMatch = await profile.Workflow(workflowName).Load();
+            switch (workflowMatch.Value)
             {
                 // util: Logging.
                 case { Steps: { } steps } when steps.Any(s => s.IsOn) == false:
@@ -42,7 +39,7 @@ public class ExecutesWorkflowOnce
                     break;
                 // core: This is where the actual magic happens.
                 case var workflow:
-                    await executesWorkflow.Now(workflow, profileInfo);
+                    await executesWorkflow.Now(workflowMatch);
                     break;
             }
             activity.SetStatus(ActivityStatusCode.Ok).Stop();

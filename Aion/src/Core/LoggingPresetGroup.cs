@@ -32,7 +32,7 @@ public record LoggingPreset
     public string Name { get; init; } = null!;
 
     public JsonObject Serilog { get; init; } = null!;
-}
 
-// core: Used in workflows to reference logging presets.
-public record LoggingPresetInfo(string File, string Name);
+    // core: Used in workflows to reference logging presets.
+    public record Info(string File, string Name);
+}

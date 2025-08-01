@@ -19,25 +19,22 @@ public class ExecutesWorkflowCron
     ILogger<ExecutesWorkflowCron> logger,
     IOptions<EngineOptions> engineOptions,
     CancelsWorkflowSchedule cancelsWorkflowSchedule,
-    FindsWorkflows findsWorkflows,
     ExecutesWorkflow executesWorkflow
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        var profileName = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfileName)!;
-        var profileInfo = engineOptions.Value[profileName];
-        //var workflowPath = context.JobDetail.JobDataMap.GetString(JobDataKeys.WorkflowPath)!;
-        var workflowName = context.JobDetail.Key.Name;
-        var triggerType = context.Trigger.JobDataMap.GetEnum<WorkflowTriggerType>();
-
-        using var activity = new Activity("ExecutingWorkflowOnSchedule").Start();
-        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName, WorkflowName = workflowName, WorkflowTrigger = triggerType });
+        var profileName = context.Trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
+        var workflowName = context.Trigger.JobDataMap.GetString(JobDataKeys.WorkflowName)!;
+        var workflowStart = context.Trigger.JobDataMap.GetEnum<WorkflowStart>();
+        var profile = engineOptions.Value[profileName];
+        using var activity = new Activity($"ExecutingWorkflow{workflowStart}").Start();
+        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName, WorkflowName = workflowName, WorkflowStart = workflowStart });
 
         try
         {
-            var workflowPath = findsWorkflows.Single(profileName, workflowName);
-            switch (await Workflow.FromFile(workflowPath))
+            var workflowMatch = await profile.Workflow(workflowName).Load();
+            switch (workflowMatch.Value)
             {
                 // core: Do not execute disabled workflows.
                 case { IsOn: false }:
@@ -51,7 +48,7 @@ public class ExecutesWorkflowCron
                     break;
                 // core: This workflow is fine.
                 case var workflow:
-                    await executesWorkflow.Now(workflow, profileInfo);
+                    await executesWorkflow.Now(workflowMatch);
                     break;
             }
 

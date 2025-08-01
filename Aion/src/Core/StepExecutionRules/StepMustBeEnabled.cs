@@ -5,7 +5,7 @@ namespace Aion.Core.StepExecutionRules;
 
 public class StepMustBeEnabled(ILogger<StepMustBeEnabled> logger) : IStepExecutionRule
 {
-    public bool Violated(Workflow.Step step, IImmutableList<int?> exitCodes)
+    public bool Violated(Workflow.Step step, int index, IImmutableList<int?> exitCodes)
     {
         if (!step.IsOn)
         {

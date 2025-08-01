@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Aion.Core.Services.WhenTriggersFire;
@@ -10,7 +11,7 @@ namespace Aion.Core.Services.WhenTriggersFire;
 public class CanVetoWorkflowExecution
 (
     ILogger<CanVetoWorkflowExecution> logger,
-    FindsWorkflows findsWorkflows
+    IOptions<EngineOptions> engineOptions
 ) : ITriggerListener
 {
     public string Name => nameof(CanVetoWorkflowExecution);
@@ -20,10 +21,11 @@ public class CanVetoWorkflowExecution
         var profileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
         var workflowName = trigger.JobDataMap.GetString(JobDataKeys.WorkflowName)!;
 
+        var profile = engineOptions.Value[profileName];
         try
         {
-            var workflowPath = findsWorkflows.Single(profileName, workflowName);
-            if (await MaintenancePeriod.FromFile(workflowPath) is { } workflowLock)
+            var workflowMatch = profile.Workflow(workflowName);
+            if (await MaintenancePeriod.FromFile(workflowMatch.Path) is { } workflowLock)
             {
                 if (workflowLock.Status == MaintenancePeriodStatus.Expired)
                 {

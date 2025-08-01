@@ -12,44 +12,45 @@ namespace Aion.Home.Endpoints.Workflows;
 
 [ApiController]
 [Route("api/profiles/{profileName}/workflows")]
-public class SynchronizesWorkflowsOnPost
+public class SynchronizesProfileWorkflows
 (
-    ILogger<SynchronizesWorkflowsOnPost> logger,
+    ILogger<SynchronizesProfileWorkflows> logger,
     IOptions<EngineOptions> engineOptions,
-    FindsWorkflows findsWorkflows,
-    SynchronizesWorkflowCron synchronizesWorkflowCron
+    SchedulesWorkflowCron schedulesWorkflowCron
 ) : ControllerBase
 {
     // core: Synchronizes workflows outside the regular synchronization schedule.
     [HttpPost(":sync")]
     public async Task<IActionResult> Synchronize(string profileName)
     {
+        var profile = engineOptions.Value[profileName];
         var result = ImmutableList<object>.Empty;
         var errors = ImmutableList<object>.Empty;
 
-        foreach (var path in findsWorkflows.Where(profileName))
+
+        var workflowMatches = profile.Workflows();
+        foreach (var workflowMatch in workflowMatches)
         {
             try
             {
-                if (await Workflow.FromFile(path) is { } workflow)
+                await workflowMatch.Load();
+
+                // core: Not using the synchronization-job because we want to see the results immediately in the response.
+                var (sync, deleted, next) = await schedulesWorkflowCron.For(workflowMatch);
+                result = result.Add(new
                 {
-                    // core: Not using the synchronization-job because we want to see the results immediately in the response.
-                    var (sync, deleted, next) = await synchronizesWorkflowCron.For(profileName, workflow);
-                    result = result.Add(new
-                    {
-                        path,
-                        sync = sync.ToString(),
-                        deleted,
-                        next = next?.ToLocalTime(),
-                    });
-                }
+                    path = workflowMatch.Path,
+                    sync = sync.ToString(),
+                    deleted,
+                    next = next?.ToLocalTime(),
+                });
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to synchronize workflow '{WorkflowPath}'.", path);
+                logger.LogError(ex, "Unable to synchronize workflow '{WorkflowPath}'.", workflowMatch.Path);
                 errors = errors.Add(new
                 {
-                    path,
+                    path = workflowMatch.Path,
                     exception = ex.ToString()
                 });
             }

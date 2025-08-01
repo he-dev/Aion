@@ -26,64 +26,57 @@ public class ExecutesWorkflow
     StartsProcessAsync asyncProcess
 )
 {
-    public async Task Now(Workflow workflow, ProfileInfo profile)
+    public async Task Now(WorkflowMatch workflowMatch)
     {
+        var workflow = workflowMatch.Value;
         using var activity = new Activity("ExecutingWorkflow");
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange
         ([
             new ProfileVariableGroup { Name = engineOptions.Value.Name },
             new ArgumentVariableGroup(workflow.Args),
-            new WorkflowVariableGroup(activity) { Name = workflow.Name }
+            new WorkflowVariableGroup(activity) { Name = workflowMatch.Name }
         ]);
 
-        // core: Register the workflow's logger or try to fall back to the preset.
-        var logging = await workflow.Logging.OrPreset(logger, async presetRef => await FindsLoggingPreset.Where(profile.Path, presetRef));
-        logging = logging.RenderFilePaths(template => RendersTemplates.In(template, variables));
-        using var tempMapping = mapsLogEvent.By(new WorkflowLogEventSignature(workflow.Name), to: logging.ToLogger());
-
-        var exitCodes = ImmutableList<int?>.Empty;
-
-        activity.Start();
-        logger.LogInformation("Executing workflow...");
-
-        // core: Does not filter out disabled steps because we want them logged.
-        foreach (var step in workflow.Steps)
+        using (await ScopeLogger(workflowMatch.Value.Logging, workflowMatch.Profile, variables, new WorkflowLogEventSignature(workflowMatch.Name)))
         {
-            using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name });
+            var exitCodes = ImmutableList<int?>.Empty;
 
-            if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(step, exitCodes)))
+            activity.Start();
+            logger.LogInformation("Executing workflow...");
+
+            // core: Does not filter out disabled steps because we want them logged.
+            foreach (var (step, index) in workflow.Steps.Select((step, index) => (step, index)))
             {
-                exitCodes = exitCodes.Add(null);
-                continue;
+                using var scope = logger.BeginScopeFrom(new { StepIndex = index, StepName = step.Name });
+
+                if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(step, index, exitCodes)))
+                {
+                    exitCodes = exitCodes.Add(null);
+                    continue;
+                }
+
+                // core: We need one more variable-group to render a step, its own.
+                var stepVariables = variables.Add(new StepVariableGroup(activity) { Index = index, Name = step.Name });
+                using (await ScopeLogger(step.Logging, workflowMatch.Profile, stepVariables, new ConsoleLogEventSignature(workflowMatch.Name, index)))
+                {
+                    var exitCode = await ExecuteStep(step.RenderTemplates(stepVariables));
+                    exitCodes = exitCodes.Add(exitCode);
+                }
             }
 
-            var exitCode = await ExecuteStep(workflow, step, profile, variables);
-            exitCodes = exitCodes.Add(exitCode);
+            activity.SetStatus(ActivityStatusCode.Ok).Stop();
+            logger.LogInformation("Workflow completed in {Duration}.", activity.Duration);
         }
-
-        activity.SetStatus(ActivityStatusCode.Ok).Stop();
-        logger.LogInformation("Workflow completed in {Duration}.", activity.Duration);
     }
 
-    private async Task<int?> ExecuteStep(Workflow workflow, Workflow.Step step, ProfileInfo profile, IImmutableList<VariableGroup> variables)
+    private async Task<int?> ExecuteStep(Workflow.Step step)
     {
         // meta: Setup logging contexts.
         using var activity = new Activity("ExecutingStep");
 
-        // core: We need one more variable-group to render a step, its own.
-        var stepVariables = variables.Add(new StepVariableGroup(activity) { Index = step.Index, Name = step.Name });
-
         try
         {
-            // core: Failing to render variables also counts as a failed step.
-            step = step.RenderTemplates(stepVariables);
-
-            // core: Register the workflow's logger or try to fall back to the preset.
-            var logging = await step.Logging.OrPreset(logger, async presetInfo => await FindsLoggingPreset.Where(profile.Path, presetInfo));
-            logging = logging.RenderFilePaths(template => RendersTemplates.In(template, stepVariables));
-            using var tempMapping = mapsLogEvent.By(new ConsoleLogEventSignature(workflow.Name, step.Index), to: logging.ToLogger());
-
             activity.Start();
             logger.LogInformation("Executing step...");
             var exitCode = await asyncProcess.Now(step.File, step.Args, step.WorkingDirectory, step.Timeout);
@@ -91,8 +84,8 @@ public class ExecutesWorkflow
 
             switch (exitCode)
             {
-                case 0: logger.LogInformation("Step completed in {Elapsed}.", activity.Duration); break;
-                default: logger.LogError("Step failed in {Elapsed} with exit code {ExitCode}.", activity.Duration, exitCode); break;
+                case 0: logger.LogInformation("Step completed in {Duration}.", activity.Duration); break;
+                default: logger.LogError("Step failed in {Duration} with exit code {ExitCode}.", activity.Duration, exitCode); break;
             }
 
             return exitCode;
@@ -110,11 +103,19 @@ public class ExecutesWorkflow
             return null; // note: In case of an exception, there is no exit-code to use.
         }
     }
+
+    private async Task<IDisposable> ScopeLogger(JsonObject? logging, Profile profile, IImmutableList<VariableGroup> variables, ILogEventSignature signature)
+    {
+        // core: Use the specified logging or try to fall back to the preset.
+        logging = await logging.OrPreset(logger, async preset => await profile.LoggingPreset(preset.File, preset.Name));
+        logging = logging.RenderFilePaths(template => RendersTemplates.In(template, variables));
+        return mapsLogEvent.By(signature, to: logging.ToLogger());
+    }
 }
 
 public static class ExtendsJsonObject
 {
-    public static async Task<JsonObject?> OrPreset(this JsonObject? logging, ILogger logger, Func<LoggingPresetInfo, Task<JsonObject?>> getsLoggingPreset)
+    public static async Task<JsonObject?> OrPreset(this JsonObject? logging, ILogger logger, Func<LoggingPreset.Info, Task<JsonObject?>> getsLoggingPreset)
     {
         // core: There is no configuration.
         if (logging is null)
@@ -131,9 +132,9 @@ public static class ExtendsJsonObject
         }
 
         // core: Use the logger configuration that is specified by the preset.
-        if (logging.ContainsKey(nameof(LoggingPresetInfo.File)) && logging.ContainsKey(nameof(LoggingPresetInfo.Name)))
+        if (logging.ContainsKey(nameof(LoggingPreset.Info.File)) && logging.ContainsKey(nameof(LoggingPreset.Info.Name)))
         {
-            var presetInfo = logging.Deserialize<LoggingPresetInfo>()!;
+            var presetInfo = logging.Deserialize<LoggingPreset.Info>()!;
             logger.LogDebug("Logging is specified by the preset '{PresetInfo}'.", presetInfo);
             return await getsLoggingPreset(presetInfo);
         }

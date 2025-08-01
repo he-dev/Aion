@@ -4,8 +4,10 @@ using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services;
 using Aion.Core.Services.Scheduling;
+using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Aion.Home.Jobs;
@@ -14,29 +16,29 @@ namespace Aion.Home.Jobs;
 internal class SynchronizesWorkflows
 (
     ILogger<SynchronizesWorkflows> logger,
-    FindsWorkflows findsWorkflows,
-    SynchronizesWorkflowCron synchronizesWorkflowCron
+    IOptions<EngineOptions> engineOptions,
+    SchedulesWorkflowCron schedulesWorkflowCron
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        var profileName = context.JobDetail.JobDataMap.GetString(JobDataKeys.ProfileName)!;
-
-        using var activity = new Activity(nameof(SynchronizesWorkflows)).Start();
+        var profileName = context.Trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
+        var profile = engineOptions.Value[profileName];
+        using var activity = new Activity("SynchronizingWorkflows").Start();
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         logger.LogInformation("Scheduling profile...");
 
-        foreach (var workflowPath in findsWorkflows.Where(profileName))
+        var matches = profile.Workflows();
+        foreach (var match in matches)
         {
             try
             {
-                var workflow = await Workflow.FromFile(workflowPath);
-                var result = await synchronizesWorkflowCron.For(profileName, workflow);
-                logger.LogInformation("Workflow '{WorkflowPath}' has been scheduled.", workflowPath);
+                await schedulesWorkflowCron.For(match);
+                logger.LogInformation("Workflow '{WorkflowPath}' has been scheduled.", match.Path);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to load '{WorkflowPath}'.", workflowPath);
+                logger.LogError(ex, "Unable to load '{WorkflowPath}'.", match.Path);
             }
         }
     }

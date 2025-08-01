@@ -96,6 +96,7 @@ public class Program
             .ConfigureServices((context, services) =>
             {
                 services.Configure<EngineOptions>(context.Configuration.GetSection(EngineOptions.SectionName));
+                services.AddSingleton<IValidateOptions<EngineOptions>, EngineOptions.EnsuresPathsUniqueness>();
                 services.AddSingleton<IPostConfigureOptions<EngineOptions>, EngineOptions.RenderPaths>();
                 services.AddSingleton<MapsLogEvent>();
                 services.AddSingleton<MapsLogEvent>();
@@ -123,9 +124,9 @@ public class Program
 
                 services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
 
-                services.AddSingleton<SynchronizesWorkflowCron>();
-                services.AddSingleton<SchedulesWorkflowOnce>();
-                services.AddSingleton<CancelsWorkflowSchedule>();
+                services.AddScoped<SchedulesWorkflowCron>();
+                services.AddScoped<SchedulesWorkflowOnce>();
+                services.AddScoped<CancelsWorkflowSchedule>();
 
                 services.AddScoped<ExecutesWorkflowCron>();
                 services.AddScoped<ExecutesWorkflowOnce>();
@@ -137,12 +138,10 @@ public class Program
                 services.AddScoped<StartsProcessAsync>();
 
 
-                services.AddSingleton<FindsTriggers>();
-                services.AddSingleton<FindsWorkflows>();
-                services.AddSingleton<FindsLoggingPreset>();
+                services.AddScoped<FindsTriggers>();
 
-                services.AddSingleton<CanVetoProfileSynchronization>();
-                services.AddSingleton<CanVetoWorkflowExecution>();
+                services.AddScoped<CanVetoProfileSynchronization>();
+                services.AddScoped<CanVetoWorkflowExecution>();
 
                 services.AddQuartz(q =>
                 {

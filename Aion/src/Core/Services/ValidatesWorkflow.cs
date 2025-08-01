@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Text.RegularExpressions;
+using Aion.Home.Jobs;
 using Aion.Util.Json;
+using Aion.Util.Quartz;
 using Aion.Util.Scriban;
+using Quartz;
 
 namespace Aion.Core.Services;
 
@@ -16,49 +20,43 @@ public static class ValidatesWorkflow
     // The Regex is compiled for better performance since it will be reused.
     private static readonly Regex UrlSafeChars = new("^[a-zA-Z0-9._~-]+$", RegexOptions.Compiled);
 
-    public static Workflow EnsureValid(this Workflow workflow)
+    public static void EnsureUrlSafeName(this string workflowName)
     {
-        workflow.EnsureUrlSafeName();
-        workflow.EnsureRenderable();
-        workflow.EnsureSchedulable();
-
-        return workflow;
-    }
-
-    public static void EnsureUrlSafeName(this Workflow workflow)
-    {
-        if (!UrlSafeChars.IsMatch(workflow.Name))
+        if (!UrlSafeChars.IsMatch(workflowName))
         {
-            throw new WorkflowNameNotUrlSafeException(workflow.Name);
+            throw new WorkflowNameNotUrlSafeException(workflowName);
         }
     }
 
     // core: Ensures that templates in each step can be rendered.
-    public static void EnsureRenderable(this Workflow workflow)
+    public static void EnsureVariables(this Workflow workflow)
     {
-        using var workflowActivity = new Activity("Test");
+        using var workflowActivity = new Activity("testing-workflow");
 
-        // core: Use fake values for testing.
         var variables = ImmutableList<VariableGroup>.Empty.AddRange([
-            new ProfileVariableGroup { Name = "Test" },
+            new ProfileVariableGroup { Name = "test" },
             new ArgumentVariableGroup(workflow.Args),
             new WorkflowVariableGroup(workflowActivity) { Name = "test" }
         ]);
 
         workflow.Logging.RenderFilePaths(template => RendersTemplates.In(template, variables));
 
-        foreach (var step in workflow.Steps)
+        foreach (var (step, index) in workflow.Steps.Select((step, index) => (step, index)))
         {
-            using var stepActivity = new Activity("Test");
-            step.RenderTemplates(variables.Add(new StepVariableGroup(stepActivity) { Name = "test", Index = 0 }));
+            using var stepActivity = new Activity("testing-step");
+            step.RenderTemplates(variables.Add(new StepVariableGroup(stepActivity) { Name = "test", Index = index }));
         }
     }
 
     // core: Ensures that the trigger can actually be created from its cron.
-    public static void EnsureSchedulable(this Workflow workflow)
+    public static void EnsureCron(this Workflow workflow)
     {
-        // core: Using the property creates a new trigger each time that would throw an exception if it's invalid.
-        workflow.CreatesCronTrigger("test").GetFireTimeAfter(DateTimeOffset.UtcNow);
+        // core: This will throw a cron-exception in case it's invalid.
+        TriggerBuilder
+            .Create()
+            .WithIdentity("test", "test")
+            .WithCronSchedule(workflow.Cron)
+            .Build();
     }
 }
 

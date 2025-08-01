@@ -5,29 +5,32 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services;
+using Aion.Util.Mvc;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Aion.Home.Endpoints.Maintenance;
 
 [ApiController]
 [Route("api/profiles/{profileName}/maintenance")]
-public class CompletesMaintenanceOnPost
+public class CompletesProfileMaintenance
 (
-    ILogger<CompletesMaintenanceOnPost> logger,
-    FindsWorkflows findsWorkflows
+    ILogger<CompletesProfileMaintenance> logger,
+    IOptionsSnapshot<EngineOptions> engineOptions
 ) : ControllerBase
 {
     [HttpPost(":complete")]
-    public async Task<IActionResult> DeleteWhere(string profileName, [FromBody] CompleteBody body)
+    [EnsuresProfileExists]
+    public async Task<IActionResult> Where(string profileName, [FromBody] CompleteBody body)
     {
-        var lockFileNames = findsWorkflows.Where(profileName, body.Filter);
+        var profile = engineOptions.Value[profileName];
         var locks = ImmutableList<MaintenancePeriod>.Empty;
-        foreach (var lockFileName in lockFileNames)
+        foreach (var workflowMatch in profile.Workflows(body.WorkflowFilter))
         {
             try
             {
-                if (await MaintenancePeriod.FromFile(lockFileName) is { } lockFile)
+                if (await MaintenancePeriod.FromFile(workflowMatch.Path) is { } lockFile)
                 {
                     locks = locks.Add(lockFile);
                 }
@@ -38,7 +41,7 @@ public class CompletesMaintenanceOnPost
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to load lock file '{LockFileName}'.", lockFileName);
+                logger.LogError(ex, "Unable to load lock file '{LockFileName}'.", workflowMatch.Path);
             }
         }
 
@@ -61,6 +64,6 @@ public class CompletesMaintenanceOnPost
 
     public record CompleteBody
     {
-        public string Filter { get; init; } = null!;
+        public string WorkflowFilter { get; init; } = null!;
     }
 }

@@ -15,78 +15,50 @@ public class SchedulesWorkflowOnce
     ISchedulerFactory schedulerFactory
 )
 {
-    private JobBuilder CreatesDefaultJobBuilder(string profileName, string workflowName)
+    public async Task<DateTimeOffset> ToStartNow(WorkflowMatch workflowMatch)
     {
-        return
+        return await Schedule(workflowMatch, WorkflowStart.OnceNow, triggerBuilder => triggerBuilder.StartNow());
+    }
+
+    public async Task<DateTimeOffset> ToStartAt(WorkflowMatch workflowMatch, DateTimeOffset startAt)
+    {
+        return await Schedule(workflowMatch, WorkflowStart.OnceAt, triggerBuilder => triggerBuilder.StartAt(startAt));
+    }
+
+    public async Task<DateTimeOffset> ToStartIn(WorkflowMatch workflowMatch, TimeSpan delay)
+    {
+        return await Schedule(workflowMatch, WorkflowStart.OnceIn, triggerBuilder => triggerBuilder.StartAt(DateTimeOffset.UtcNow + delay));
+    }
+
+    private async Task<DateTimeOffset> Schedule(WorkflowMatch workflowMatch, WorkflowStart start, Func<TriggerBuilder, TriggerBuilder> customizesTrigger)
+    {
+        var jobBuilder =
             JobBuilder
                 .Create<ExecutesWorkflowOnce>()
-                .WithIdentity(workflowName, JobGroupName.From<ExecutesWorkflowOnce>(profileName));
-    }
+                .WithIdentity(workflowMatch.Name, JobGroupName.From<ExecutesWorkflowOnce>(workflowMatch.Profile.Name));
 
-    private TriggerBuilder CreatesDefaultTriggerBuilder(string profileName, string workflowPath, string workflowName, WorkflowTriggerType workflowTriggerType)
-    {
-        return
+        var triggerBuilder =
             TriggerBuilder
                 .Create()
-                .WithIdentity(workflowName, JobGroupName.From<ExecutesWorkflowOnce>(profileName))
-                .UsingJobData(JobDataKeys.ProfileName, profileName)
-                .UsingJobData(JobDataKeys.WorkflowName, workflowPath)
-                .UsingJobData(workflowTriggerType)
+                .WithIdentity(workflowMatch.Name, JobGroupName.From<ExecutesWorkflowOnce>(workflowMatch.Profile.Name))
+                .UsingJobData(JobDataKeys.ProfileName, workflowMatch.Profile.Name)
+                .UsingJobData(JobDataKeys.WorkflowName, workflowMatch.Name)
+                .UsingJobData(start)
                 .WithSimpleSchedule(x => x.WithRepeatCount(0));
-    }
 
-    public async Task<DateTimeOffset> Now(string profileName, Workflow workflow)
-    {
-        var job = CreatesDefaultJobBuilder(profileName, workflow.Name).Build();
-
-        await EnsureWorkflowNotScheduled(job);
-
-        var trigger =
-            CreatesDefaultTriggerBuilder(profileName, workflow.Path, workflow.Name, WorkflowTriggerType.StartNow)
-                .StartNow()
-                .Build();
+        var jobDetail = jobBuilder.Build();
+        var trigger = customizesTrigger(triggerBuilder).Build();
 
         var scheduler = await schedulerFactory.GetScheduler();
-        return await scheduler.ScheduleJob(job, trigger);
-    }
 
-    public async Task<DateTimeOffset> At(string profileName, Workflow workflow, DateTimeOffset startAt)
-    {
-        var job = CreatesDefaultJobBuilder(profileName, workflow.Name).Build();
-
-        await EnsureWorkflowNotScheduled(job);
-
-        var trigger =
-            CreatesDefaultTriggerBuilder(profileName, workflow.Path, workflow.Name, WorkflowTriggerType.StartAt)
-                .StartAt(startAt)
-                .Build();
-
-        var scheduler = await schedulerFactory.GetScheduler();
-        return await scheduler.ScheduleJob(job, trigger);
-    }
-
-    public async Task<DateTimeOffset> In(string profileName, Workflow workflow, TimeSpan delay)
-    {
-        var job = CreatesDefaultJobBuilder(profileName, workflow.Name).Build();
-
-        await EnsureWorkflowNotScheduled(job);
-
-        var trigger =
-            CreatesDefaultTriggerBuilder(profileName, workflow.Path, workflow.Name, WorkflowTriggerType.StartIn)
-                .StartAt(DateTimeOffset.UtcNow + delay)
-                .Build();
-
-        var scheduler = await schedulerFactory.GetScheduler();
-        return await scheduler.ScheduleJob(job, trigger);
-    }
-
-
-    private async Task EnsureWorkflowNotScheduled(IJobDetail jobDetail)
-    {
-        var scheduler = await schedulerFactory.GetScheduler();
+        // core: Ensure the job is not already scheduled.
         if (await scheduler.CheckExists(jobDetail.Key))
         {
             throw new WorkflowAlreadyScheduledException();
         }
+
+        logger.LogInformation("Workflow '{WorkflowName}' will be executed once at '{Next}'.", workflowMatch.Name, trigger.GetNextFireTimeUtc());
+
+        return await scheduler.ScheduleJob(jobDetail, trigger);
     }
 }

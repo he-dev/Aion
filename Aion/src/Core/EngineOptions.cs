@@ -13,16 +13,32 @@ public record EngineOptions
 
     public bool SyncOn { get; init; }
 
-    public ProfileInfo[] Profiles { get; init; } = null!;
+    public Profile[] Profiles { get; init; } = null!;
 
-    public ProfileInfo this[string name]
+    public Profile this[string name]
     {
-        get
+        get { return Profiles.SingleOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ?? throw new ProfileNotFoundException(name); }
+    }
+
+    public class EnsuresPathsUniqueness : IValidateOptions<EngineOptions>
+    {
+        public ValidateOptionsResult Validate(string? name, EngineOptions options)
         {
-            return
-                Profiles
-                    .SingleOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-                ?? throw new ProfileNotFoundException(name);
+            var duplicatePaths =
+                options
+                    .Profiles
+                    .GroupBy(p => p.Path, StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key)
+                    .ToList();
+
+            if (duplicatePaths.Any())
+            {
+                var duplicatePathsString = string.Join(" | ", duplicatePaths);
+                return ValidateOptionsResult.Fail($"Duplicate profile paths found: [{duplicatePathsString}]. All profile paths must be unique.");
+            }
+
+            return ValidateOptionsResult.Success;
         }
     }
 
@@ -40,24 +56,10 @@ public record EngineOptions
     }
 }
 
-public record ProfileInfo
-{
-    public string Path { get; set; } = null!;
-
-    // core: The last directory name is the name of the profile.
-    // meta: Make sure it does not end with a "/" which would result in a wrong name.
-    public string Name => System.IO.Path.GetFileName(Path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
-
-    public string Sync { get; set; } = null!;
-
-    public string[] Includes { get; set; } = [];
-
-    public string[] Excludes { get; set; } = [];
-}
-
 public static class JobDataKeys
 {
     public const string ProfileName = nameof(ProfileName);
+
     public const string WorkflowName = nameof(WorkflowName);
     //public const string WorkflowPath = nameof(WorkflowPath);
 }

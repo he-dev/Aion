@@ -32,27 +32,16 @@ public record Workflow
     [JsonPropertyName("SerilogOrPresetInfo")]
     public JsonObject? Logging { get; init; }
 
-    public string Path { get; init; } = string.Empty;
+    //public string Path { get; init; } = string.Empty;
 
-    public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
-
-    // !! We need to ensure workflows are unique since we can load them both from JSON, or YAML.
-    public virtual bool Equals(Workflow? other)
-    {
-        return other is not null && StringComparer.OrdinalIgnoreCase.Equals(Name, other.Name);
-    }
-
-    public override int GetHashCode()
-    {
-        return StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
-    }
+    //public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
 
     public record Step
     {
         public string? Name { get; init; }
 
-        [JsonIgnore]
-        public int Index { get; init; }
+        //[JsonIgnore]
+        //public int Index { get; init; }
 
         public bool IsOn { get; init; } = true;
 
@@ -68,17 +57,6 @@ public record Workflow
         public JsonObject? Logging { get; init; }
 
         public string? DependsOn { get; init; }
-
-        // !! We need to ensure steps are unique.
-        public virtual bool Equals(Step? other)
-        {
-            return other is not null && StringComparer.OrdinalIgnoreCase.Equals(Name, other.Name);
-        }
-
-        public override int GetHashCode()
-        {
-            return Name is null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
-        }
     }
 
     public static async Task<Workflow> FromFile(string path)
@@ -89,31 +67,12 @@ public record Workflow
             throw new FileNotFoundException($"Workflow '{path}' not found.", fileName: path);
         }
 
-        var workflow = await FromJson(path) ?? throw new WorkflowNullException(path);
-
-        // meta: Update runtime properties.
-        workflow = workflow with
-        {
-            Path = path,
-            Steps = workflow.Steps.Select((step, index) => step with { Index = index }).ToList()
-        };
-
-        return workflow.EnsureValid();
-    }
-
-    public static async Task<Workflow?> FromJson(string path)
-    {
         await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return await JsonSerializer.DeserializeAsync<Workflow>(fileStream, new JsonSerializerOptions
+        var workflow = await JsonSerializer.DeserializeAsync<Workflow>(fileStream, new JsonSerializerOptions
         {
             ReadCommentHandling = JsonCommentHandling.Skip
         });
+
+        return workflow ?? throw new WorkflowNullException(path);
     }
-}
-
-public record WorkflowPath(string ProfilePath, string RelativePath)
-{
-    public override string ToString() => Path.Join(ProfilePath, RelativePath);
-
-    public static implicit operator string(WorkflowPath path) => path.ToString();
 }

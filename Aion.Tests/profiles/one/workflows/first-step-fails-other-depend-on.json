@@ -2,7 +2,9 @@
   "IsOn": true,
   "Cron": "0/15 * * * * ?",
   "Args": {
-    "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe"
+    "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
+    "LoggerPresetFile": "logger-presets.json",
+    "LoggerPresetName":  "Console.Simple"
   },
   "Steps": [
     {
@@ -14,6 +16,8 @@
         "--exit-code 1"
       ],
       "SerilogOrPresetInfo": {
+        //"File": "{{ arg.loggerPresetFile }}",
+        //"Name": "{{ arg.loggerPresetName }}"
         "File": "logger-presets.json",
         "Name": "Console.Simple"
       }

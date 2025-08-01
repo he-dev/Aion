@@ -5,9 +5,11 @@ using Aion.Core;
 using Aion.Core.Services;
 using Aion.Home.Jobs;
 using Aion.Util;
+using Aion.Util.Mvc;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Quartz;
 using Quartz.Impl.Matchers;
 
@@ -15,22 +17,26 @@ namespace Aion.Home.Endpoints.Schedules;
 
 [ApiController]
 [Route("api/profiles/{profileName}/schedules")]
-public class ListsSchedulesOnGet
+public class ListsProfileSchedules
 (
-    ILogger<ListsSchedulesOnGet> logger,
+    ILogger<ListsProfileSchedules> logger,
+    IOptionsSnapshot<EngineOptions> engineOptions,
     FindsTriggers findsTriggers
 ) : ControllerBase
 {
-    [HttpGet("[controller]/jobs")]
+    [HttpGet]
+    [EnsuresProfileExists]
     public async Task<IActionResult> Get
     (
+        string profileName,
         [FromQuery(Name = "q")] string? filter = null,
         [FromQuery] OrderBy orderBy = OrderBy.Next,
         [FromQuery] Status status = Status.Pending
     )
     {
+        // var profile = engineOptions.Value[profileName];
         var utcNow = DateTimeOffset.UtcNow;
-        var jobGroupMatcher = GroupMatcher<JobKey>.GroupStartsWith(nameof(ExecutesWorkflowCron));
+        var jobGroupMatcher = GroupMatcher<JobKey>.GroupEquals(JobGroupName.From<ExecutesWorkflowCron>(profileName));
 
         var query =
             findsTriggers
@@ -39,7 +45,7 @@ public class ListsSchedulesOnGet
                 .Select(trigger => new
                 {
                     name = trigger.JobKey.Name,
-                    path = trigger.JobDataMap.GetString(nameof(Workflow.Path))!,
+                    group = trigger.JobKey.Group,
                     cron = ((ICronTrigger)trigger).CronExpressionString,
                     next = ((ICronTrigger)trigger).FiresAt(utcNow).Take(3)
                 });
@@ -47,7 +53,7 @@ public class ListsSchedulesOnGet
         query = orderBy switch
         {
             OrderBy.Name => query.OrderBy(item => item.name),
-            OrderBy.Path => query.OrderBy(item => item.path),
+            //OrderBy.Path => query.OrderBy(item => item.path),
             OrderBy.Cron => query.OrderBy(item => item.cron),
             OrderBy.Next => query.OrderBy(item => item.next.FirstOrDefault()),
             _ => query,
