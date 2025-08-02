@@ -29,7 +29,7 @@ internal static class Program
         var exitCode = commandLine.GetValueForOption(exitCodeOption);
         if (exitCode != 0)
         {
-            Console.Error.WriteLine($"Oops! : {exitCode}");
+            Console.Error.WriteLine($"Oops! ExitCode: {exitCode}");
         }
 
         return exitCode;

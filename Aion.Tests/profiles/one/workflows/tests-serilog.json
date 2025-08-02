@@ -1,0 +1,49 @@
+{
+  "IsOn": true,
+  "Cron": "0/15 * * * * ?",
+  "Args": {
+    "exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe"
+  },
+  "Steps": [
+    {
+      "IsOn": true,
+      "File": "{{ arg.exe }}",
+      "Args": [
+        "--sleep 1",
+        "--message \"This is step {{ step.index }}.\""
+      ],
+      "SerilogOrPresetInfo": {
+        "MinimumLevel": {
+          "Default": "Information"
+        },
+        "WriteTo": [
+          {
+            "Name": "File",
+            "Args": {
+              "path": "C:\\temp\\aion\\{{ workflow.name }}[{{ step.index }}]-.log",
+              "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ConsoleStreamType} » {Message:lj}{NewLine}",
+              "rollingInterval": "Day",
+              "retainedFileCountLimit": 3
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "SerilogOrPresetInfo": {
+    "MinimumLevel": {
+      "Default": "Information"
+    },
+    "WriteTo": [
+      {
+        "Name": "File",
+        "Args": {
+          "path": "C:\\temp\\aion\\{{ workflow.name }}-.log",
+          "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ProcessMessageSource} » {Message:lj}{NewLine}",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": 3
+        }
+      }
+    ]
+  }
+}

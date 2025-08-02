@@ -29,6 +29,7 @@ namespace Aion.Home;
 public class Program
 {
     public const string Name = "Aion";
+    public const string Version = "3.0.0";
 
     public static async Task Main(params string[] args)
     {
@@ -65,8 +66,9 @@ public class Program
                 configuration
                     .ReadFrom.Configuration(context.Configuration)
                     .Enrich.With<EnrichesLogEventWithActivity>()
-                    .Enrich.WithProperty("AppName", Program.Name)
-                    .Enrich.WithProperty("ProfileName", engineOptions.Name)
+                    .Enrich.WithProperty("Application", Program.Name)
+                    .Enrich.WithProperty("Version", Program.Version)
+                    .Enrich.WithProperty("Instance", engineOptions.Name)
                     .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
                     .WriteTo.Sink(services.GetRequiredService<MapsLogEvent>())
                     // .WriteTo.Logger(logger =>

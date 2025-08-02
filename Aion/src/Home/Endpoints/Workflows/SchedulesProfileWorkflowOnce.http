@@ -1,6 +1,6 @@
 
 ### Starts workflow now.
-POST {{host}}{{profiles.one}}/says-hallo:start-now
+POST {{host}}{{profiles.one}}/tests-serilog:start-now
 
 > {%
     client.test("Workflow scheduled successfully.", function() {
