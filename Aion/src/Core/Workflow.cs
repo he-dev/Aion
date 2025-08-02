@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Aion.Core.Services;
 
 namespace Aion.Core;
 
@@ -30,7 +27,7 @@ public record Workflow
     public List<Step> Steps { get; init; } = [];
 
     [JsonPropertyName("SerilogOrPresetInfo")]
-    public JsonObject? Logging { get; init; }
+    public LoggingTemplate? Logging { get; init; }
 
     //public string Path { get; init; } = string.Empty;
 
@@ -45,16 +42,16 @@ public record Workflow
 
         public bool IsOn { get; init; } = true;
 
-        public string File { get; init; } = null!;
+        public StringTemplate File { get; init; } = null!;
 
-        public List<string> Args { get; init; } = [];
+        public List<StringTemplate> Args { get; init; } = [];
 
-        public string? WorkingDirectory { get; init; }
+        public StringTemplate? WorkingDirectory { get; init; }
 
         public TimeSpan Timeout { get; init; } = System.Threading.Timeout.InfiniteTimeSpan;
 
         [JsonPropertyName("SerilogOrPresetInfo")]
-        public JsonObject? Logging { get; init; }
+        public LoggingTemplate? Logging { get; init; }
 
         public string? DependsOn { get; init; }
     }
@@ -70,7 +67,12 @@ public record Workflow
         await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         var workflow = await JsonSerializer.DeserializeAsync<Workflow>(fileStream, new JsonSerializerOptions
         {
-            ReadCommentHandling = JsonCommentHandling.Skip
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            Converters =
+            {
+                new StringTemplateConverter(),
+                new LoggingTemplateConverter()
+            }
         });
 
         return workflow ?? throw new WorkflowNullException(path);

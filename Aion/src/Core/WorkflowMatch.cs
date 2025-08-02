@@ -17,7 +17,7 @@ public class WorkflowMatch
         RelativePath = relativePath;
 
         // core: Ensure the workflow name is valid.
-        Name.EnsureUrlSafeName();
+        Name.EnsureUrlSafe();
     }
 
     public Profile Profile { get; init; }
@@ -33,8 +33,8 @@ public class WorkflowMatch
     public async Task<WorkflowMatch> Load()
     {
         _workflow = await Workflow.FromFile(Path);
-        _workflow.EnsureVariables();
-        _workflow.EnsureCron();
+        _workflow.EnsureCronSchedulable();
+        await _workflow.EnsureTemplatesRenderable(Profile);
         return this;
     }
 

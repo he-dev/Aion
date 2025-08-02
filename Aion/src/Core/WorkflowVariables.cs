@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Aion.Util.Scriban;
 
@@ -19,33 +20,36 @@ public class ArgumentVariableGroup(IDictionary<string, object?> variables) : Var
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator() => variables.GetEnumerator();
 }
 
-public class WorkflowVariableGroup(Activity activity) : VariableGroup("Workflow")
+public class WorkflowVariableGroup() : VariableGroup("Workflow")
 {
     public required string Name { get; init; }
 
-    public ActivityTraceId TraceId => activity.TraceId;
+    public ActivityTraceId TraceId => Activity.Current?.TraceId ?? throw new InvalidOperationException("There is no activity in scope.");
 
-    public ActivitySpanId SpanId => activity.SpanId;
+    public ActivitySpanId SpanId => Activity.Current?.SpanId ?? throw new InvalidOperationException("There is no activity in scope.");
+
+    public ActivitySpanId ParentId => Activity.Current?.ParentSpanId ?? throw new InvalidOperationException("There is no activity in scope.");
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
         yield return new KeyValuePair<string, object?>(nameof(TraceId), TraceId);
         yield return new KeyValuePair<string, object?>(nameof(SpanId), SpanId);
+        yield return new KeyValuePair<string, object?>(nameof(ParentId), ParentId);
     }
 }
 
-public class StepVariableGroup(Activity activity) : VariableGroup("Step")
+public class StepVariableGroup() : VariableGroup("Step")
 {
     public string? Name { get; init; }
 
     public required int Index { get; init; }
 
-    public ActivityTraceId TraceId => activity.TraceId;
+    public ActivityTraceId TraceId => Activity.Current?.TraceId ?? throw new InvalidOperationException("There is no activity in scope.");
 
-    public ActivitySpanId SpanId => activity.SpanId;
+    public ActivitySpanId SpanId => Activity.Current?.SpanId ?? throw new InvalidOperationException("There is no activity in scope.");
 
-    public ActivitySpanId ParentSpanId => activity.ParentSpanId;
+    public ActivitySpanId ParentId => Activity.Current?.ParentSpanId ?? throw new InvalidOperationException("There is no activity in scope.");
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
@@ -53,6 +57,6 @@ public class StepVariableGroup(Activity activity) : VariableGroup("Step")
         yield return new KeyValuePair<string, object?>(nameof(Index), Index);
         yield return new KeyValuePair<string, object?>(nameof(TraceId), TraceId);
         yield return new KeyValuePair<string, object?>(nameof(SpanId), SpanId);
-        yield return new KeyValuePair<string, object?>(nameof(ParentSpanId), ParentSpanId);
+        yield return new KeyValuePair<string, object?>(nameof(ParentId), ParentId);
     }
 }

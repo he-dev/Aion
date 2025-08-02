@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Services;
 using Aion.Util.Mvc;
 using Aion.Util.Serilog;
 using Microsoft.AspNetCore.Mvc;

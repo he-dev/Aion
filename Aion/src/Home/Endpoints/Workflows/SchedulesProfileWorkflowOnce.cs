@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Services;
 using Aion.Core.Services.Scheduling;
-using Aion.Util;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,19 +17,19 @@ public class SchedulesProfileWorkflowOnce
     SchedulesWorkflowOnce schedulesWorkflowOnce
 ) : ControllerBase
 {
-    [HttpPost("{workflowName}:to-start-now")]
+    [HttpPost("{workflowName}:start-now")]
     public async Task<IActionResult> ToStartNow(string profileName, string workflowName)
     {
         return await Start(profileName, workflowName, async workflowMatch => await schedulesWorkflowOnce.ToStartNow(workflowMatch));
     }
 
-    [HttpPost("{workflowName}:to-start-in")]
+    [HttpPost("{workflowName}:start-in")]
     public async Task<IActionResult> ToStartIn(string profileName, string workflowName, [FromBody] StartInBody body)
     {
         return await Start(profileName, workflowName, async workflowMatch => await schedulesWorkflowOnce.ToStartIn(workflowMatch, body.Wait));
     }
 
-    [HttpPost("{workflowName}:to-start-at")]
+    [HttpPost("{workflowName}:start-at")]
     public async Task<IActionResult> ToStartAt(string profileName, string workflowName, [FromBody] StartAtBody body)
     {
         return await Start(profileName, workflowName, async workflowMatch => await schedulesWorkflowOnce.ToStartAt(workflowMatch, body.WhenUtc));

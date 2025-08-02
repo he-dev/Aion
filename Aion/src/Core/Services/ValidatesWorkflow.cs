@@ -3,9 +3,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Aion.Home.Jobs;
-using Aion.Util.Json;
-using Aion.Util.Quartz;
+using System.Threading.Tasks;
 using Aion.Util.Scriban;
 using Quartz;
 
@@ -20,7 +18,7 @@ public static class ValidatesWorkflow
     // The Regex is compiled for better performance since it will be reused.
     private static readonly Regex UrlSafeChars = new("^[a-zA-Z0-9._~-]+$", RegexOptions.Compiled);
 
-    public static void EnsureUrlSafeName(this string workflowName)
+    public static void EnsureUrlSafe(this string workflowName)
     {
         if (!UrlSafeChars.IsMatch(workflowName))
         {
@@ -29,32 +27,49 @@ public static class ValidatesWorkflow
     }
 
     // core: Ensures that templates in each step can be rendered.
-    public static void EnsureVariables(this Workflow workflow)
+    public static async Task EnsureTemplatesRenderable(this Workflow workflow, Profile profile)
     {
-        using var workflowActivity = new Activity("testing-workflow");
+        using var activity = new Activity("testing-workflow");
 
-        var variables = ImmutableList<VariableGroup>.Empty.AddRange([
+        var variables = ImmutableList<VariableGroup>.Empty.AddRange(
+        [
             new ProfileVariableGroup { Name = "test" },
             new ArgumentVariableGroup(workflow.Args),
-            new WorkflowVariableGroup(workflowActivity) { Name = "test" }
+            new WorkflowVariableGroup { Name = "test" }
         ]);
 
-        workflow.Logging.RenderFilePaths(template => RendersTemplates.In(template, variables));
+        if (workflow.Logging is { } workflowLogging)
+        {
+            await workflowLogging.RenderAsync(profile, variables);
+        }
 
         foreach (var (step, index) in workflow.Steps.Select((step, index) => (step, index)))
         {
-            using var stepActivity = new Activity("testing-step");
-            step.RenderTemplates(variables.Add(new StepVariableGroup(stepActivity) { Name = "test", Index = index }));
+            await step.EnsureTemplatesRenderable(index, profile, variables);
         }
     }
 
+    private static async Task EnsureTemplatesRenderable(this Workflow.Step step, int index, Profile profile, IImmutableList<VariableGroup> variables)
+    {
+        variables = variables.Add(new StepVariableGroup { Index = index, Name = step.Name });
+        using var activity = new Activity("testing-step");
+        if (step.Logging is { } stepLogging)
+        {
+            await stepLogging.RenderAsync(profile, variables);
+        }
+
+        step.File.Render(variables);
+        step.Args.Render(variables);
+        step.WorkingDirectory?.Render(variables);
+    }
+
     // core: Ensures that the trigger can actually be created from its cron.
-    public static void EnsureCron(this Workflow workflow)
+    public static void EnsureCronSchedulable(this Workflow workflow)
     {
         // core: This will throw a cron-exception in case it's invalid.
         TriggerBuilder
             .Create()
-            .WithIdentity("test", "test")
+            .WithIdentity("test-name", "test-group")
             .WithCronSchedule(workflow.Cron)
             .Build();
     }

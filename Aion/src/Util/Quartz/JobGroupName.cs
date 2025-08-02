@@ -1,5 +1,4 @@
 ﻿using System.Linq;
-using Quartz;
 
 namespace Aion.Util.Quartz;
 

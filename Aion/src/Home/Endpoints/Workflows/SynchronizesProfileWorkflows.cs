@@ -2,7 +2,6 @@
 using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Services;
 using Aion.Core.Services.Scheduling;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
