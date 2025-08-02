@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Util.Mvc;
+using Aion.Core.Services.Meta.Mvc;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -28,7 +28,7 @@ public class ListsProfileWorkflows
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflowMatches = ImmutableList<WorkflowMatch>.Empty;
         var workflowFailure = ImmutableList<object>.Empty;
-        foreach (var workflowMatch in profile.Workflows(workflowFilter))
+        foreach (var workflowMatch in profile.WorkflowMatches(workflowFilter))
         {
             try
             {

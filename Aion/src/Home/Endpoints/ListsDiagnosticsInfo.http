@@ -1,0 +1,5 @@
+
+
+### Fetch all workflows or by filter and/or other parameters.
+GET {{host}}/api/diagnostics/routes
+

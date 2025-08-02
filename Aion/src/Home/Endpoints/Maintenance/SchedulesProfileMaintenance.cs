@@ -1,9 +1,9 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Util.Mvc;
+using Aion.Core.Services.Meta.Mvc;
+using Aion.Meta.Logging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,55 +18,48 @@ public class SchedulesProfileMaintenance
     IOptionsSnapshot<EngineOptions> engineOptions
 ) : ControllerBase
 {
-    [HttpPost(":to-start-in")]
+    [HttpPost(":start-in")]
     [EnsuresProfileExists]
     public async Task<IActionResult> ToStartIn(string profileName, [FromBody] StartInBody body)
     {
-        try
-        {
-            var maintenancePeriod = MaintenancePeriod.StartsIn(body.Wait, body.Duration);
-            var lockedWorkflows = await Apply(profileName, body.Filter, maintenancePeriod).ToListAsync();
-            return Ok(new { lockedWorkflows });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unable to schedule maintenance for '{filter}'.", body.Filter);
-            return Problem(detail: ex.ToString(), statusCode: 500);
-        }
+        return await Start(profileName, body.Filter, () => MaintenancePeriod.StartsIn(body.Wait, body.Duration));
     }
 
-    [HttpPost(":to-start-at")]
+    [HttpPost(":start-at")]
     [EnsuresProfileExists]
     public async Task<IActionResult> ToStartAt(string profileName, [FromBody] StartAtBody body)
     {
+        return await Start(profileName, body.Filter, () => MaintenancePeriod.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
+    }
+
+    private async Task<IActionResult> Start(string profileName, string workflowNameOrFilter, Func<MaintenancePeriod> createsMaintenancePeriod)
+    {
+        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         try
         {
-            var maintenancePeriod = MaintenancePeriod.StartsAt(body.StartsOnUtc, body.EndsOnUtc);
-            var lockedWorkflows = await Apply(profileName, body.Filter, maintenancePeriod).ToListAsync();
+            var profile = engineOptions.Value[profileName];
+            var maintenancePeriod = createsMaintenancePeriod();
+            var lockedWorkflows = ImmutableList<WorkflowMatch>.Empty;
+            foreach (var workflowMatch in profile.WorkflowMatches(workflowNameOrFilter))
+            {
+                try
+                {
+                    lockedWorkflows = lockedWorkflows.Add(workflowMatch);
+                    await maintenancePeriod.ToFile(workflowMatch.Path);
+                    logger.LogInformation("Workflow '{WorkflowName}' has been locked.", workflowMatch.Name);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Unable to schedule maintenance for '{WorkflowName}'.", workflowMatch.Name);
+                }
+            }
+
             return Ok(new { lockedWorkflows });
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unable to schedule maintenance for '{filter}'.", body.Filter);
+            logger.LogError(ex, "Unable to schedule maintenance for '{WorkflowNameOrFilter}'.", workflowNameOrFilter);
             return Problem(detail: ex.ToString(), statusCode: 500);
-        }
-    }
-
-    private async IAsyncEnumerable<string> Apply(string profileName, string workflowFilter, MaintenancePeriod maintenancePeriod)
-    {
-        var profile = engineOptions.Value[profileName];
-        var lockCount = 0;
-        foreach (var workflowMatch in profile.Workflows(workflowFilter))
-        {
-            var workflowLockPath = await maintenancePeriod.ToFile(workflowMatch.Path);
-            logger.LogInformation("Workflow '{WorkflowName}' has been locked.", workflowMatch.Name);
-            yield return workflowLockPath;
-            lockCount++;
-        }
-
-        if (lockCount == 0)
-        {
-            throw new NoMatchException(profileName, workflowFilter);
         }
     }
 
@@ -75,7 +68,6 @@ public class SchedulesProfileMaintenance
         public string Filter { get; init; } = null!;
 
         public TimeSpan Wait { get; init; }
-
         public TimeSpan Duration { get; init; }
     }
 
@@ -83,12 +75,10 @@ public class SchedulesProfileMaintenance
     {
         public string Filter { get; init; } = null!;
 
-        public DateTime StartsOn { get; init; }
+        public DateTime StartsAt { get; init; }
+        public DateTime EndsAt { get; init; }
 
-        public DateTimeOffset StartsOnUtc => StartsOn.ToUniversalTime();
-
-        public DateTime EndsOn { get; init; }
-
-        public DateTimeOffset EndsOnUtc => EndsOn.ToUniversalTime();
+        public DateTimeOffset StartsAtUtc => StartsAt.ToUniversalTime();
+        public DateTimeOffset EndsAtUtc => EndsAt.ToUniversalTime();
     }
 }

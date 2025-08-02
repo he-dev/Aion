@@ -44,15 +44,8 @@ public record MaintenancePeriod
     public static MaintenancePeriod StartsAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
-        if (startsOnUtc > endsOnUtc)
-        {
-            throw new ArgumentException("Workflow lock's start must be before end.", nameof(startsOnUtc));
-        }
-
-        if (endsOnUtc < clock.GetUtcNow())
-        {
-            throw new ArgumentException("Workflow lock's expiry must be in the future.", nameof(endsOnUtc));
-        }
+        if (startsOnUtc > endsOnUtc) throw new MaintenancePeriodMustStartBeforeItEnds();
+        if (endsOnUtc < clock.GetUtcNow()) throw new MaintenancePeriodMustEndInTheFuture();
 
         return new MaintenancePeriod
         {
@@ -70,14 +63,12 @@ public record MaintenancePeriod
         return StartsAt(startsOnUtc, endsOnUtc);
     }
 
-    public static async Task<MaintenancePeriod> FromFile(string workflowPath)
+    public static async Task<MaintenancePeriod?> FromFile(string workflowPath)
     {
         var workflowLockPath = Path.ChangeExtension(workflowPath, FileExtension);
 
-        if (!Path.Exists(workflowLockPath))
-        {
-            throw new FileNotFoundException($"Workflow not locked.", fileName: workflowLockPath);
-        }
+        // core: This workflow has no lock.
+        if (!Path.Exists(workflowLockPath)) return null;
 
         // core: Avoid race conditions by locking file operations.
         await Lock.WaitAsync();
@@ -94,7 +85,7 @@ public record MaintenancePeriod
             Lock.Release();
         }
 
-        throw new InvalidWorkflowLockException(workflowPath);
+        throw new InvalidWorkflowLock(workflowPath);
     }
 
     public async Task ApplyTo(IEnumerable<string> workflowPaths)
@@ -129,7 +120,7 @@ public record MaintenancePeriod
         return lockPath;
     }
 
-    public async ValueTask Cancel()
+    public async ValueTask Complete()
     {
         // util: Prevent these two bugs that won't happen during normal operation, but only due to mistakes.
         if (FileName is null) throw new InvalidOperationException("Cannot delete a lock that is not saved.");
@@ -157,4 +148,8 @@ public enum MaintenancePeriodStatus
     Expired,
 }
 
-public class InvalidWorkflowLockException(string path) : Exception($"The '{path}' is not a valid workflow-lock-file.");
+public class InvalidWorkflowLock(string path) : Exception($"The '{path}' is not a valid workflow-lock-file.");
+
+public class MaintenancePeriodMustStartBeforeItEnds : Exception;
+
+public class MaintenancePeriodMustEndInTheFuture : Exception;

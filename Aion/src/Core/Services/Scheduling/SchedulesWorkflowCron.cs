@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Home.Jobs;
-using Aion.Util.Serilog;
+using Aion.Meta.Logging;
 using Microsoft.Extensions.Logging;
 using Quartz;
 

@@ -10,7 +10,7 @@ using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 
 namespace Aion.Core;
 
-public record Profile
+public class Profile
 {
     public string Path { get; set; } = null!;
 
@@ -24,7 +24,7 @@ public record Profile
 
     public string[] Excludes { get; set; } = [];
 
-    public IEnumerable<WorkflowMatch> Workflows(string? workflowNameOrFilter = null)
+    public IEnumerable<WorkflowMatch> WorkflowMatches(string? workflowNameOrFilter = null)
     {
         // core: Pass-1 - Use profile patterns to pre-filter its files.
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
@@ -47,12 +47,12 @@ public record Profile
             select new WorkflowMatch(this, match.Path);
     }
 
-    public WorkflowMatch Workflow(string workflowName)
+    public WorkflowMatch WorkflowMatch(string workflowName)
     {
-        return Workflows(workflowName).SingleOrThrows
+        return WorkflowMatches(workflowName).SingleOrThrows
         (
-            onEmpty: () => new NoMatchException(Name, workflowName),
-            onAmbiguous: () => new AmbiguousMatchException(Name, workflowName)
+            onEmpty: () => new NoWorkflowMatch(Name, workflowName),
+            onExtra: () => new AmbiguousWorkflowMatch(Name, workflowName)
         );
     }
 
@@ -70,7 +70,7 @@ public record Profile
             // meta: Single will throw this, so let's translate it to something meaningful.
             catch (InvalidOperationException)
             {
-                throw new LoggingPresetNotFoundException(loggingFile, loggingName);
+                throw new LoggingPresetNotFound(loggingFile, loggingName);
             }
         }
 
@@ -78,6 +78,11 @@ public record Profile
     }
 }
 
-public class LoggingPresetNotFoundException(string presetFile, string presetName)
+public class LoggingPresetNotFound(string presetFile, string presetName)
     : Exception($"Logging preset '{presetName}' not found in '{presetFile}'.");
 
+public class NoWorkflowMatch(string profileName, string workflowNameOrFilter)
+    : Exception($"No workflow in '{profileName}' matches '{workflowNameOrFilter}'.");
+
+public class AmbiguousWorkflowMatch(string profileName, string workflowNameOrFilter)
+    : Exception($"More than one workflow in '{profileName}' match '{workflowNameOrFilter}'.");

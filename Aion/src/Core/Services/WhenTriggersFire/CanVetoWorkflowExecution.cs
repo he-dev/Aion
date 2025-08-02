@@ -24,21 +24,17 @@ public class CanVetoWorkflowExecution
         var profile = engineOptions.Value[profileName];
         try
         {
-            var workflowMatch = profile.Workflow(workflowName);
+            var workflowMatch = profile.WorkflowMatch(workflowName);
             if (await MaintenancePeriod.FromFile(workflowMatch.Path) is { } workflowLock)
             {
                 if (workflowLock.Status == MaintenancePeriodStatus.Expired)
                 {
                     logger.LogWarning("Workflow lock has expired on {ExpiresOn} and will be deleted.", workflowLock.EndsOnUtc.ToLocalTime());
-                    await workflowLock.Cancel();
+                    await workflowLock.Complete();
                 }
 
                 return workflowLock.Status == MaintenancePeriodStatus.Running;
             }
-        }
-        catch (FileNotFoundException)
-        {
-            // core: Ignore this error as it's by design.
         }
         catch (Exception ex)
         {

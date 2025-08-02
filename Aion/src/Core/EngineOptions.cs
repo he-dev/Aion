@@ -56,6 +56,9 @@ public record EngineOptions
     }
 }
 
+public class ProfileNotFoundException(string profileName) : Exception($"Profile '{profileName}' not found.");
+
+
 public static class JobDataKeys
 {
     public const string ProfileName = nameof(ProfileName);

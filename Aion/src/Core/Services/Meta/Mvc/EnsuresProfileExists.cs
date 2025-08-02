@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Linq;
-using Aion.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Util.Mvc;
+namespace Aion.Core.Services.Meta.Mvc;
 
 public class EnsuresProfileExists : ActionFilterAttribute
 {

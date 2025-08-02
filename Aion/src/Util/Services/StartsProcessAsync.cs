@@ -4,15 +4,13 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Aion.Util.Serilog;
+using Aion.Meta.Logging;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Util;
+namespace Aion.Util.Services;
 
 public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 {
-    //public string? WorkingDirectory { get; init; }
-
     // note: Not using external cancellation as this app does not support such a scenario.
     public async Task<int> Now(string file, IEnumerable<string> args, string? workingDirectory, TimeSpan timeout)
     {
@@ -51,6 +49,7 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 
             if (process.Start())
             {
+                // ReSharper disable once StringLiteralTypo - becasue it's nagging about the command.
                 // util: This is a convenience ready-to-use command for killing the process.
                 logger.LogInformation
                 (
@@ -80,7 +79,7 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
                 return process.ExitCode;
             }
 
-            throw new ProcessNotStartedException();
+            throw new ProcessNotStarted();
         }
         catch (OperationCanceledException)
         {
@@ -103,7 +102,7 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
                 logger.LogError(ex, "Unable to kill process.");
             }
 
-            throw new ProcessTimeoutException();
+            throw new ProcessTimeout();
         }
         finally
         {
@@ -148,6 +147,6 @@ public enum ConsoleStreamType
     StdErr,
 }
 
-public class ProcessTimeoutException : Exception;
+public class ProcessTimeout : Exception;
 
-public class ProcessNotStartedException : Exception;
+public class ProcessNotStarted : Exception;

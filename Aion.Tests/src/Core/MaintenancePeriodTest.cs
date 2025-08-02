@@ -61,7 +61,7 @@ public class MaintenancePeriodTest
 
         var workflowLock = MaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await workflowLock.Cancel());
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await workflowLock.Complete());
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class MaintenancePeriodTest
         Assert.Equal(TimeSpan.FromHours(2), workflowLock.Remaining);
         Assert.Equal(TimeSpan.FromHours(1), workflowLock.Duration);
 
-        await workflowLock.Cancel();
+        await workflowLock.Complete();
 
         Assert.False(File.Exists(lockPath));;
     }

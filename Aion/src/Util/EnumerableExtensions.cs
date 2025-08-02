@@ -10,8 +10,8 @@ public static class EnumerableExtensions
     /// </summary>
     /// <param name="source"></param>
     /// <param name="onEmpty"></param>
-    /// <param name="onAmbiguous"></param>
-    public static T SingleOrThrows<T>(this IEnumerable<T> source, Func<Exception> onEmpty, Func<Exception> onAmbiguous)
+    /// <param name="onExtra"></param>
+    public static T SingleOrThrows<T>(this IEnumerable<T> source, Func<Exception> onEmpty, Func<Exception> onExtra)
     {
         using var enumerator = source.GetEnumerator();
 
@@ -27,7 +27,7 @@ public static class EnumerableExtensions
         if (enumerator.MoveNext())
         {
             // Multiple matches.
-            throw onAmbiguous();
+            throw onExtra();
         }
 
         return first;

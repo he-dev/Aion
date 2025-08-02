@@ -40,15 +40,15 @@ public class SchedulesProfileWorkflowOnce
         try
         {
             var profile = engineOptions.Value[profileName];
-            var workflowMatch = await profile.Workflow(workflowName).Load();
+            var workflowMatch = await profile.WorkflowMatch(workflowName).Load();
             var next = await action(workflowMatch);
             return Accepted(new { next = next.ToLocalTime() });
         }
-        catch (NoMatchException)
+        catch (NoWorkflowMatch)
         {
             return NotFound("No workflow matches the name '{$workflowName}'.");
         }
-        catch (AmbiguousMatchException)
+        catch (AmbiguousWorkflowMatch)
         {
             return BadRequest("Multiple workflows match the name '{$workflowName}'.");
         }

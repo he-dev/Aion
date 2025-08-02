@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Immutable;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Util.Mvc;
-using Aion.Util.Serilog;
+using Aion.Core.Services.Meta.Mvc;
+using Aion.Meta.Logging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -28,18 +27,14 @@ public class ListsProfileMaintenance
 
         var profile = engineOptions.Value[profileName];
         var locks = ImmutableList<MaintenancePeriod>.Empty;
-        foreach (var workflowMatch in profile.Workflows())
+        foreach (var workflowMatch in profile.WorkflowMatches())
         {
             try
             {
-                if (await MaintenancePeriod.FromFile(workflowMatch.Path) is var lockFile)
+                if (await MaintenancePeriod.FromFile(workflowMatch.Path) is { } lockFile)
                 {
                     locks = locks.Add(lockFile);
                 }
-            }
-            catch (FileNotFoundException)
-            {
-                // core: Ignore this error as it means that there is no workflow-lock in place.
             }
             catch (Exception ex)
             {
@@ -49,7 +44,7 @@ public class ListsProfileMaintenance
 
         var query =
                 from s in locks
-                orderby s.Remaining descending
+                orderby s.Remaining descending, s.Duration descending
                 select new
                 {
                     s.FileName,

@@ -48,6 +48,6 @@ public class WorkflowMatch
             .UsingJobData(JobDataKeys.WorkflowName, Name)
             .UsingJobData(JobDataKeys.ProfileName, Profile.Name)
             .UsingJobData(WorkflowStart.Cron)
-            .WithCronSchedule(Value.Cron, x => x.InTimeZone(Value.TimeZone))
+            .WithCronSchedule(Value.Cron) //, x => x.InTimeZone(Value.TimeZone))
             .Build();
 }

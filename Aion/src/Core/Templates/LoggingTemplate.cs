@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -9,35 +7,9 @@ using System.Threading.Tasks;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
 
-namespace Aion.Core;
+namespace Aion.Core.Templates;
 
-public class StringTemplate(string value)
-{
-    public string Render(IImmutableList<VariableGroup> variables) => RendersTemplates.In(value, variables);
-}
-
-public class StringTemplateConverter : JsonConverter<StringTemplate>
-{
-    public override StringTemplate Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        return new StringTemplate(reader.GetString()!);
-    }
-
-    public override void Write(Utf8JsonWriter writer, StringTemplate value, JsonSerializerOptions options)
-    {
-        // writer.WriteStringValue(value.Value);
-        throw new NotImplementedException("This method is not supported.");
-    }
-}
-
-public static class StringTemplateExtensions
-{
-    public static IEnumerable<string> Render(this IEnumerable<StringTemplate> templates, IImmutableList<VariableGroup> variables)
-    {
-        return templates.Select(t => t.Render(variables));
-    }
-}
-
+// core: Use this type for all logging-templates, so you don't forget to render them.
 public class LoggingTemplate(JsonObject template)
 {
     public async Task<JsonObject> RenderAsync(Profile profile, IImmutableList<VariableGroup> variables)
@@ -45,13 +17,11 @@ public class LoggingTemplate(JsonObject template)
         // core: Use the logger configuration that is embedded in the workflow.
         if (template.ContainsKey("WriteTo"))
         {
-            //logger.LogDebug("Logging is specified in the workflow.");
             return RenderFilePaths(template, variables);
         }
 
         if (await TryGetLoggingPreset(template, profile, variables) is { } preset)
         {
-            //logger.LogDebug("Logging is specified by a preset");
             return RenderFilePaths(preset, variables);
         }
 
@@ -59,7 +29,7 @@ public class LoggingTemplate(JsonObject template)
         throw new InvalidLoggingConfigurationException();
     }
 
-    private async Task<JsonObject?> TryGetLoggingPreset(JsonObject logging, Profile profile, IImmutableList<VariableGroup> variables)
+    private static async Task<JsonObject?> TryGetLoggingPreset(JsonObject logging, Profile profile, IImmutableList<VariableGroup> variables)
     {
         // core: Use the logger configuration that is specified by the preset.
         if (!logging.ContainsKey(nameof(LoggingPreset.Info.File))) return null;
@@ -69,10 +39,9 @@ public class LoggingTemplate(JsonObject template)
         {
             Converters = { new StringTemplateConverter() }
         })!;
+
         var file = presetInfo.File.Render(variables);
         var name = presetInfo.Name.Render(variables);
-
-        //logger.LogDebug("Logging is specified by the preset '{PresetInfo}'.", presetInfo);
 
         return await profile.LoggingPreset(file, name);
     }
@@ -111,7 +80,6 @@ public class LoggingTemplateConverter : JsonConverter<LoggingTemplate>
 
     public override void Write(Utf8JsonWriter writer, LoggingTemplate value, JsonSerializerOptions options)
     {
-        // writer.WriteStringValue(value.Value);
         throw new NotImplementedException("This method is not supported.");
     }
 }

@@ -27,7 +27,7 @@ public class SynchronizesProfileWorkflows
         var errors = ImmutableList<object>.Empty;
 
 
-        var workflowMatches = profile.Workflows();
+        var workflowMatches = profile.WorkflowMatches();
         foreach (var workflowMatch in workflowMatches)
         {
             try

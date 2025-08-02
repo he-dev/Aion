@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Aion.Core.Templates;
 
 namespace Aion.Core;
 
@@ -29,22 +30,15 @@ public record Workflow
     [JsonPropertyName("SerilogOrPresetInfo")]
     public LoggingTemplate? Logging { get; init; }
 
-    //public string Path { get; init; } = string.Empty;
-
-    //public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
-
     public record Step
     {
         public string? Name { get; init; }
-
-        //[JsonIgnore]
-        //public int Index { get; init; }
 
         public bool IsOn { get; init; } = true;
 
         public StringTemplate File { get; init; } = null!;
 
-        public List<StringTemplate> Args { get; init; } = [];
+        public StringTemplate[] Args { get; init; } = [];
 
         public StringTemplate? WorkingDirectory { get; init; }
 
@@ -75,6 +69,8 @@ public record Workflow
             }
         });
 
-        return workflow ?? throw new WorkflowNullException(path);
+        return workflow ?? throw new InvalidWorkflow(path);
     }
 }
+
+public class InvalidWorkflow(string path) : Exception($"File '{path}' is not a valid workflow.");

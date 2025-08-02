@@ -7,14 +7,11 @@ using Microsoft.Extensions.Logging;
 namespace Aion.Home.Endpoints;
 
 [ApiController]
-[Route("api")]
-public class DiagnosticsController(ILogger<DiagnosticsController> logger) : ControllerBase
+[Route("api/diagnostics")]
+public class ListsDiagnosticsInfo(ILogger<ListsDiagnosticsInfo> logger) : ControllerBase
 {
-    [HttpGet("[controller]/routes")]
-    public IActionResult Routes
-    (
-        [FromServices] IEnumerable<EndpointDataSource> sources
-    )
+    [HttpGet("routes")]
+    public IActionResult Routes([FromServices] IEnumerable<EndpointDataSource> sources)
     {
         var patterns = sources
             .SelectMany(ds => ds.Endpoints)

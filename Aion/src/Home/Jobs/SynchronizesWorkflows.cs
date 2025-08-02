@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services.Scheduling;
-using Aion.Util.Serilog;
+using Aion.Meta.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -26,7 +26,7 @@ internal class SynchronizesWorkflows
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         logger.LogInformation("Scheduling profile...");
 
-        var matches = profile.Workflows();
+        var matches = profile.WorkflowMatches();
         foreach (var match in matches)
         {
             try

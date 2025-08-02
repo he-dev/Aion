@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Aion.Core.Templates;
 using Aion.Util.Scriban;
 using Quartz;
 

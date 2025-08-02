@@ -1,6 +1,6 @@
 ﻿using System;
-using Aion.Util;
 using Aion.Util.Serilog;
+using Aion.Util.Services;
 using Serilog.Events;
 
 // ReSharper disable NegativeEqualityExpression

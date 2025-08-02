@@ -4,8 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services;
+using Aion.Meta.Logging;
 using Aion.Util.Quartz;
-using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -30,7 +30,7 @@ public class ExecutesWorkflowOnce
 
         try
         {
-            var workflowMatch = await profile.Workflow(workflowName).Load();
+            var workflowMatch = await profile.WorkflowMatch(workflowName).Load();
             switch (workflowMatch.Value)
             {
                 // util: Logging.

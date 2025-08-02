@@ -5,10 +5,11 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.StepExecutionRules;
-using Aion.Util;
-using Aion.Util.Json;
+using Aion.Core.Templates;
+using Aion.Meta.Logging;
 using Aion.Util.Scriban;
 using Aion.Util.Serilog;
+using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -24,6 +25,9 @@ public class ExecutesWorkflow
     StartsProcessAsync asyncProcess
 )
 {
+    // note: In case of an exception, there is no exit-code to use.
+    private static readonly int? NoExitCode = null;
+
     public async Task Now(WorkflowMatch workflowMatch)
     {
         var workflow = workflowMatch.Value;
@@ -33,7 +37,7 @@ public class ExecutesWorkflow
         ([
             new ProfileVariableGroup { Name = engineOptions.Value.Name },
             new ArgumentVariableGroup(workflow.Args),
-            new WorkflowVariableGroup() { Name = workflowMatch.Name }
+            new WorkflowVariableGroup { Name = workflowMatch.Name }
         ]);
 
         var logging =
@@ -107,26 +111,26 @@ public class ExecutesWorkflow
 
             return exitCode;
         }
-        catch (ProcessTimeoutException)
+        catch (ProcessTimeout)
         {
             activity.SetStatus(ActivityStatusCode.Error).Stop();
             logger.LogWarning("Step was cancelled in {Duration} by timeout.", activity.Duration);
-            return null; // note: In case of a cancellation, there is no exit-code to use.
+            return NoExitCode;
         }
         catch (Exception ex)
         {
             activity.SetStatus(ActivityStatusCode.Error).Stop();
             logger.LogError(ex, "Step failed in {Duration} with an exception.", activity.Duration);
-            return null; // note: In case of an exception, there is no exit-code to use.
+            return NoExitCode;
         }
     }
 
     private record StepContext
     {
-        public WorkflowMatch WorkflowMatch { get; init; }
-        public Workflow.Step Step { get; init; }
-        public int StepIndex { get; init; }
-        public IImmutableList<VariableGroup> Variables { get; init; }
-        public IImmutableList<int?> ExitCodes { get; init; }
+        public required WorkflowMatch WorkflowMatch { get; init; }
+        public required Workflow.Step Step { get; init; }
+        public required int StepIndex { get; init; }
+        public required IImmutableList<VariableGroup> Variables { get; init; }
+        public required IImmutableList<int?> ExitCodes { get; init; }
     }
 }
