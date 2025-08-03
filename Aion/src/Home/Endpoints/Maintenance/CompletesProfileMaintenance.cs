@@ -23,12 +23,12 @@ public class CompletesProfileMaintenance
     public async Task<IActionResult> Where(string profileName, [FromBody] CompleteBody body)
     {
         var profile = engineOptions.Value[profileName];
-        var locks = ImmutableList<MaintenancePeriod>.Empty;
+        var locks = ImmutableList<TestsMaintenancePeriod>.Empty;
         foreach (var workflowMatch in profile.Workflows.Where(body.WorkflowFilter))
         {
             try
             {
-                if (await MaintenancePeriod.FromFile(workflowMatch.Path) is { } lockFile)
+                if (await TestsMaintenancePeriod.FromFile(workflowMatch.Path) is { } lockFile)
                 {
                     await lockFile.Complete();
                     locks = locks.Add(lockFile);

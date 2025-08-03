@@ -22,17 +22,17 @@ public class SchedulesProfileMaintenance
     [EnsuresProfileExists]
     public async Task<IActionResult> ToStartIn(string profileName, [FromBody] StartInBody body)
     {
-        return await Start(profileName, body.Filter, () => MaintenancePeriod.StartsIn(body.Wait, body.Duration));
+        return await Start(profileName, body.Filter, () => TestsMaintenancePeriod.StartsIn(body.Wait, body.Duration));
     }
 
     [HttpPost(":start-at")]
     [EnsuresProfileExists]
     public async Task<IActionResult> ToStartAt(string profileName, [FromBody] StartAtBody body)
     {
-        return await Start(profileName, body.Filter, () => MaintenancePeriod.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
+        return await Start(profileName, body.Filter, () => TestsMaintenancePeriod.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
     }
 
-    private async Task<IActionResult> Start(string profileName, string workflowNameOrFilter, Func<MaintenancePeriod> createsMaintenancePeriod)
+    private async Task<IActionResult> Start(string profileName, string workflowNameOrFilter, Func<TestsMaintenancePeriod> createsMaintenancePeriod)
     {
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         try

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -46,15 +47,21 @@ public class WorkflowRepository(Profile profile)
             select match.Path;
 
         // core: Pass-2 - Search only the candidates for workflow-filter matches.
-        workflowFilter = $"**\\{workflowFilter ?? "*"}.json";
+        //workflowFilter = $"**\\{workflowFilter}.json";
+        workflowFilter = $"*{workflowFilter}.json";
         matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
         matcher.AddInclude(workflowFilter);
 
-        var results = matcher.Match(candidates).Files;
+        //var results = matcher.Match(candidates).Files;
+        var results =
+            from candidate in candidates
+            let workflowName = candidate.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.')
+            where matcher.Match(workflowName).HasMatches
+            select candidate;
 
         return
             from match in results
-            select new WorkflowMatch(profile, match.Path);
+            select new WorkflowMatch(profile, match);
     }
 
     public IEnumerable<WorkflowMatch> All() => Where("*");

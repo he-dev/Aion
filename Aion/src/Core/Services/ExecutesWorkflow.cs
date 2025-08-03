@@ -172,5 +172,5 @@ public record StepResult
     public required int Index { get; init; }
     public int? ExitCode { get; init; }
     public Exception? Exception { get; init; }
-    public TimeSpan? Duration { get; init; } = TimeSpan.Zero;
+    public TimeSpan? Duration { get; init; }
 }

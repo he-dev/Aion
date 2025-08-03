@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Aion.Core;
 
 // core: Represents a single workflow-lock that carries the same name, but a different extension.
-public record MaintenancePeriod
+public record TestsMaintenancePeriod
 {
     public const string FileExtension = ".lock";
 
@@ -41,20 +41,20 @@ public record MaintenancePeriod
         }
     }
 
-    public static MaintenancePeriod StartsAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
+    public static TestsMaintenancePeriod StartsAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
         if (startsOnUtc > endsOnUtc) throw new MaintenancePeriodMustStartBeforeItEnds();
         if (endsOnUtc < clock.GetUtcNow()) throw new MaintenancePeriodMustEndInTheFuture();
 
-        return new MaintenancePeriod
+        return new TestsMaintenancePeriod
         {
             StartsOnUtc = startsOnUtc,
             EndsOnUtc = endsOnUtc,
         };
     }
 
-    public static MaintenancePeriod StartsIn(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
+    public static TestsMaintenancePeriod StartsIn(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
         var startsOnUtc = clock.GetUtcNow().Add(wait);
@@ -63,7 +63,7 @@ public record MaintenancePeriod
         return StartsAt(startsOnUtc, endsOnUtc);
     }
 
-    public static async Task<MaintenancePeriod?> FromFile(string workflowPath)
+    public static async Task<TestsMaintenancePeriod?> FromFile(string workflowPath)
     {
         var workflowLockPath = Path.ChangeExtension(workflowPath, FileExtension);
 
@@ -75,7 +75,7 @@ public record MaintenancePeriod
         try
         {
             await using var fileStream = new FileStream(workflowLockPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            if (await JsonSerializer.DeserializeAsync<MaintenancePeriod>(fileStream) is { } workflowLock)
+            if (await JsonSerializer.DeserializeAsync<TestsMaintenancePeriod>(fileStream) is { } workflowLock)
             {
                 return workflowLock with { FileName = workflowLockPath };
             }

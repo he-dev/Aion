@@ -26,7 +26,11 @@ public class WorkflowMatch
 
     public string Path => System.IO.Path.Join(Profile.Path, RelativePath);
 
-    public string Name => System.IO.Path.GetFileNameWithoutExtension(RelativePath).Replace(System.IO.Path.DirectorySeparatorChar, '.');
+    public string Name =>
+        System.IO.Path
+            .GetFileNameWithoutExtension(RelativePath)
+            .Replace(System.IO.Path.DirectorySeparatorChar, '.')
+            .Replace(System.IO.Path.AltDirectorySeparatorChar, '.');
 
     public Workflow Value => _workflow ?? throw new InvalidOperationException("Workflow has not been loaded yet.");
 

@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Aion.Tests.Core;
 
-public class MaintenancePeriodTest
+public class TestsMaintenancePeriod
 {
     [Fact]
     public void IsPendingWhenStartBeforeNow()
@@ -17,7 +17,7 @@ public class MaintenancePeriodTest
         var fakeStartsOnUtcNow = new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.Zero);
         var fakeEndsOnUtcNow = new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero);
 
-        var workflowLock = MaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
+        var workflowLock = Aion.Core.TestsMaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
 
         Assert.Equal(MaintenancePeriodStatus.Pending, workflowLock.Status);
         Assert.Equal(TimeSpan.FromHours(2), workflowLock.Remaining);
@@ -32,7 +32,7 @@ public class MaintenancePeriodTest
         var fakeNowUtc = new FakeTimeProvider(new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.Zero));
         var fakeEndsOnUtcNow = new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero);
 
-        var workflowLock = MaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
+        var workflowLock = Aion.Core.TestsMaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
 
         Assert.Equal(MaintenancePeriodStatus.Running, workflowLock.Status);
         Assert.Equal(TimeSpan.FromHours(1), workflowLock.Remaining);
@@ -48,7 +48,7 @@ public class MaintenancePeriodTest
         var fakeUtcNow = new FakeTimeProvider(new DateTimeOffset(2025, 1, 1, 13, 30, 0, TimeSpan.Zero));
         var fakeUtcLater = new FakeTimeProvider(new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero));
 
-        var workflowLock = MaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeUtcNow) with { Clock = fakeUtcLater };
+        var workflowLock = Aion.Core.TestsMaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeUtcNow) with { Clock = fakeUtcLater };
 
         Assert.Equal(MaintenancePeriodStatus.Expired, workflowLock.Status);
         Assert.Equal(TimeSpan.FromHours(-1), workflowLock.Remaining);
@@ -63,7 +63,7 @@ public class MaintenancePeriodTest
         var fakeStartsOnUtcNow = new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.Zero);
         var fakeEndsOnUtcNow = new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero);
 
-        var workflowLock = MaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
+        var workflowLock = Aion.Core.TestsMaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await workflowLock.Complete());
     }
@@ -76,12 +76,12 @@ public class MaintenancePeriodTest
         var fakeStartsOnUtcNow = new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.Zero);
         var fakeEndsOnUtcNow = new DateTimeOffset(2025, 1, 1, 15, 0, 0, TimeSpan.Zero);
 
-        var workflowLock = MaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
+        var workflowLock = Aion.Core.TestsMaintenancePeriod.StartsAt(fakeStartsOnUtcNow, fakeEndsOnUtcNow, fakeNowUtc) with { Clock = fakeNowUtc };
         var lockPath = await workflowLock.ToFile(@"workflows\says-hallo.json");
 
         Assert.True(File.Exists(lockPath));
 
-        workflowLock = await MaintenancePeriod.FromFile(lockPath);
+        workflowLock = await Aion.Core.TestsMaintenancePeriod.FromFile(lockPath);
         workflowLock = workflowLock with { Clock = fakeNowUtc };
 
         Assert.Equal(MaintenancePeriodStatus.Pending, workflowLock.Status);

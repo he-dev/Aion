@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -25,7 +24,7 @@ public class CanVetoWorkflowExecution
         try
         {
             var workflowMatch = profile.Workflows.Single(workflowName);
-            if (await MaintenancePeriod.FromFile(workflowMatch.Path) is { } workflowLock)
+            if (await TestsMaintenancePeriod.FromFile(workflowMatch.Path) is { } workflowLock)
             {
                 if (workflowLock.Status == MaintenancePeriodStatus.Expired)
                 {

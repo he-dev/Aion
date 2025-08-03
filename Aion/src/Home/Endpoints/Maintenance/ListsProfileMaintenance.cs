@@ -26,12 +26,12 @@ public class ListsProfileMaintenance
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
 
         var profile = engineOptions.Value[profileName];
-        var locks = ImmutableList<MaintenancePeriod>.Empty;
+        var locks = ImmutableList<TestsMaintenancePeriod>.Empty;
         foreach (var workflowMatch in profile.Workflows.All())
         {
             try
             {
-                if (await MaintenancePeriod.FromFile(workflowMatch.Path) is { } lockFile)
+                if (await TestsMaintenancePeriod.FromFile(workflowMatch.Path) is { } lockFile)
                 {
                     locks = locks.Add(lockFile);
                 }
