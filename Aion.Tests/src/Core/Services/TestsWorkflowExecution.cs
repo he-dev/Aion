@@ -1,6 +1,4 @@
 ﻿using System.Threading.Tasks;
-using Aion.Core.Services;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Aion.Tests.Core.Services;
@@ -10,8 +8,8 @@ public class TestsWorkflowExecution(TestWebApplication testWebApplication) : ICl
     [Fact]
     public async Task CanHandleStepDependencies()
     {
-        using var scope = testWebApplication.Services.CreateScope();
-        var executesWorkflow = scope.ServiceProvider.GetRequiredService<ExecutesWorkflow>();
-        await executesWorkflow.Now(null);
+        var results = await testWebApplication.ExecutesWorkflow("one", "tests-serilog");
+        Assert.Equal(1, results.Count);
+        Assert.Equal(0, results[0].ExitCode);
     }
 }

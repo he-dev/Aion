@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.StepExecutionRules;
-using Aion.Core.Templates;
 using Aion.Meta.Logging;
 using Aion.Util.Scriban;
 using Aion.Util.Serilog;
@@ -25,11 +24,10 @@ public class ExecutesWorkflow
     StartsProcessAsync asyncProcess
 )
 {
-    // note: In case of an exception, there is no exit-code to use.
-    private static readonly int? NoExitCode = null;
-
-    public async Task Now(WorkflowMatch workflowMatch)
+    public async Task<IImmutableList<StepResult>> Now(WorkflowMatch workflowMatch)
     {
+        var stepResults = ImmutableList<StepResult>.Empty;
+
         var workflow = workflowMatch.Value;
         using var activity = new Activity("ExecutingWorkflow");
 
@@ -47,48 +45,53 @@ public class ExecutesWorkflow
 
         using (mapsLogEvent.By(new WorkflowLogEventSignature(workflowMatch.Name), to: logging.ToLogger()))
         {
-            var exitCodes = ImmutableList<int?>.Empty;
-
             activity.Start();
             logger.LogInformation("Executing workflow...");
 
             // core: Does not filter out disabled steps because we want them logged.
             foreach (var (step, index) in workflow.Steps.Select((step, index) => (step, index)))
             {
-                var exitCode = await ExecuteStep(new StepContext
+                var stepResult = await ExecuteStep(new StepContext
                 {
                     WorkflowMatch = workflowMatch,
                     Step = step,
-                    StepIndex = index,
+                    Index = index,
                     Variables = variables,
-                    ExitCodes = exitCodes
+                    StepResults = stepResults
                 });
-                exitCodes = exitCodes.Add(exitCode);
+                stepResults = stepResults.Add(stepResult);
             }
 
             activity.SetStatus(ActivityStatusCode.Ok).Stop();
             logger.LogInformation("Workflow completed in {Duration}.", activity.Duration);
         }
+
+        return stepResults;
     }
 
-    private async Task<int?> ExecuteStep(StepContext context)
+    private async Task<StepResult> ExecuteStep(StepContext context)
     {
         // meta: Setup logging contexts.
         using var activity = new Activity("ExecutingStep");
-        using var scope = logger.BeginScopeFrom(new { context.StepIndex, StepName = context.Step.Name });
+        using var scope = logger.BeginScopeFrom(new { StepIndex = context.Index, StepName = context.Step.Name });
 
-        if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(context.Step, context.StepIndex, context.ExitCodes)))
+        var exitCodes = context.StepResults.Select(r => r.ExitCode).ToImmutableList();
+        if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(context.Step, context.Index, exitCodes)))
         {
-            return null;
+            return new StepResult
+            {
+                Step = context.Step,
+                Index = context.Index
+            };
         }
 
-        var variables = context.Variables.Add(new StepVariableGroup { Index = context.StepIndex, Name = context.Step.Name });
+        var variables = context.Variables.Add(new StepVariableGroup { Index = context.Index, Name = context.Step.Name });
         var stepLogging =
             context.Step.Logging is not null
                 ? await context.Step.Logging.RenderAsync(context.WorkflowMatch.Profile, variables)
                 : null;
 
-        using var logging = mapsLogEvent.By(new ConsoleLogEventSignature(context.WorkflowMatch.Name, context.StepIndex), to: stepLogging.ToLogger());
+        using var logging = mapsLogEvent.By(new ConsoleLogEventSignature(context.WorkflowMatch.Name, context.Index), to: stepLogging.ToLogger());
 
         try
         {
@@ -104,6 +107,7 @@ public class ExecutesWorkflow
                     {
                         psi.ArgumentList.Add(arg);
                     }
+
                     psi.Arguments = context.Step.Args.RenderArgString(variables);
                     psi.WorkingDirectory = context.Step.WorkingDirectory?.Render(variables);
                 }
@@ -116,28 +120,57 @@ public class ExecutesWorkflow
                 default: logger.LogError("Step failed in {Duration} with exit code {ExitCode}.", activity.Duration, exitCode); break;
             }
 
-            return exitCode;
+            return new StepResult
+            {
+                Step = context.Step,
+                Index = context.Index,
+                ExitCode = exitCode,
+                Duration = activity.Duration,
+            };
         }
-        catch (ProcessTimeout)
+        catch (ProcessTimeout ex)
         {
             activity.SetStatus(ActivityStatusCode.Error).Stop();
             logger.LogWarning("Step was cancelled in {Duration} by timeout.", activity.Duration);
-            return NoExitCode;
+            return new StepResult
+            {
+                Step = context.Step,
+                Index = context.Index,
+                Exception = ex,
+                Duration = activity.Duration,
+            };
         }
         catch (Exception ex)
         {
             activity.SetStatus(ActivityStatusCode.Error).Stop();
             logger.LogError(ex, "Step failed in {Duration} with an exception.", activity.Duration);
-            return NoExitCode;
+            return new StepResult
+            {
+                Step = context.Step,
+                Index = context.Index,
+                Exception = ex,
+                Duration = activity.Duration,
+            };
         }
     }
 
+    // util: Reduces the number of parameters.
     private record StepContext
     {
         public required WorkflowMatch WorkflowMatch { get; init; }
         public required Workflow.Step Step { get; init; }
-        public required int StepIndex { get; init; }
+        public required int Index { get; init; }
         public required IImmutableList<VariableGroup> Variables { get; init; }
-        public required IImmutableList<int?> ExitCodes { get; init; }
+        public required IImmutableList<StepResult> StepResults { get; init; }
     }
+}
+
+// meta: The core does not require this result at all, but without it, it's not possible to write tests.
+public record StepResult
+{
+    public required Workflow.Step Step { get; init; }
+    public required int Index { get; init; }
+    public int? ExitCode { get; init; }
+    public Exception? Exception { get; init; }
+    public TimeSpan? Duration { get; init; } = TimeSpan.Zero;
 }

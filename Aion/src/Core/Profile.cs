@@ -74,7 +74,7 @@ public class LoggingPresetRepository(Profile profile)
     public async Task<JsonObject> Single(string file, string preset)
     {
         // meta: Create the path to the logging-presets-file and load it.
-        var presetPath = System.IO.Path.Combine(profile.Path, preset);
+        var presetPath = Path.Combine(profile.Path, preset);
         if (await LoggingPresetGroup.FromJson(presetPath) is { } loggingPresetGroup)
         {
             try

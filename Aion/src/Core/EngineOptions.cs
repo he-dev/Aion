@@ -62,7 +62,5 @@ public class ProfileNotFoundException(string profileName) : Exception($"Profile 
 public static class JobDataKeys
 {
     public const string ProfileName = nameof(ProfileName);
-
     public const string WorkflowName = nameof(WorkflowName);
-    //public const string WorkflowPath = nameof(WorkflowPath);
 }

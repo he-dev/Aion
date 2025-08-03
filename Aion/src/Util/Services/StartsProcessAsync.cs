@@ -166,19 +166,3 @@ public class ProcessTimeout : Exception;
 
 public class ProcessNotStarted : Exception;
 
-public record ProcessResult
-{
-    public int? ExitCode { get; init; }
-    public ExitStatus ExitStatus { get; init; }
-    public Exception? Exception { get; init; }
-    public TimeSpan Duration { get; init; } = TimeSpan.Zero;
-}
-
-[Flags]
-public enum ExitStatus
-{
-    Success = 0x0,
-    Timeout = 0x1,
-    Killed = 0x2,
-    Error = 0x4
-}
