@@ -43,7 +43,7 @@ public class LoggingTemplate(JsonObject template)
         var file = presetInfo.File.Render(variables);
         var name = presetInfo.Name.Render(variables);
 
-        return await profile.LoggingPreset(file, name);
+        return await profile.LoggingPresets.Single(file, name);
     }
 
     // core: Renders each path property it finds that looks like a template.

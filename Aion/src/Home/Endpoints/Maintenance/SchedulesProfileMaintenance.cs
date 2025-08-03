@@ -40,7 +40,7 @@ public class SchedulesProfileMaintenance
             var profile = engineOptions.Value[profileName];
             var maintenancePeriod = createsMaintenancePeriod();
             var lockedWorkflows = ImmutableList<WorkflowMatch>.Empty;
-            foreach (var workflowMatch in profile.WorkflowMatches(workflowNameOrFilter))
+            foreach (var workflowMatch in profile.Workflows.Where(workflowNameOrFilter))
             {
                 try
                 {

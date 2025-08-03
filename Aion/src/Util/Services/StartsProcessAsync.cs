@@ -12,18 +12,23 @@ namespace Aion.Util.Services;
 public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 {
     // note: Not using external cancellation as this app does not support such a scenario.
-    public async Task<int> Now(string file, IEnumerable<string> args, string? workingDirectory, TimeSpan timeout)
+    public async Task<int> Now
+    (
+        string file,
+        TimeSpan timeout,
+        Action<ProcessStartInfo>? customizesProcessStartInfo = null,
+        Action<string>? logStdErr = null,
+        Action<string>? logStdOut = null
+    )
     {
         // note: If you run a bash-script on Linux, it is possible that ExitCode can be 255.
         // To fix it, you can try to add the "#!/bin/bash" header to the script.
         var process = new Process
         {
+            // meta: Set reasonable defaults and let the caller customize the rest.
             StartInfo = new ProcessStartInfo
             {
                 FileName = file,
-                // note: Not using the ArgumentList as it does not correctly transfer the arguments. Let the process handle them.
-                Arguments = string.Join(' ', args.Select(a => a.Trim())),
-                WorkingDirectory = workingDirectory,
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardInput = true,
@@ -32,14 +37,24 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
             }
         };
 
+        customizesProcessStartInfo?.Invoke(process.StartInfo);
+
         // util: Let's measure the execution time.
         var stopwatch = Stopwatch.StartNew();
 
         var stdOutCompletion = new TaskCompletionSource<bool>();
         var stdErrCompletion = new TaskCompletionSource<bool>();
 
-        process.OutputDataReceived += (_, e) => OnDataReceived(e, stdOutCompletion, ConsoleStreamType.StdOut, stopwatch);
-        process.ErrorDataReceived += (_, e) => OnDataReceived(e, stdErrCompletion, ConsoleStreamType.StdErr, stopwatch);
+        process.OutputDataReceived += (_, e) =>
+        {
+            OnDataReceived(e, stdOutCompletion, ConsoleStreamType.StdOut, stopwatch);
+            if (e.Data is not null) logStdOut?.Invoke(e.Data);
+        };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            OnDataReceived(e, stdErrCompletion, ConsoleStreamType.StdErr, stopwatch);
+            if (e.Data is not null) logStdErr?.Invoke(e.Data);
+        };
 
         using var scope = logger.BeginScopeFrom(new { ConsoleStreamType = ConsoleStreamType.Engine });
 
@@ -150,3 +165,20 @@ public enum ConsoleStreamType
 public class ProcessTimeout : Exception;
 
 public class ProcessNotStarted : Exception;
+
+public record ProcessResult
+{
+    public int? ExitCode { get; init; }
+    public ExitStatus ExitStatus { get; init; }
+    public Exception? Exception { get; init; }
+    public TimeSpan Duration { get; init; } = TimeSpan.Zero;
+}
+
+[Flags]
+public enum ExitStatus
+{
+    Success = 0x0,
+    Timeout = 0x1,
+    Killed = 0x2,
+    Error = 0x4
+}

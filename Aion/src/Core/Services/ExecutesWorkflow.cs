@@ -97,9 +97,16 @@ public class ExecutesWorkflow
             var exitCode = await asyncProcess.Now
             (
                 context.Step.File.Render(variables),
-                context.Step.Args.Render(variables),
-                context.Step.WorkingDirectory?.Render(variables),
-                context.Step.Timeout
+                context.Step.Timeout,
+                psi =>
+                {
+                    foreach (var arg in context.Step.Args.RenderArgList(variables))
+                    {
+                        psi.ArgumentList.Add(arg);
+                    }
+                    psi.Arguments = context.Step.Args.RenderArgString(variables);
+                    psi.WorkingDirectory = context.Step.WorkingDirectory?.Render(variables);
+                }
             );
             activity.SetStatus(ActivityStatusCode.Ok).Stop();
 

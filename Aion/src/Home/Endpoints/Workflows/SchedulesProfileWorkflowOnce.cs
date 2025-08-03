@@ -40,7 +40,7 @@ public class SchedulesProfileWorkflowOnce
         try
         {
             var profile = engineOptions.Value[profileName];
-            var workflowMatch = await profile.WorkflowMatch(workflowName).Load();
+            var workflowMatch = await profile.Workflows.Single(workflowName).Load();
             var next = await action(workflowMatch);
             return Accepted(new { next = next.ToLocalTime() });
         }

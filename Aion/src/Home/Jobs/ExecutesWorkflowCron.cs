@@ -33,7 +33,7 @@ public class ExecutesWorkflowCron
 
         try
         {
-            var workflowMatch = await profile.WorkflowMatch(workflowName).Load();
+            var workflowMatch = await profile.Workflows.Single(workflowName).Load();
             switch (workflowMatch.Value)
             {
                 // core: Do not execute disabled workflows.

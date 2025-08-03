@@ -24,7 +24,7 @@ public class CompletesProfileMaintenance
     {
         var profile = engineOptions.Value[profileName];
         var locks = ImmutableList<MaintenancePeriod>.Empty;
-        foreach (var workflowMatch in profile.WorkflowMatches(body.WorkflowFilter))
+        foreach (var workflowMatch in profile.Workflows.Where(body.WorkflowFilter))
         {
             try
             {

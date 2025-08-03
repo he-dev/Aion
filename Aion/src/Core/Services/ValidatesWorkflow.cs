@@ -60,7 +60,8 @@ public static class ValidatesWorkflow
         }
 
         step.File.Render(variables);
-        step.Args.Render(variables);
+        step.Args.RenderArgList(variables);
+        step.Args.RenderArgString(variables);
         step.WorkingDirectory?.Render(variables);
     }
 

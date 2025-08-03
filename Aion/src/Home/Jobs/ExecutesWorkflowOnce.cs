@@ -30,7 +30,7 @@ public class ExecutesWorkflowOnce
 
         try
         {
-            var workflowMatch = await profile.WorkflowMatch(workflowName).Load();
+            var workflowMatch = await profile.Workflows.Single(workflowName).Load();
             switch (workflowMatch.Value)
             {
                 // util: Logging.

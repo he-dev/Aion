@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Aion.Util;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -24,19 +25,28 @@ public class Profile
 
     public string[] Excludes { get; set; } = [];
 
-    public IEnumerable<WorkflowMatch> WorkflowMatches(string? workflowNameOrFilter = null)
+    [JsonIgnore]
+    public WorkflowRepository Workflows => new(this);
+
+    [JsonIgnore]
+    public LoggingPresetRepository LoggingPresets => new(this);
+}
+
+public class WorkflowRepository(Profile profile)
+{
+    public IEnumerable<WorkflowMatch> Where(string workflowFilter)
     {
         // core: Pass-1 - Use profile patterns to pre-filter its files.
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
-        matcher.AddIncludePatterns(Includes);
-        matcher.AddExcludePatterns(Excludes);
+        matcher.AddIncludePatterns(profile.Includes);
+        matcher.AddExcludePatterns(profile.Excludes);
 
         var candidates =
-            from match in matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(Path))).Files
+            from match in matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(profile.Path))).Files
             select match.Path;
 
         // core: Pass-2 - Search only the candidates for workflow-filter matches.
-        var workflowFilter = $"**\\{workflowNameOrFilter ?? "*"}.json";
+        workflowFilter = $"**\\{workflowFilter ?? "*"}.json";
         matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
         matcher.AddInclude(workflowFilter);
 
@@ -44,33 +54,38 @@ public class Profile
 
         return
             from match in results
-            select new WorkflowMatch(this, match.Path);
+            select new WorkflowMatch(profile, match.Path);
     }
 
-    public WorkflowMatch WorkflowMatch(string workflowName)
+    public IEnumerable<WorkflowMatch> All() => Where("*");
+
+    public WorkflowMatch Single(string workflowName)
     {
-        return WorkflowMatches(workflowName).SingleOrThrows
+        return Where(workflowName).SingleOrThrows
         (
-            onEmpty: () => new NoWorkflowMatch(Name, workflowName),
-            onExtra: () => new AmbiguousWorkflowMatch(Name, workflowName)
+            onEmpty: () => new NoWorkflowMatch(profile.Name, workflowName),
+            onExtra: () => new AmbiguousWorkflowMatch(profile.Name, workflowName)
         );
     }
+}
 
-    public async Task<JsonObject> LoggingPreset(string loggingFile, string loggingName)
+public class LoggingPresetRepository(Profile profile)
+{
+    public async Task<JsonObject> Single(string file, string preset)
     {
         // meta: Create the path to the logging-presets-file and load it.
-        var presetPath = System.IO.Path.Combine(Path, loggingFile);
+        var presetPath = System.IO.Path.Combine(profile.Path, preset);
         if (await LoggingPresetGroup.FromJson(presetPath) is { } loggingPresetGroup)
         {
             try
             {
                 // core: Return the configuration.
-                return loggingPresetGroup[loggingName].Serilog;
+                return loggingPresetGroup[preset].Serilog;
             }
             // meta: Single will throw this, so let's translate it to something meaningful.
             catch (InvalidOperationException)
             {
-                throw new LoggingPresetNotFound(loggingFile, loggingName);
+                throw new LoggingPresetNotFound(file, preset);
             }
         }
 

@@ -27,7 +27,7 @@ public record Workflow
 
     public List<Step> Steps { get; init; } = [];
 
-    [JsonPropertyName("SerilogOrPresetInfo")]
+    [JsonPropertyName("SerilogOrPreset")]
     public LoggingTemplate? Logging { get; init; }
 
     public record Step
@@ -38,13 +38,14 @@ public record Workflow
 
         public StringTemplate File { get; init; } = null!;
 
-        public StringTemplate[] Args { get; init; } = [];
+        [JsonPropertyName("ArgsOrString")]
+        public ArgumentsTemplate Args { get; init; } = new(null, null);
 
         public StringTemplate? WorkingDirectory { get; init; }
 
         public TimeSpan Timeout { get; init; } = System.Threading.Timeout.InfiniteTimeSpan;
 
-        [JsonPropertyName("SerilogOrPresetInfo")]
+        [JsonPropertyName("SerilogOrPreset")]
         public LoggingTemplate? Logging { get; init; }
 
         public string? DependsOn { get; init; }
@@ -65,7 +66,8 @@ public record Workflow
             Converters =
             {
                 new StringTemplateConverter(),
-                new LoggingTemplateConverter()
+                new ArgumentsTemplateConverter(),
+                new LoggingTemplateConverter(),
             }
         });
 

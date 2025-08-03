@@ -26,7 +26,7 @@ internal class SynchronizesWorkflows
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         logger.LogInformation("Scheduling profile...");
 
-        var matches = profile.WorkflowMatches();
+        var matches = profile.Workflows.All();
         foreach (var match in matches)
         {
             try

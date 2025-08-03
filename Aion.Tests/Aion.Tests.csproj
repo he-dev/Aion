@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
+        <ImplicitUsings>false</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <LangVersion>default</LangVersion>
@@ -29,7 +29,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="src\"/>
         <Content Include="workflows\**\*.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>

@@ -28,7 +28,7 @@ public class ListsProfileWorkflows
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflowMatches = ImmutableList<WorkflowMatch>.Empty;
         var workflowFailure = ImmutableList<object>.Empty;
-        foreach (var workflowMatch in profile.WorkflowMatches(workflowFilter))
+        foreach (var workflowMatch in profile.Workflows.Where(workflowFilter))
         {
             try
             {

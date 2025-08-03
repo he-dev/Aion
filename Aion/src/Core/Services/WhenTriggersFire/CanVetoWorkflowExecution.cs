@@ -24,7 +24,7 @@ public class CanVetoWorkflowExecution
         var profile = engineOptions.Value[profileName];
         try
         {
-            var workflowMatch = profile.WorkflowMatch(workflowName);
+            var workflowMatch = profile.Workflows.Single(workflowName);
             if (await MaintenancePeriod.FromFile(workflowMatch.Path) is { } workflowLock)
             {
                 if (workflowLock.Status == MaintenancePeriodStatus.Expired)

@@ -8,11 +8,8 @@
     {
       "IsOn": true,
       "File": "{{ arg.exe }}",
-      "Args": [
-        "--sleep 1",
-        "--message \"This is step {{ step.index }}.\""
-      ],
-      "SerilogOrPresetInfo": {
+      "ArgsOrString": "--sleep 1 --message \"This is step {{ step.index }}.\"",
+      "SerilogOrPreset": {
         "MinimumLevel": {
           "Default": "Information"
         },
@@ -30,7 +27,7 @@
       }
     }
   ],
-  "SerilogOrPresetInfo": {
+  "SerilogOrPreset": {
     "MinimumLevel": {
       "Default": "Information"
     },
