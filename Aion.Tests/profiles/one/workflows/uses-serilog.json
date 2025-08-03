@@ -8,7 +8,7 @@
     {
       "IsOn": true,
       "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep 1 --message \"This is step {{ step.index }}.\"",
+      "ArgsOrString": "--sleep-seconds 2 --message \"This is step {{ step.index }} from {{ workflow.name }}.\"",
       "SerilogOrPreset": {
         "MinimumLevel": {
           "Default": "Information"
