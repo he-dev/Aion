@@ -18,12 +18,14 @@ public static class ValidatesWorkflow
     // The Regex is compiled for better performance since it will be reused.
     private static readonly Regex UrlSafeChars = new("^[a-zA-Z0-9._~-]+$", RegexOptions.Compiled);
 
-    public static void EnsureUrlSafe(this string workflowName)
+    public static string EnsureUrlSafe(this string workflowName)
     {
         if (!UrlSafeChars.IsMatch(workflowName))
         {
             throw new WorkflowNameNotUrlSafeException(workflowName);
         }
+
+        return workflowName;
     }
 
     // core: Ensures that templates in each step can be rendered.

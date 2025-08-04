@@ -34,20 +34,20 @@ public class ExecutesWorkflowCron
         try
         {
             var workflowMatch = await profile.Workflows.Single(workflowName).Load();
-            switch (workflowMatch.Value)
+            switch (workflowMatch)
             {
                 // core: Do not execute disabled workflows.
-                case { IsOn: false }:
+                case { Value.IsOn: false }:
                     logger.LogWarning("Unscheduling workflow because it is disabled.");
                     await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
                     break;
                 // core: Do not execute workflows without any enabled steps.
-                case { Steps: { } steps } when steps.Any(s => s.IsOn) == false:
+                case { Value.Steps: { } steps } when steps.Any(s => s.IsOn) == false:
                     logger.LogWarning("Unscheduling workflow because it has no enabled steps.");
                     await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
                     break;
                 // core: This workflow is fine.
-                case var workflow:
+                default:
                     await executesWorkflow.Now(workflowMatch);
                     break;
             }

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Aion.Core.Services;
 using Aion.Util;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
@@ -33,9 +34,17 @@ public class Profile
     public LoggingPresetRepository LoggingPresets => new(this);
 }
 
+// meta: Converts the url-safe workflow "path" into a glob-filter.
+public record WorkflowFilter(string Value)
+{
+    public string Pattern => $"**\\{Value.EnsureUrlSafe().Replace('.', Path.DirectorySeparatorChar)}.json";
+
+    public static implicit operator WorkflowFilter(string value) => new(value);
+}
+
 public class WorkflowRepository(Profile profile)
 {
-    public IEnumerable<WorkflowMatch> Where(string workflowFilter)
+    public IEnumerable<WorkflowMatch> Where(WorkflowFilter workflowFilter)
     {
         // core: Pass-1 - Use profile patterns to pre-filter its files.
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
@@ -47,21 +56,13 @@ public class WorkflowRepository(Profile profile)
             select match.Path;
 
         // core: Pass-2 - Search only the candidates for workflow-filter matches.
-        //workflowFilter = $"**\\{workflowFilter}.json";
-        workflowFilter = $"*{workflowFilter}.json";
         matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
-        matcher.AddInclude(workflowFilter);
-
-        //var results = matcher.Match(candidates).Files;
-        var results =
-            from candidate in candidates
-            let workflowName = candidate.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.')
-            where matcher.Match(workflowName).HasMatches
-            select candidate;
+        matcher.AddInclude(workflowFilter.Pattern);
+        var results = matcher.Match(candidates).Files;
 
         return
             from match in results
-            select new WorkflowMatch(profile, match);
+            select new WorkflowMatch(profile, match.Path);
     }
 
     public IEnumerable<WorkflowMatch> All() => Where("*");

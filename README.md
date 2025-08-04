@@ -1,4 +1,4 @@
-# Aion v4.0.0
+# Aion v3.0.0
 
 `Aion` _(Greek: Αἰών)_ is a Hellenistic deity associated with time, the orb or circle encompassing the universe. As a tool `Aion` is a cron scheduler that launches robots at the specified time. You install it as a windows service. It's build with the `Quartz` scheduler.
 

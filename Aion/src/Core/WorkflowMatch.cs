@@ -55,3 +55,12 @@ public class WorkflowMatch
             .WithCronSchedule(Value.Cron) //, x => x.InTimeZone(Value.TimeZone))
             .Build();
 }
+
+public record WorkflowName(string RelativePath)
+{
+    public static implicit operator string(WorkflowName workflowName) =>
+        System.IO.Path
+            .GetFileNameWithoutExtension(workflowName.RelativePath)
+            .Replace(System.IO.Path.DirectorySeparatorChar, '.')
+            .Replace(System.IO.Path.AltDirectorySeparatorChar, '.');
+}

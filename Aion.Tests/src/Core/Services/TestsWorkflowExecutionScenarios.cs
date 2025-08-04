@@ -17,6 +17,10 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
     [InlineData("c1.failure-1")]
     [InlineData("c1.timeout-3s")]
     [InlineData("c2.failure-1_depends")]
+    [InlineData("c3.failure-1_depends_depends")]
+    [InlineData("c3.success_offline_success")]
+    [InlineData("c3.success_failure-1_success")]
+    [InlineData("c3.offline_offline_success")]
     public async Task CanExecuteTypicalWorkflowScenarios(string workflowName)
     {
         var expected = ParseExpectedResults(workflowName);

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Aion.Meta.Logging;
@@ -58,7 +59,8 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 
         try
         {
-            logger.LogInformation("Starting process '{File}' with arguments [{Args}].", file, process.StartInfo.Arguments);
+            logger.LogInformation("Executing: '{File}'.", file);
+            logger.LogInformation("Arguments: [{Args}].", process.StartInfo.ArgumentList.Any() ? string.Join(", ", process.StartInfo.ArgumentList) : process.StartInfo.Arguments);
 
             if (process.Start())
             {
@@ -85,8 +87,8 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
 
                 switch (process.ExitCode)
                 {
-                    case 0: logger.LogInformation("Process completed in {Duration} ms.", stopwatch.Elapsed); break;
-                    default: logger.LogError("Process failed in {Duration} ms with exit-code {ExitCode}.", stopwatch.Elapsed, process.ExitCode); break;
+                    case 0: logger.LogInformation("Process completed in {Elapsed}.", stopwatch.Elapsed); break;
+                    default: logger.LogError("Process failed after {Elapsed} with code {ExitCode}.", stopwatch.Elapsed, process.ExitCode); break;
                 }
 
                 return process.ExitCode;
@@ -97,7 +99,7 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
         catch (OperationCanceledException)
         {
             // core: This exception is thrown when the timeout is reached.
-            logger.LogWarning("Process timed out after {Duration} ms.", stopwatch.Elapsed);
+            logger.LogWarning("Process timed out after {Elapsed} ms.", stopwatch.Elapsed);
             try
             {
                 if (!process.HasExited)
@@ -135,7 +137,7 @@ public class StartsProcessAsync(ILogger<StartsProcessAsync> logger)
             stdStreamCompletion.TrySetResult(true);
 
             // core: Allow the user to use this property in the message template.
-            logger.LogDebug("EOF in {Duration}", stopwatch.Elapsed);
+            logger.LogDebug("EOF after {Elapsed}", stopwatch.Elapsed);
         }
         else
         {

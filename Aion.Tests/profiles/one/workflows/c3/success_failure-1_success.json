@@ -9,7 +9,7 @@
     {
       "IsOn": true,
       "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 2 --message \"{{ arg.msg }}\"",
+      "ArgsOrString": "--sleep-seconds 0 --message \"{{ arg.msg }}\"",
       "SerilogOrPreset": {
         "File": "logging-presets.json",
         "Name": "Console.Simple"
@@ -18,8 +18,7 @@
     {
       "IsOn": true,
       "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 2 --message \"{{ arg.msg }}\"",
-      "DependsOn": "$previous",
+      "ArgsOrString": "--sleep-seconds 0 --message \"{{ arg.msg }}\" --exit-code 1",
       "SerilogOrPreset": {
         "File": "logging-presets.json",
         "Name": "Console.Simple"
@@ -28,8 +27,7 @@
     {
       "IsOn": true,
       "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 2 --message \"{{ arg.msg }}\" --exit-code 1",
-      "DependsOn": "$previous",
+      "ArgsOrString": "--sleep-seconds 0 --message \"{{ arg.msg }}\" --exit-code 0",
       "SerilogOrPreset": {
         "File": "logging-presets.json",
         "Name": "Console.Simple"

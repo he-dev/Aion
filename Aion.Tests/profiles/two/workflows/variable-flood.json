@@ -1,0 +1,39 @@
+{
+  "IsOn": true,
+  "Cron": "0/30 * * * * ?",
+  "Args": {
+    "exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
+    "presetFile": "logging-presets.json",
+    "presetName": "logging-presets.json"
+  },
+  "Steps": [
+    {
+      "IsOn": true,
+      "Name": "TheFirst",
+      "File": "{{ arg.exe }}",
+      "ArgsOrString": [
+        "--sleep", "1",
+        "--message", "Hallo variables!",
+        "--aion-", "{{ aion.alias }}",
+        "--profile-name", "{{ profile.name }}",
+        "--workflow-name", "{{ workflow.name }}",
+        "--workflow-trace-id", "{{ workflow.traceId }}",
+        "--workflow-span-id", "{{ workflow.spanId }}",
+        "--workflow-parent-id", "{{ workflow.parentId }}",
+        "--step-index", "{{ step.index }}",
+        "--step-name", "{{ step.name }}",
+        "--step-trace-id", "{{ step.traceId }}",
+        "--step-span-id", "{{ step.spanId }}",
+        "--step-parent-id", "{{ step.parentId }}"
+      ],
+      "SerilogOrPreset": {
+        "File": "{{ arg.presetFile }}",
+        "Name": "{{ arg.presetName }}"
+      }
+    }
+  ],
+  "SerilogOrPreset": {
+    "File": "logging-presets.json",
+    "Name": "Workflow.Simple"
+  }
+}

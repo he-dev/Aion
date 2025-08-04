@@ -34,7 +34,12 @@ public class SchedulesWorkflowCron
             _ => default(bool?)
         };
 
-        var jobDetail = JobBuilder.Create<ExecutesWorkflowCron>().WithIdentity(jobKey.Name, jobKey.Group).Build();
+        var jobDetail =
+            JobBuilder
+                .Create<ExecutesWorkflowCron>()
+                .WithIdentity(jobKey.Name, jobKey.Group)
+                .DisallowConcurrentExecution()
+                .Build();
 
         var next = syncAction switch
         {

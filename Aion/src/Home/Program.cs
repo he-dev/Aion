@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services;
@@ -151,6 +152,11 @@ public class Program
 
                     foreach (var profile in engineOptions.Profiles)
                     {
+                        if (string.IsNullOrEmpty(profile.Sync))
+                        {
+                            continue;
+                        }
+
                         var jobDetail = JobBuilder
                             .Create<SynchronizesWorkflows>()
                             .WithIdentity("sync-workflows", JobGroupName.From<SynchronizesWorkflows>(profile.Name))

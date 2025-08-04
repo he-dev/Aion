@@ -1,0 +1,14 @@
+{
+  "IsOn": true,
+  "Cron": "0/15 * * * * ?",
+  "Args": {
+    "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
+    "msg": "This is step {{ step.index }} from {{ workflow.name }}."
+  },
+  "Steps": [
+  ],
+  "SerilogOrPreset": {
+    "File": "logging-presets.json",
+    "Name": "Workflow.Simple"
+  }
+}

@@ -33,7 +33,8 @@ public class ExecutesWorkflow
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange
         ([
-            new ProfileVariableGroup { Name = engineOptions.Value.Name },
+            new EngineVariableGroup { Alias = engineOptions.Value.Name },
+            new ProfileVariableGroup { Name = workflowMatch.Profile.Name },
             new ArgumentVariableGroup(workflow.Args),
             new WorkflowVariableGroup { Name = workflowMatch.Name }
         ]);

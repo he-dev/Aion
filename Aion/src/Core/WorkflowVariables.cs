@@ -5,6 +5,16 @@ using Aion.Util.Scriban;
 
 namespace Aion.Core;
 
+public class EngineVariableGroup() : VariableGroup("Aion")
+{
+    public string Alias { get; init; } = null!;
+
+    public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
+    {
+        yield return new KeyValuePair<string, object?>(nameof(Alias), Alias);
+    }
+}
+
 public class ProfileVariableGroup() : VariableGroup("Profile")
 {
     public string Name { get; init; } = null!;
