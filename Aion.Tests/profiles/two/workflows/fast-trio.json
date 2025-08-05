@@ -2,7 +2,7 @@
   "IsOn": true,
   "Cron": "0/5 * * * * ?",
   "Args": {
-    "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
+    "exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
     "msg": "This is step {{ step.index }} from {{ workflow.name }}."
   },
   "Steps": [
@@ -28,7 +28,7 @@
     {
       "IsOn": true,
       "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 1 --message \"{{ arg.msg }}\" --exit-code 1",
+      "ArgsOrString": "--sleep-seconds 1 --message \"{{ arg.msg }}\" --exit-code 0",
       "DependsOn": "$previous",
       "SerilogOrPreset": {
         "File": "logging-presets.json",

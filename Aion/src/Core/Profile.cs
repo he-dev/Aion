@@ -37,7 +37,7 @@ public class Profile
 // meta: Converts the url-safe workflow "path" into a glob-filter.
 public record WorkflowFilter(string Value)
 {
-    public string Pattern => $"**\\{Value.EnsureUrlSafe().Replace('.', Path.DirectorySeparatorChar)}.json";
+    public string Pattern => $"**\\{Value.Replace('.', Path.DirectorySeparatorChar)}.json";
 
     public static implicit operator WorkflowFilter(string value) => new(value);
 }

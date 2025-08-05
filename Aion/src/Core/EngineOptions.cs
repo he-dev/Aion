@@ -9,7 +9,7 @@ public record EngineOptions
 {
     public const string SectionName = "Aion";
 
-    public string Name { get; init; } = null!;
+    public string Instance { get; init; } = null!;
 
     public bool SyncOn { get; init; }
 

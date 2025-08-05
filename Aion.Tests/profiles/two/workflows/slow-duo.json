@@ -17,7 +17,7 @@
           {
             "Name": "File",
             "Args": {
-              "path": "C:\\temp\\aion\\{{ workflow.name }}[{{ step.index }}]-.log",
+              "path": "C:\\temp\\aion\\{{ profile.name}}\\{{ workflow.name }}\\{{ workflow.name }}-step-{{ step.index }}_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ConsoleStreamType} » {Message:lj}{NewLine}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 3
@@ -44,7 +44,7 @@
       {
         "Name": "File",
         "Args": {
-          "path": "C:\\temp\\aion\\{{ workflow.name }}-.log",
+          "path": "C:\\temp\\aion\\{{ profile.name }}\\{{ workflow.name }}\\{{ workflow.name }}_.log",
           "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ProcessMessageSource} » {Message:lj}{NewLine}",
           "rollingInterval": "Day",
           "retainedFileCountLimit": 3

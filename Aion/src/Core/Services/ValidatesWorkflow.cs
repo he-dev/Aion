@@ -35,6 +35,7 @@ public static class ValidatesWorkflow
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange(
         [
+            new EngineVariableGroup { Instance = "test" },
             new ProfileVariableGroup { Name = "test" },
             new ArgumentVariableGroup(workflow.Args),
             new WorkflowVariableGroup { Name = "test" }

@@ -69,7 +69,7 @@ public class Program
                     .Enrich.With<EnrichesLogEventWithActivity>()
                     .Enrich.WithProperty("Application", Program.Name)
                     .Enrich.WithProperty("Version", Program.Version)
-                    .Enrich.WithProperty("Instance", engineOptions.Name)
+                    .Enrich.WithProperty("Instance", engineOptions.Instance)
                     .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
                     .WriteTo.Sink(services.GetRequiredService<MapsLogEvent>())
                     // .WriteTo.Logger(logger =>

@@ -7,11 +7,11 @@ namespace Aion.Core;
 
 public class EngineVariableGroup() : VariableGroup("Aion")
 {
-    public string Alias { get; init; } = null!;
+    public string Instance { get; init; } = null!;
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
-        yield return new KeyValuePair<string, object?>(nameof(Alias), Alias);
+        yield return new KeyValuePair<string, object?>(nameof(Instance), Instance);
     }
 }
 

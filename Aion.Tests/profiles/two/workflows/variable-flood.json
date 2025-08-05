@@ -4,7 +4,7 @@
   "Args": {
     "exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
     "presetFile": "logging-presets.json",
-    "presetName": "logging-presets.json"
+    "presetName": "Console.Simple"
   },
   "Steps": [
     {
@@ -14,7 +14,7 @@
       "ArgsOrString": [
         "--sleep", "1",
         "--message", "Hallo variables!",
-        "--aion-", "{{ aion.alias }}",
+        "--aion-instance", "{{ aion.instance }}",
         "--profile-name", "{{ profile.name }}",
         "--workflow-name", "{{ workflow.name }}",
         "--workflow-trace-id", "{{ workflow.traceId }}",

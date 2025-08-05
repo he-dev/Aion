@@ -1,6 +1,3 @@
-@host=http://localhost:5049
-@one={{host}}/api/profiles/one/workflows
-
 
 ### Synchronize workflows with the scheduler.
-POST {{one}}:sync
+POST {{host}}{{profiles.two}}/workflows:sync
