@@ -4,16 +4,17 @@ using Aion.Core;
 using Aion.Core.Services.Scheduling;
 using Aion.Core.Templates;
 using Microsoft.Extensions.DependencyInjection;
+using Quartz;
 using Xunit;
 
 namespace Aion.Tests.Core.Services.Scheduling;
 
 public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication) : IClassFixture<TestWebApplication>
 {
-    public async Task<WorkflowSynchronizationSummary> Synchronize
+    private async Task<WorkflowSynchronizationSummary> Synchronize
     (
-        WorkflowMatch? currentWorkflowMatch,
-        WorkflowMatch changedWorkflowMatch
+        Workflow? initialWorkflow,
+        Workflow changedWorkflow
     )
     {
         using var activity = new Activity("TestingWorkflowExecution").Start();
@@ -21,27 +22,25 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
 
         var schedulesWorkflowCron = scope.ServiceProvider.GetRequiredService<SchedulesWorkflowCron>();
 
-        if (currentWorkflowMatch is not null)
+        var fakeProfile = new Profile { Path = @"C:\fake\path\to\profiles\one" };
+        var fakeRelativePath = @"workflows\fake-workflow.json";
+
+        if (initialWorkflow is not null)
         {
-            await schedulesWorkflowCron.For(currentWorkflowMatch);
+            await schedulesWorkflowCron.For(await WorkflowMatch.Fake(fakeProfile, fakeRelativePath, initialWorkflow));
         }
 
         try
         {
-            return await schedulesWorkflowCron.For(changedWorkflowMatch);
+            return await schedulesWorkflowCron.For(await WorkflowMatch.Fake(fakeProfile, fakeRelativePath, changedWorkflow));
         }
         finally
         {
-            // core: Clear all schedules for the next test.
-            await schedulesWorkflowCron.Clear();
+            // meta: Clear all schedules for the next test.
+            var scheduler = await scope.ServiceProvider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+            await scheduler.Clear();
         }
     }
-
-
-    private WorkflowMatch FakeWorkflowMatch { get; } = new(new Profile
-    {
-        Path = @"C:\fake\path\to\profiles\one"
-    }, @"workflows\fake-workflow.json");
 
     [Fact]
     public async Task CanIgnoreWorkflowIfDisabled() { }
@@ -55,7 +54,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
             Cron = "0/5 * * * * ?",
             Steps = { }
         };
-        var result = await Synchronize(null, await FakeWorkflowMatch.Load(fakeWorkflow));
+        var result = await Synchronize(null, fakeWorkflow);
         Assert.Equal(WorkflowAction.IgnoreBecauseEmpty, result.Action);
         Assert.Null(result.NextUtc);
     }
@@ -63,41 +62,93 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
     [Fact]
     public async Task CanIgnoreWorkflowIfUnchanged()
     {
-        var fakeWorkflowCurrent = new Workflow
+        var initialWorkflow = new Workflow
         {
             IsOn = true,
             Cron = "0/5 * * * * ?",
             Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
-        var fakeWorkflowChange = new Workflow
+        var changedWorkflow = new Workflow
         {
             IsOn = true,
             Cron = "0/5 * * * * ?",
             Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
-        var result = await Synchronize
-        (
-            await FakeWorkflowMatch.Load(fakeWorkflowCurrent),
-            await FakeWorkflowMatch.Load(fakeWorkflowChange)
-        );
+        var result = await Synchronize(initialWorkflow, changedWorkflow);
         Assert.Equal(WorkflowAction.IgnoreBecauseUnchanged, result.Action);
         Assert.Null(result.NextUtc);
     }
 
-    public async Task CanUnscheduleWorkflowIfDisabled() { }
-    public async Task CanUnscheduleWorkflowIfEmpty() { }
-    public async Task CanUpdateScheduleIfChanged() { }
-
     [Fact]
-    public async Task CanScheduleWorkflowIfNew()
+    public async Task CanUnscheduleWorkflowIfDisabled()
     {
-        var fakeWorkflow = new Workflow
+        var initialWorkflow = new Workflow
         {
             IsOn = true,
             Cron = "0/5 * * * * ?",
             Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
-        var result = await Synchronize(null, await FakeWorkflowMatch.Load(fakeWorkflow));
+        var changedWorkflow = new Workflow
+        {
+            IsOn = false,
+            Cron = "0/5 * * * * ?",
+            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+        };
+        var result = await Synchronize(initialWorkflow, changedWorkflow);
+        Assert.Equal(WorkflowAction.UnscheduleBecauseDisabled, result.Action);
+        Assert.Null(result.NextUtc);
+    }
+
+    [Fact]
+    public async Task CanUnscheduleWorkflowIfEmpty()
+    {
+        var initialWorkflow = new Workflow
+        {
+            IsOn = true,
+            Cron = "0/5 * * * * ?",
+            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+        };
+        var changedWorkflow = new Workflow
+        {
+            IsOn = true,
+            Cron = "0/5 * * * * ?",
+            Steps = { }
+        };
+        var result = await Synchronize(initialWorkflow, changedWorkflow);
+        Assert.Equal(WorkflowAction.UnscheduleBecauseEmpty, result.Action);
+        Assert.Null(result.NextUtc);
+    }
+
+    [Fact]
+    public async Task CanUpdateScheduleIfChanged()
+    {
+        var initialWorkflow = new Workflow
+        {
+            IsOn = true,
+            Cron = "0/5 * * * * ?",
+            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+        };
+        var changedWorkflow = new Workflow
+        {
+            IsOn = true,
+            Cron = "0/10 * * * * ?",
+            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+        };
+        var result = await Synchronize(initialWorkflow, changedWorkflow);
+        Assert.Equal(WorkflowAction.UpdateBecauseChanged, result.Action);
+        Assert.NotNull(result.NextUtc);
+    }
+
+    [Fact]
+    public async Task CanScheduleWorkflowIfNew()
+    {
+        var changedWorkflow = new Workflow
+        {
+            IsOn = true,
+            Cron = "0/5 * * * * ?",
+            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+        };
+        var result = await Synchronize(null, changedWorkflow);
         Assert.Equal(WorkflowAction.ScheduleBecauseNew, result.Action);
         Assert.NotNull(result.NextUtc);
     }

@@ -93,11 +93,11 @@ public class SchedulesWorkflowCron
         return WorkflowAction.ScheduleBecauseNew;
     }
 
-    public async Task Clear()
-    {
-        var scheduler = await schedulerFactory.GetScheduler();
-        await scheduler.Clear();
-    }
+    // public async Task Clear()
+    // {
+    //     var scheduler = await schedulerFactory.GetScheduler();
+    //     await scheduler.Clear();
+    // }
 }
 
 public enum WorkflowAction

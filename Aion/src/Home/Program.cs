@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services;
@@ -24,6 +24,9 @@ using Quartz;
 using Quartz.AspNetCore;
 using Quartz.Impl.Matchers;
 using Serilog;
+
+[assembly: InternalsVisibleTo("Aion.Tests")]
+
 
 namespace Aion.Home;
 

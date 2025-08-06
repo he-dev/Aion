@@ -11,10 +11,10 @@ public class WorkflowMatch
 {
     private Workflow? _workflow;
 
-    public WorkflowMatch(Profile profile, string relativePath)
+    public WorkflowMatch(Profile profile, string pathWithinProfile)
     {
         Profile = profile;
-        RelativePath = relativePath;
+        PathWithinProfile = pathWithinProfile;
 
         // core: Ensure the workflow name is valid.
         Name.EnsureUrlSafe();
@@ -22,13 +22,13 @@ public class WorkflowMatch
 
     public Profile Profile { get; init; }
 
-    public string RelativePath { get; init; }
+    public string PathWithinProfile { get; init; }
 
-    public string Path => System.IO.Path.Join(Profile.Path, RelativePath);
+    public string Path => System.IO.Path.Join(Profile.Path, PathWithinProfile);
 
     public string Name =>
         System.IO.Path
-            .GetFileNameWithoutExtension(RelativePath)
+            .GetFileNameWithoutExtension(PathWithinProfile)
             .Replace(System.IO.Path.DirectorySeparatorChar, '.')
             .Replace(System.IO.Path.AltDirectorySeparatorChar, '.');
 
@@ -41,6 +41,11 @@ public class WorkflowMatch
         _workflow.EnsureCronSchedulable();
         await _workflow.EnsureTemplatesRenderable(Profile);
         return this;
+    }
+
+    internal static async Task<WorkflowMatch> Fake(Profile profile, string pathWithinProfile, Workflow workflow)
+    {
+        return await new WorkflowMatch(profile, pathWithinProfile).Load(workflow);
     }
 
     public JobKey CronJobKey => new(Name, JobGroupName.From<ExecutesWorkflowCron>(Profile.Name));
