@@ -55,7 +55,7 @@ public static class ValidatesWorkflow
     private static async Task EnsureTemplatesRenderable(this Workflow.Step step, int index, Profile profile, IImmutableList<VariableGroup> variables)
     {
         variables = variables.Add(new StepVariableGroup { Index = index, Name = step.Name });
-        using var activity = new Activity("testing-step");
+        using var activity = new Activity("testing-step").Start();
         if (step.Logging is { } stepLogging)
         {
             await stepLogging.RenderAsync(profile, variables);

@@ -1,16 +1,32 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Aion.Core;
 using Aion.Core.Services;
 using Aion.Util.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Aion.Tests.Core.Services;
 
 public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplication) : IClassFixture<TestWebApplication>
 {
+    private async Task<IImmutableList<StepResult>> ExecutesWorkflow(string profileName, string workflowName)
+    {
+        using var activity = new Activity("TestingWorkflowExecution").Start();
+        using var scope = testWebApplication.Services.CreateScope();
+
+        var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<EngineOptions>>();
+        var executesWorkflow = scope.ServiceProvider.GetRequiredService<ExecutesWorkflow>();
+
+        var workflowMatch = await engineOptions.Value[profileName].Workflows.Single(workflowName).Load();
+        return await executesWorkflow.Now(workflowMatch);
+    }
+
     [Theory]
     [InlineData("c1.success")]
     [InlineData("c1.offline")]
@@ -24,7 +40,7 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
     public async Task CanExecuteTypicalWorkflowScenarios(string workflowName)
     {
         var expected = ParseExpectedResults(workflowName);
-        var actual = await testWebApplication.ExecutesWorkflow("one", workflowName);
+        var actual = await ExecutesWorkflow("one", workflowName);
 
         Assert.Equal(expected.Count, actual.Count);
         foreach (var (e, a) in expected.Zip(actual, (e, a) => (e, a)))

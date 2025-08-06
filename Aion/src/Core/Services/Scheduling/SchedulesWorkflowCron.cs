@@ -19,7 +19,6 @@ public class SchedulesWorkflowCron
 {
     public async Task<WorkflowSynchronizationSummary> For(WorkflowMatch match)
     {
-        await match.Load();
         var scheduler = await schedulerFactory.GetScheduler();
         using var scope = logger.BeginScopeFrom(new { WorkflowName = match.Name });
 
@@ -92,6 +91,12 @@ public class SchedulesWorkflowCron
         }
 
         return WorkflowAction.ScheduleBecauseNew;
+    }
+
+    public async Task Clear()
+    {
+        var scheduler = await schedulerFactory.GetScheduler();
+        await scheduler.Clear();
     }
 }
 

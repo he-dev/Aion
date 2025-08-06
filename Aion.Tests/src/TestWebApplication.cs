@@ -19,15 +19,5 @@ public class TestWebApplication : WebApplicationFactory<Program>
         base.ConfigureWebHost(builder);
     }
 
-    public async Task<IImmutableList<StepResult>> ExecutesWorkflow(string profileName, string workflowName)
-    {
-        using var activity = new Activity("TestingWorkflowExecution").Start();
-        using var scope = Services.CreateScope();
 
-        var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<EngineOptions>>();
-        var executesWorkflow = scope.ServiceProvider.GetRequiredService<ExecutesWorkflow>();
-
-        var workflowMatch = await engineOptions.Value[profileName].Workflows.Single(workflowName).Load();
-        return await executesWorkflow.Now(workflowMatch);
-    }
 }

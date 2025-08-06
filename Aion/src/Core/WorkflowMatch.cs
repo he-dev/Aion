@@ -34,9 +34,10 @@ public class WorkflowMatch
 
     public Workflow Value => _workflow ?? throw new InvalidOperationException("Workflow has not been loaded yet.");
 
-    public async Task<WorkflowMatch> Load()
+    // meta: The parameter makes testing easy.
+    public async Task<WorkflowMatch> Load(Workflow? workflow = null)
     {
-        _workflow = await Workflow.FromFile(Path);
+        _workflow = workflow ?? await Workflow.FromFile(Path);
         _workflow.EnsureCronSchedulable();
         await _workflow.EnsureTemplatesRenderable(Profile);
         return this;
