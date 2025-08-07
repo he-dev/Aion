@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using Aion.Core.Services;
 using Aion.Home.Jobs;
@@ -7,30 +8,17 @@ using Quartz;
 
 namespace Aion.Core;
 
-public class WorkflowMatch
+public class WorkflowMatch(Profile profile, string pathWithinProfile)
 {
     private Workflow? _workflow;
 
-    public WorkflowMatch(Profile profile, string pathWithinProfile)
-    {
-        Profile = profile;
-        PathWithinProfile = pathWithinProfile;
+    public Profile Profile => profile;
 
-        // core: Ensure the workflow name is valid.
-        Name.EnsureUrlSafe();
-    }
-
-    public Profile Profile { get; init; }
-
-    public string PathWithinProfile { get; init; }
+    public string PathWithinProfile => pathWithinProfile;
 
     public string Path => System.IO.Path.Join(Profile.Path, PathWithinProfile);
 
-    public string Name =>
-        System.IO.Path
-            .GetFileNameWithoutExtension(PathWithinProfile)
-            .Replace(System.IO.Path.DirectorySeparatorChar, '.')
-            .Replace(System.IO.Path.AltDirectorySeparatorChar, '.');
+    public WorkflowName Name => new(PathWithinProfile);
 
     public Workflow Value => _workflow ?? throw new InvalidOperationException("Workflow has not been loaded yet.");
 
@@ -63,11 +51,13 @@ public class WorkflowMatch
             .Build();
 }
 
-public record WorkflowName(string RelativePath)
+public record WorkflowName(string PathWithinProfile)
 {
-    public static implicit operator string(WorkflowName workflowName) =>
-        System.IO.Path
-            .GetFileNameWithoutExtension(workflowName.RelativePath)
-            .Replace(System.IO.Path.DirectorySeparatorChar, '.')
-            .Replace(System.IO.Path.AltDirectorySeparatorChar, '.');
+    public bool IsUrlSafe => Render().IsUrlSafe();
+
+    private string Render() => Path.ChangeExtension(PathWithinProfile, null).Replace(Path.DirectorySeparatorChar, '.');
+
+    public override string ToString() => Render().EnsureUrlSafe();
+
+    public static implicit operator string(WorkflowName workflowName) => workflowName.ToString();
 }

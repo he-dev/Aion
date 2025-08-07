@@ -16,17 +16,20 @@ public static class ValidatesWorkflow
     // Regex for characters that are "unreserved" in a URI (per RFC 3986) and don't need escaping.
     // This includes alphanumeric characters, hyphen, period, underscore, and tilde.
     // The Regex is compiled for better performance since it will be reused.
-    private static readonly Regex UrlSafeChars = new("^[a-zA-Z0-9._~-]+$", RegexOptions.Compiled);
+    private static readonly Regex MatchesUrlSafeChars = new("^[a-zA-Z0-9._~-]+$", RegexOptions.Compiled);
 
-    public static string EnsureUrlSafe(this string workflowName)
+    public static string EnsureUrlSafe(this string value)
     {
-        if (!UrlSafeChars.IsMatch(workflowName))
+        if (!MatchesUrlSafeChars.IsMatch(value))
         {
-            throw new WorkflowNameNotUrlSafeException(workflowName);
+            throw new WorkflowNameNotUrlSafeException(value);
         }
 
-        return workflowName;
+        return value;
     }
+
+    public static bool IsUrlSafe(this string value) => MatchesUrlSafeChars.IsMatch(value);
+
 
     // core: Ensures that templates in each step can be rendered.
     public static async Task EnsureTemplatesRenderable(this Workflow workflow, Profile profile)

@@ -60,7 +60,7 @@ public class WorkflowRepository(Profile profile)
 
         return
             from match in results
-            select new WorkflowMatch(profile, match.Path);
+            select new WorkflowMatch(profile, match.Path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar));
     }
 
     public IEnumerable<WorkflowMatch> All() => Where("*");
