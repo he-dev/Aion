@@ -11,9 +11,9 @@ namespace Aion.Home.Endpoints.Workflows;
 
 [ApiController]
 [Route("api/profiles/{profileName}/workflows")]
-public class SynchronizesProfileWorkflows
+public class SynchronizesWorkflows
 (
-    ILogger<SynchronizesProfileWorkflows> logger,
+    ILogger<SynchronizesWorkflows> logger,
     IOptions<EngineOptions> engineOptions,
     SchedulesWorkflowCron schedulesWorkflowCron
 ) : ControllerBase
@@ -25,7 +25,6 @@ public class SynchronizesProfileWorkflows
         var profile = engineOptions.Value[profileName];
         var result = ImmutableList<object>.Empty;
         var errors = ImmutableList<object>.Empty;
-
 
         var workflowMatches = profile.Workflows.All();
         foreach (var workflowMatch in workflowMatches)

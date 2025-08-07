@@ -11,7 +11,7 @@ namespace Aion.Tests.Core.Services.Scheduling;
 
 public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication) : IClassFixture<TestWebApplication>
 {
-    private async Task<WorkflowSynchronizationSummary> Synchronize
+    private async Task<WorkflowSyncResult> Synchronize
     (
         Workflow? initialWorkflow,
         Workflow changedWorkflow
@@ -43,7 +43,18 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
     }
 
     [Fact]
-    public async Task CanIgnoreWorkflowIfDisabled() { }
+    public async Task CanIgnoreWorkflowIfDisabled()
+    {
+        var changedWorkflow = new Workflow
+        {
+            IsOn = false,
+            Cron = "0/5 * * * * ?",
+            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+        };
+        var result = await Synchronize(null, changedWorkflow);
+        Assert.Equal(WorkflowSyncAction.IgnoreBecauseDisabled, result.Action);
+        Assert.Null(result.NextUtc);
+    }
 
     [Fact]
     public async Task CanIgnoreWorkflowIfEmpty()
@@ -55,7 +66,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
             Steps = { }
         };
         var result = await Synchronize(null, fakeWorkflow);
-        Assert.Equal(WorkflowAction.IgnoreBecauseEmpty, result.Action);
+        Assert.Equal(WorkflowSyncAction.IgnoreBecauseEmpty, result.Action);
         Assert.Null(result.NextUtc);
     }
 
@@ -75,7 +86,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
             Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
-        Assert.Equal(WorkflowAction.IgnoreBecauseUnchanged, result.Action);
+        Assert.Equal(WorkflowSyncAction.IgnoreBecauseUnchanged, result.Action);
         Assert.Null(result.NextUtc);
     }
 
@@ -95,7 +106,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
             Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
-        Assert.Equal(WorkflowAction.UnscheduleBecauseDisabled, result.Action);
+        Assert.Equal(WorkflowSyncAction.UnscheduleBecauseDisabled, result.Action);
         Assert.Null(result.NextUtc);
     }
 
@@ -115,7 +126,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
             Steps = { }
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
-        Assert.Equal(WorkflowAction.UnscheduleBecauseEmpty, result.Action);
+        Assert.Equal(WorkflowSyncAction.UnscheduleBecauseEmpty, result.Action);
         Assert.Null(result.NextUtc);
     }
 
@@ -135,7 +146,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
             Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
-        Assert.Equal(WorkflowAction.UpdateBecauseChanged, result.Action);
+        Assert.Equal(WorkflowSyncAction.UpdateBecauseChanged, result.Action);
         Assert.NotNull(result.NextUtc);
     }
 
@@ -149,7 +160,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
             Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var result = await Synchronize(null, changedWorkflow);
-        Assert.Equal(WorkflowAction.ScheduleBecauseNew, result.Action);
+        Assert.Equal(WorkflowSyncAction.ScheduleBecauseNew, result.Action);
         Assert.NotNull(result.NextUtc);
     }
 }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Core.Services.Scheduling;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,11 +9,11 @@ namespace Aion.Home.Endpoints.Workflows;
 
 [ApiController]
 [Route("api/profiles/{profileName}/workflows")]
-public class SchedulesProfileWorkflowOnce
+public class SchedulesWorkflowOnce
 (
-    ILogger<SchedulesProfileWorkflowOnce> logger,
+    ILogger<SchedulesWorkflowOnce> logger,
     IOptions<EngineOptions> engineOptions,
-    SchedulesWorkflowOnce schedulesWorkflowOnce
+    Core.Services.Scheduling.SchedulesWorkflowOnce schedulesWorkflowOnce
 ) : ControllerBase
 {
     [HttpPost("{workflowName}:start-now")]

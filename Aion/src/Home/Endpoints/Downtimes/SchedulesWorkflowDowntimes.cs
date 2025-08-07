@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services.Meta.Mvc;
@@ -8,13 +9,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Home.Endpoints.Maintenance;
+namespace Aion.Home.Endpoints.Downtimes;
 
 [ApiController]
-[Route("api/profiles/{profileName}/maintenance")]
-public class SchedulesProfileMaintenance
+[Route("api/profiles/{profileName}/downtimes")]
+public class SchedulesWorkflowDowntime
 (
-    ILogger<SchedulesProfileMaintenance> logger,
+    ILogger<SchedulesWorkflowDowntime> logger,
     IOptionsSnapshot<EngineOptions> engineOptions
 ) : ControllerBase
 {
@@ -22,30 +23,30 @@ public class SchedulesProfileMaintenance
     [EnsuresProfileExists]
     public async Task<IActionResult> ToStartIn(string profileName, [FromBody] StartInBody body)
     {
-        return await Start(profileName, body.Filter, () => TestsMaintenancePeriod.StartsIn(body.Wait, body.Duration));
+        return await Starts(profileName, body.Filter, () => WorkflowDowntime.StartsIn(body.Wait, body.Duration));
     }
 
     [HttpPost(":start-at")]
     [EnsuresProfileExists]
     public async Task<IActionResult> ToStartAt(string profileName, [FromBody] StartAtBody body)
     {
-        return await Start(profileName, body.Filter, () => TestsMaintenancePeriod.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
+        return await Starts(profileName, body.Filter, () => WorkflowDowntime.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
     }
 
-    private async Task<IActionResult> Start(string profileName, string workflowNameOrFilter, Func<TestsMaintenancePeriod> createsMaintenancePeriod)
+    private async Task<IActionResult> Starts(string profileName, string workflowNameOrFilter, Func<WorkflowDowntime> createsWorkflowDowntime)
     {
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         try
         {
             var profile = engineOptions.Value[profileName];
-            var maintenancePeriod = createsMaintenancePeriod();
-            var lockedWorkflows = ImmutableList<WorkflowMatch>.Empty;
+            var workflowDowntime = createsWorkflowDowntime();
+            var workflowMatches = ImmutableList<WorkflowMatch>.Empty;
             foreach (var workflowMatch in profile.Workflows.Where(workflowNameOrFilter))
             {
                 try
                 {
-                    lockedWorkflows = lockedWorkflows.Add(workflowMatch);
-                    await maintenancePeriod.ToFile(workflowMatch.Path);
+                    var workflowLock = await workflowDowntime.ToFile(workflowMatch.Path);
+                    workflowMatches = workflowMatches.Add(workflowMatch);
                     logger.LogInformation("Workflow '{WorkflowName}' has been locked.", workflowMatch.Name);
                 }
                 catch (Exception ex)
@@ -54,7 +55,12 @@ public class SchedulesProfileMaintenance
                 }
             }
 
-            return Ok(new { lockedWorkflows });
+            return Ok(new
+            {
+                profile = profile.Path,
+                downtime = workflowDowntime,
+                workflows = workflowMatches.Select(m => m.PathWithinProfile)
+            });
         }
         catch (Exception ex)
         {

@@ -43,6 +43,7 @@ public class WorkflowMatch
         return this;
     }
 
+    // meta: Creating workflow-matches for tests is easier this way.
     internal static async Task<WorkflowMatch> Fake(Profile profile, string pathWithinProfile, Workflow workflow)
     {
         return await new WorkflowMatch(profile, pathWithinProfile).Load(workflow);

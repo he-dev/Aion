@@ -17,9 +17,9 @@ namespace Aion.Home.Endpoints.Schedules;
 
 [ApiController]
 [Route("api/profiles/{profileName}/schedules")]
-public class ListsProfileSchedules
+public class ListsWorkflowSchedules
 (
-    ILogger<ListsProfileSchedules> logger,
+    ILogger<ListsWorkflowSchedules> logger,
     IOptionsSnapshot<EngineOptions> engineOptions,
     FindsTriggers findsTriggers
 ) : ControllerBase

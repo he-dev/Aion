@@ -3,4 +3,9 @@
 
 
 ### Lists maintenance locks.
-GET {{maintenance}}
+POST {{host}}{{profiles.two}}/downtimes:end
+Content-Type: application/json
+
+{
+    "filter": "single"
+}

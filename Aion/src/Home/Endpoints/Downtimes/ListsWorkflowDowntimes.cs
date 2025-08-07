@@ -9,13 +9,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Home.Endpoints.Maintenance;
+namespace Aion.Home.Endpoints.Downtimes;
 
 [ApiController]
-[Route("api/profiles/{profileName}/maintenance")]
-public class ListsProfileMaintenance
+[Route("api/profiles/{profileName}/downtimes")]
+public class ListsWorkflowDowntimes
 (
-    ILogger<ListsProfileMaintenance> logger,
+    ILogger<ListsWorkflowDowntimes> logger,
     IOptionsSnapshot<EngineOptions> engineOptions
 ) : ControllerBase
 {
@@ -23,17 +23,18 @@ public class ListsProfileMaintenance
     [EnsuresProfileExists]
     public async Task<IActionResult> Get(string profileName)
     {
+        var profile = engineOptions.Value[profileName];
+        var workflowDowntimes = ImmutableList<WorkflowDowntime>.Empty;
+
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
 
-        var profile = engineOptions.Value[profileName];
-        var locks = ImmutableList<TestsMaintenancePeriod>.Empty;
         foreach (var workflowMatch in profile.Workflows.All())
         {
             try
             {
-                if (await TestsMaintenancePeriod.FromFile(workflowMatch.Path) is { } lockFile)
+                if (await WorkflowDowntime.FromFile(workflowMatch.Path) is { } lockFile)
                 {
-                    locks = locks.Add(lockFile);
+                    workflowDowntimes = workflowDowntimes.Add(lockFile);
                 }
             }
             catch (Exception ex)
@@ -42,21 +43,25 @@ public class ListsProfileMaintenance
             }
         }
 
-        var query =
-                from s in locks
+        var downtimes =
+                from s in workflowDowntimes
                 orderby s.Remaining descending, s.Duration descending
                 select new
                 {
                     s.FileName,
-                    s.CreatedOnUtc,
-                    s.StartsOnUtc,
-                    s.EndsOnUtc,
+                    CreatedOn = s.CreatedOnUtc.ToLocalTime(),
+                    StartsOn = s.StartsOnUtc.ToLocalTime(),
+                    EndsOn = s.EndsOnUtc.ToLocalTime(),
                     s.Duration,
                     s.Remaining,
-                    s.Status
+                    Status = s.Status.ToString()
                 }
             ;
 
-        return Ok(query.ToList());
+        return Ok(new
+        {
+            profile = profile.Path,
+            downtimes
+        });
     }
 }

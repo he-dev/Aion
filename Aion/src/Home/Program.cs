@@ -62,11 +62,6 @@ public class Program
                 // note: Main loggers are filtered in the appsettings.Serilog.json as there is no way to set up these filters here.
                 // See https://github.com/serilog/serilog-expressions for all filter expressions.
 
-                var consoleStreamTypes =
-                    ImmutableHashSet<ConsoleStreamType>.Empty
-                        .Add(ConsoleStreamType.StdOut)
-                        .Add(ConsoleStreamType.StdErr);
-
                 configuration
                     .ReadFrom.Configuration(context.Configuration)
                     .Enrich.With<EnrichesLogEventWithActivity>()
@@ -74,30 +69,7 @@ public class Program
                     .Enrich.WithProperty("Version", Program.Version)
                     .Enrich.WithProperty("Instance", engineOptions.Instance)
                     .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
-                    .WriteTo.Sink(services.GetRequiredService<MapsLogEvent>())
-                    // .WriteTo.Logger(logger =>
-                    // {
-                    //     logger
-                    //         // core: The workflow-sink may only log events that contain the workflow-name property.
-                    //         .Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(WorkflowLogEventSignature.WorkflowName)))
-                    //         // core: Don't log raw console output.
-                    //         .Filter.ByExcluding(e =>
-                    //         {
-                    //             return
-                    //                 e.Properties.TryGetValue(nameof(ProcessMessageSource), out var value)
-                    //                 && value is ScalarValue { Value: string scalar }
-                    //                 && consoleStreamTypes.Contains(Enum.Parse<ProcessMessageSource>(scalar));
-                    //         })
-                    //         .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>());
-                    // })
-                    // .WriteTo.Logger(logger =>
-                    // {
-                    //     logger
-                    //         // core: The console-sink may only log events that contain the stream type.
-                    //         //.Filter.ByIncludingOnly(e => e.Properties.ContainsKey(nameof(ProcessMessageSource)))
-                    //         .WriteTo.Sink(services.GetRequiredService<MapsLogEvents>());
-                    // })
-                    ;
+                    .WriteTo.Sink(services.GetRequiredService<MapsLogEvent>());
             })
             .ConfigureServices((context, services) =>
             {
@@ -142,11 +114,8 @@ public class Program
                 services.AddScoped<IStepExecutionRule, StepMustBeEnabled>();
                 services.AddScoped<IStepExecutionRule, StepDependsOnPrevious>();
                 services.AddScoped<StartsProcessAsync>();
-
-
                 services.AddScoped<FindsTriggers>();
-
-                services.AddScoped<CanVetoProfileSynchronization>();
+                services.AddScoped<CanVetoWorkflowSynchronization>();
                 services.AddScoped<CanVetoWorkflowExecution>();
 
                 services.AddQuartz(q =>
@@ -178,14 +147,14 @@ public class Program
                         {
                             trigger
                                 .ForJob(jobDetail)
-                                .WithIdentity("sync-workflows-now", JobGroupName.From<SynchronizesWorkflows>(profile.Name))
+                                .WithIdentity("sync-workflows-once", JobGroupName.From<SynchronizesWorkflows>(profile.Name))
                                 .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
                                 .StartNow();
                         });
                     }
 
-                    q.AddTriggerListener<CanVetoProfileSynchronization>(GroupMatcher<TriggerKey>.GroupStartsWith(JobGroupName.From<SynchronizesWorkflows>()));
+                    q.AddTriggerListener<CanVetoWorkflowSynchronization>(GroupMatcher<TriggerKey>.GroupStartsWith(JobGroupName.From<SynchronizesWorkflows>()));
                     q.AddTriggerListener<CanVetoWorkflowExecution>(GroupMatcher<TriggerKey>.GroupStartsWith(JobGroupName.From<ExecutesWorkflowCron>()));
 
                     // note: The docs say that the default is 1 minute.

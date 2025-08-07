@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -9,7 +12,7 @@ using System.Threading.Tasks;
 namespace Aion.Core;
 
 // core: Represents a single workflow-lock that carries the same name, but a different extension.
-public record TestsMaintenancePeriod
+public record WorkflowDowntime
 {
     public const string FileExtension = ".lock";
 
@@ -23,38 +26,47 @@ public record TestsMaintenancePeriod
     public DateTimeOffset EndsOnUtc { get; init; }
     public DateTimeOffset CreatedOnUtc { get; init; }
 
+    public string Checksum { get; init; } = null!;
+
     [JsonIgnore]
     public string? FileName { get; init; }
 
     public TimeSpan Duration => EndsOnUtc - StartsOnUtc;
+
+    [JsonIgnore]
     public TimeSpan Remaining => EndsOnUtc - Clock.GetUtcNow();
 
-    public MaintenancePeriodStatus Status
+    [JsonIgnore]
+    public WorkflowDowntimeStatus Status
     {
         get
         {
-            if (EndsOnUtc <= Clock.GetUtcNow()) return MaintenancePeriodStatus.Expired;
-            if (StartsOnUtc <= Clock.GetUtcNow() && EndsOnUtc > Clock.GetUtcNow()) return MaintenancePeriodStatus.Running;
-            if (StartsOnUtc > Clock.GetUtcNow()) return MaintenancePeriodStatus.Pending;
+            if (StartsOnUtc > Clock.GetUtcNow()) return WorkflowDowntimeStatus.Pending;
+            if (StartsOnUtc <= Clock.GetUtcNow() && EndsOnUtc > Clock.GetUtcNow()) return WorkflowDowntimeStatus.Ongoing;
+            if (EndsOnUtc <= Clock.GetUtcNow()) return WorkflowDowntimeStatus.Expired;
 
+            // meta: Makes the compiler happy.
             throw new InvalidOperationException("This case is impossible!");
         }
     }
 
-    public static TestsMaintenancePeriod StartsAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
+    public static WorkflowDowntime StartsAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
-        if (startsOnUtc > endsOnUtc) throw new MaintenancePeriodMustStartBeforeItEnds();
-        if (endsOnUtc < clock.GetUtcNow()) throw new MaintenancePeriodMustEndInTheFuture();
+        var now = clock.GetUtcNow();
+        if (startsOnUtc > endsOnUtc) throw new DowntimeMustStartBeforeItEnds();
+        if (endsOnUtc < now) throw new DowntimeMustEndInTheFuture();
 
-        return new TestsMaintenancePeriod
+        return new WorkflowDowntime
         {
             StartsOnUtc = startsOnUtc,
             EndsOnUtc = endsOnUtc,
+            CreatedOnUtc = now,
+            Checksum = CalculatesChecksum.For(startsOnUtc, endsOnUtc, now),
         };
     }
 
-    public static TestsMaintenancePeriod StartsIn(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
+    public static WorkflowDowntime StartsIn(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
         var startsOnUtc = clock.GetUtcNow().Add(wait);
@@ -63,29 +75,34 @@ public record TestsMaintenancePeriod
         return StartsAt(startsOnUtc, endsOnUtc);
     }
 
-    public static async Task<TestsMaintenancePeriod?> FromFile(string workflowPath)
+    public static async Task<WorkflowDowntime?> FromFile(string workflowPath)
     {
-        var workflowLockPath = Path.ChangeExtension(workflowPath, FileExtension);
+        var workflowDowntimePath = Path.ChangeExtension(workflowPath, FileExtension);
 
         // core: This workflow has no lock.
-        if (!Path.Exists(workflowLockPath)) return null;
+        if (!Path.Exists(workflowDowntimePath)) return null;
 
         // core: Avoid race conditions by locking file operations.
         await Lock.WaitAsync();
         try
         {
-            await using var fileStream = new FileStream(workflowLockPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            if (await JsonSerializer.DeserializeAsync<TestsMaintenancePeriod>(fileStream) is { } workflowLock)
+            await using var fileStream = new FileStream(workflowDowntimePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (await JsonSerializer.DeserializeAsync<WorkflowDowntime>(fileStream) is { } workflowDowntime)
             {
-                return workflowLock with { FileName = workflowLockPath };
+                if (workflowDowntime.Checksum != CalculatesChecksum.For(workflowDowntime.StartsOnUtc, workflowDowntime.EndsOnUtc, workflowDowntime.CreatedOnUtc))
+                {
+                    throw new WorkflowDowntimeCorrupted(workflowPath);
+                }
+
+                return workflowDowntime with { FileName = workflowDowntimePath };
             }
+
+            throw new WorkflowDowntimeNull(workflowDowntimePath);
         }
         finally
         {
             Lock.Release();
         }
-
-        throw new InvalidWorkflowLock(workflowPath);
     }
 
     public async Task ApplyTo(IEnumerable<string> workflowPaths)
@@ -107,8 +124,7 @@ public record TestsMaintenancePeriod
             await using var stream = new FileStream(lockPath, FileMode.Create, FileAccess.Write, FileShare.None);
             await JsonSerializer.SerializeAsync(stream, this, new JsonSerializerOptions
             {
-                WriteIndented = true,
-                IgnoreReadOnlyProperties = true,
+                WriteIndented = true
             });
             await stream.FlushAsync();
         }
@@ -120,7 +136,7 @@ public record TestsMaintenancePeriod
         return lockPath;
     }
 
-    public async ValueTask Complete()
+    public async ValueTask EndsNow()
     {
         // util: Prevent these two bugs that won't happen during normal operation, but only due to mistakes.
         if (FileName is null) throw new InvalidOperationException("Cannot delete a lock that is not saved.");
@@ -141,15 +157,32 @@ public record TestsMaintenancePeriod
     }
 }
 
-public enum MaintenancePeriodStatus
+public static class CalculatesChecksum
+{
+    public static string For(params DateTimeOffset[] values)
+    {
+        // meta: This is a very simple checksum, but it is good enough for our purposes.
+        var value = string.Join("_", values.Select(x => x.ToString("O")));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+    }
+}
+
+public enum WorkflowDowntimeStatus
 {
     Pending,
-    Running,
+    Ongoing,
     Expired,
 }
 
-public class InvalidWorkflowLock(string path) : Exception($"The '{path}' is not a valid workflow-lock-file.");
+public abstract class WorkflowDowntimeIssue(string path) : Exception
+{
+    public string Path => path;
+}
 
-public class MaintenancePeriodMustStartBeforeItEnds : Exception;
+public class WorkflowDowntimeNull(string path) : WorkflowDowntimeIssue($"The '{path}' is not a valid workflow-lock-file.");
 
-public class MaintenancePeriodMustEndInTheFuture : Exception;
+public class WorkflowDowntimeCorrupted(string path) : WorkflowDowntimeIssue($"The checksum for '{path}' does not match the timestamps.");
+
+public class DowntimeMustStartBeforeItEnds : Exception;
+
+public class DowntimeMustEndInTheFuture : Exception;

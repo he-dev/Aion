@@ -9,13 +9,24 @@
     }
   },
   "profiles": {
-    "http": {
+    "http-sync-off": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": false,
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5049",
       "commandLineArgs": "--Aion:SyncOn=false",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "http-sync-on": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "launchUrl": "swagger",
+      "applicationUrl": "http://localhost:5049",
+      "commandLineArgs": "--Aion:SyncOn=true",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }

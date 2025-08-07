@@ -1,22 +1,20 @@
-@host=http://localhost:5049
-@maintenance={{host}}/api/profiles/main/maintenance
-
 
 ### Starts maintenance relative from now.
-POST {{maintenance}}:start-in
+POST {{host}}{{profiles.two}}/downtimes:start-in
 Content-Type: application/json
 
 {
-    "filter": "says-hallo",
+    "filter": "single",
     "wait": "00:00:05",
-    "duration": "00:20:00"
+    "duration": "00:30:00"
 }
 
 ### Starts maintenance at the specified time.
-POST {{maintenance}}/{name}:startAt
+POST {{host}}{{profiles.two}}/downtimes:startAt
 Content-Type: application/json
 
 {
+    "filter": "*",
     "from": "2025-07-01T22:00Z",
     "to": "2025-07-01T23:00Z"
 }

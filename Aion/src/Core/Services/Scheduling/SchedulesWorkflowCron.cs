@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Home.Jobs;
@@ -17,7 +16,7 @@ public class SchedulesWorkflowCron
     ISchedulerFactory schedulerFactory
 )
 {
-    public async Task<WorkflowSynchronizationSummary> For(WorkflowMatch match)
+    public async Task<WorkflowSyncResult> For(WorkflowMatch match)
     {
         var scheduler = await schedulerFactory.GetScheduler();
         using var scope = logger.BeginScopeFrom(new { WorkflowName = match.Name });
@@ -28,8 +27,8 @@ public class SchedulesWorkflowCron
         var syncAction = await WhatToDoAbout(match.Value, jobKey, cronTrigger);
         var deleted = syncAction switch
         {
-            WorkflowAction.UnscheduleBecauseDisabled => await scheduler.DeleteJob(jobKey),
-            WorkflowAction.UnscheduleBecauseEmpty => await scheduler.DeleteJob(jobKey),
+            WorkflowSyncAction.UnscheduleBecauseDisabled => await scheduler.DeleteJob(jobKey),
+            WorkflowSyncAction.UnscheduleBecauseEmpty => await scheduler.DeleteJob(jobKey),
             _ => default(bool?)
         };
 
@@ -42,8 +41,8 @@ public class SchedulesWorkflowCron
 
         var next = syncAction switch
         {
-            WorkflowAction.UpdateBecauseChanged => await scheduler.RescheduleJob(cronTrigger.Key, cronTrigger),
-            WorkflowAction.ScheduleBecauseNew => await scheduler.ScheduleJob(jobDetail, cronTrigger),
+            WorkflowSyncAction.UpdateBecauseChanged => await scheduler.RescheduleJob(cronTrigger.Key, cronTrigger),
+            WorkflowSyncAction.ScheduleBecauseNew => await scheduler.ScheduleJob(jobDetail, cronTrigger),
             _ => null
         };
 
@@ -53,10 +52,10 @@ public class SchedulesWorkflowCron
             logger.LogInformation("Next execution at '{Next}'.", next);
         }
 
-        return new WorkflowSynchronizationSummary(syncAction, deleted, next);
+        return new WorkflowSyncResult(syncAction, deleted, next);
     }
 
-    public async Task<WorkflowAction> WhatToDoAbout(Workflow workflow, JobKey workflowKey, ICronTrigger trigger)
+    public async Task<WorkflowSyncAction> WhatToDoAbout(Workflow workflow, JobKey workflowKey, ICronTrigger trigger)
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -64,43 +63,37 @@ public class SchedulesWorkflowCron
         {
             if (await scheduler.CheckExists(workflowKey))
             {
-                return WorkflowAction.UnscheduleBecauseDisabled;
+                return WorkflowSyncAction.UnscheduleBecauseDisabled;
             }
 
-            return WorkflowAction.IgnoreBecauseDisabled;
+            return WorkflowSyncAction.IgnoreBecauseDisabled;
         }
 
         if (!workflow.Steps.Any(s => s.IsOn))
         {
             if (await scheduler.CheckExists(workflowKey))
             {
-                return WorkflowAction.UnscheduleBecauseEmpty;
+                return WorkflowSyncAction.UnscheduleBecauseEmpty;
             }
 
-            return WorkflowAction.IgnoreBecauseEmpty;
+            return WorkflowSyncAction.IgnoreBecauseEmpty;
         }
 
         if (await scheduler.GetTrigger(trigger.Key) is ICronTrigger { CronExpressionString: { } cron } current)
         {
             if (cron.Equals(trigger.CronExpressionString))
             {
-                return WorkflowAction.IgnoreBecauseUnchanged;
+                return WorkflowSyncAction.IgnoreBecauseUnchanged;
             }
 
-            return WorkflowAction.UpdateBecauseChanged;
+            return WorkflowSyncAction.UpdateBecauseChanged;
         }
 
-        return WorkflowAction.ScheduleBecauseNew;
+        return WorkflowSyncAction.ScheduleBecauseNew;
     }
-
-    // public async Task Clear()
-    // {
-    //     var scheduler = await schedulerFactory.GetScheduler();
-    //     await scheduler.Clear();
-    // }
 }
 
-public enum WorkflowAction
+public enum WorkflowSyncAction
 {
     IgnoreBecauseDisabled,
     IgnoreBecauseEmpty,
@@ -111,9 +104,9 @@ public enum WorkflowAction
     ScheduleBecauseNew
 }
 
-public record WorkflowSynchronizationSummary
+public record WorkflowSyncResult
 (
-    WorkflowAction Action,
+    WorkflowSyncAction Action,
     bool? Deleted = null,
     DateTimeOffset? NextUtc = null
 );

@@ -13,9 +13,9 @@ namespace Aion.Home.Endpoints.Workflows;
 
 [ApiController]
 [Route("api/profiles/{profileName}/workflows")]
-public class ListsProfileWorkflows
+public class ListsWorkflows
 (
-    ILogger<ListsProfileWorkflows> logger,
+    ILogger<ListsWorkflows> logger,
     IOptionsSnapshot<EngineOptions> engineOptions
 ) : ControllerBase
 {

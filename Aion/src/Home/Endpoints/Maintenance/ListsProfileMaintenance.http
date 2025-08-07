@@ -1,6 +1,0 @@
-@host=http://localhost:5049
-@maintenance={{host}}/api/profiles/main/maintenance
-
-
-### Lists maintenance locks.
-GET {{maintenance}}

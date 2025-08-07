@@ -7,25 +7,20 @@ using Quartz;
 
 namespace Aion.Core.Services.WhenTriggersFire;
 
-public class CanVetoProfileSynchronization
+public class CanVetoWorkflowSynchronization
 (
-    ILogger<CanVetoProfileSynchronization> logger,
+    ILogger<CanVetoWorkflowSynchronization> logger,
     IOptions<EngineOptions> engineOptions
 ) : ITriggerListener
 {
-    public string Name => nameof(CanVetoProfileSynchronization);
-
-    public Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = new())
-    {
-        return Task.CompletedTask;
-    }
+    public string Name => nameof(CanVetoWorkflowSynchronization);
 
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = new())
     {
         if (!engineOptions.Value.SyncOn)
         {
             using var scope = logger.BeginScopeFrom(new { TriggerName = trigger.Key.Name, ProfileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName) });
-            logger.LogWarning("Profile synchronization is off - pausing it.");
+            logger.LogWarning("Workflow synchronization is off - pausing it.");
             await context.Scheduler.PauseJob(context.JobDetail.Key, cancellationToken);
             return true;
         }
@@ -33,8 +28,15 @@ public class CanVetoProfileSynchronization
         return false;
     }
 
+    public Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = new())
+    {
+        logger.LogDebug("Workflow synchronization trigger '{TriggerName}' has fired.", trigger.Key.Name);
+        return Task.CompletedTask;
+    }
+
     public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = new())
     {
+        logger.LogWarning("Workflow synchronization trigger '{TriggerName}' has misfired.", trigger.Key.Name);
         return Task.CompletedTask;
     }
 
