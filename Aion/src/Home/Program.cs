@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services;
+using Aion.Core.Services.Options;
 using Aion.Core.Services.Scheduling;
 using Aion.Core.Services.WhenTriggersFire;
 using Aion.Core.StepExecutionRules;
@@ -74,8 +75,8 @@ public class Program
             .ConfigureServices((context, services) =>
             {
                 services.Configure<EngineOptions>(context.Configuration.GetSection(EngineOptions.SectionName));
-                services.AddSingleton<IValidateOptions<EngineOptions>, EngineOptions.EnsuresPathsUniqueness>();
-                services.AddSingleton<IPostConfigureOptions<EngineOptions>, EngineOptions.RenderPaths>();
+                services.AddSingleton<IValidateOptions<EngineOptions>, EnsuresProfileUniqueness>();
+                services.AddSingleton<IPostConfigureOptions<EngineOptions>, RendersProfilePath>();
                 services.AddSingleton<MapsLogEvent>();
                 services.AddSingleton<MapsLogEvent>();
 
@@ -120,7 +121,8 @@ public class Program
 
                 services.AddQuartz(q =>
                 {
-                    var engineOptions = context.Configuration.GetRequiredSection(EngineOptions.SectionName).Get<EngineOptions>()!;
+                    var engineOptions = services.BuildServiceProvider().GetRequiredService<IOptions<EngineOptions>>().Value;
+                    //var engineOptions = context.Configuration.GetRequiredSection(EngineOptions.SectionName).Get<EngineOptions>()!;
 
                     foreach (var profile in engineOptions.Profiles)
                     {

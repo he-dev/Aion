@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -6,6 +7,8 @@ using Aion.Core;
 using Aion.Core.Services;
 using Aion.Meta.Logging;
 using Aion.Util.Quartz;
+using Aion.Util.Scriban;
+using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -16,6 +19,7 @@ public class ExecutesWorkflowOnce
 (
     ILogger<ExecutesWorkflowOnce> logger,
     IOptions<EngineOptions> engineOptions,
+    MapsLogEvent mapsLogEvent,
     ExecutesWorkflow executesWorkflow
 ) : IJob
 {
@@ -26,22 +30,43 @@ public class ExecutesWorkflowOnce
         var workflowStart = context.Trigger.JobDataMap.GetEnum<WorkflowStart>();
         var profile = engineOptions.Value[profileName];
         using var activity = new Activity($"ExecutingWorkflow{workflowStart}").Start();
-        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName, WorkflowName = workflowName, WorkflowStart = workflowStart });
+        using var scope = logger.BeginScopeFrom(new
+        {
+            ExecutionMode = WorkflowExecutionMode.Once,
+            ProfileName = profileName,
+            WorkflowName = workflowName,
+            WorkflowStart = workflowStart
+        });
+
+        var variables = ImmutableList<VariableGroup>.Empty.AddRange
+        ([
+            new EngineVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Instance },
+            new ProfileVariableGroup(profile.Variables) { Name = profileName },
+            new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Once },
+        ]);
+
+        var logging =
+            profile.LoggingTemplate is not null
+                ? await profile.LoggingTemplate.RenderAsync(profile, variables)
+                : null;
+
+        using var profileLogging = mapsLogEvent.By(new ProfileLogEventSignature(profileName), to: logging.ToLogger());
 
         try
         {
             var workflowMatch = await profile.Workflows.Single(workflowName).Load();
-            switch (workflowMatch.Value)
+            switch (workflowMatch)
             {
                 // util: Logging.
-                case { Steps: { } steps } when steps.Any(s => s.IsOn) == false:
+                case { Value.Steps: { } steps } when steps.Any(s => s.IsOn) == false:
                     logger.LogWarning("Skipping workflow because it has no enabled steps.");
                     break;
                 // core: This is where the actual magic happens.
-                case var workflow:
-                    await executesWorkflow.Now(workflowMatch);
+                default:
+                    await executesWorkflow.Now(workflowMatch, variables);
                     break;
             }
+
             activity.SetStatus(ActivityStatusCode.Ok).Stop();
         }
         catch (Exception ex)

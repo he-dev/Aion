@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Aion.Core.Templates;
 using Aion.Util;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
@@ -24,6 +26,13 @@ public class Profile
     public string[] Includes { get; set; } = [];
 
     public string[] Excludes { get; set; } = [];
+
+    public Dictionary<string, object?> Variables { get; set; } = new();
+
+    public LoggingPreset.Lite? LoggingPreset { get; set; }
+
+    [JsonIgnore]
+    public LoggingTemplate? LoggingTemplate => LoggingPreset is not null ? new LoggingTemplate(LoggingPreset.ToJsonObject()) : null;
 
     [JsonIgnore]
     public WorkflowRepository Workflows => new(this);

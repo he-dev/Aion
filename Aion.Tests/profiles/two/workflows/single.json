@@ -1,15 +1,15 @@
 {
   "IsOn": true,
   "Cron": "0/5 * * * * ?",
-  "Args": {
-    "exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
-    "msg": "This is step {{ step.index }} from {{ workflow.name }}."
+  "Variables": {
+    "AionNpcExe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
+    "Message": "This is step {{ step.index }} from {{ workflow.name }}."
   },
   "Steps": [
     {
       "IsOn": true,
-      "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 1 --message \"{{ arg.msg }}\"",
+      "File": "{{ Workflow.AionNpcExe }}",
+      "ArgsOrString": "--sleep-seconds 1 --message \"{{ Workflow.Message }}\"",
       "SerilogOrPreset": {
         "File": "logging-presets.json",
         "Name": "Console.Simple"

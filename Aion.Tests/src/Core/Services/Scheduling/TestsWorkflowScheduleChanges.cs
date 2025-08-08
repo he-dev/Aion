@@ -1,8 +1,10 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services.Scheduling;
 using Aion.Core.Templates;
+using Aion.Util.Scriban;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Xunit;
@@ -23,6 +25,8 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         var schedulesWorkflowCron = scope.ServiceProvider.GetRequiredService<SchedulesWorkflowCron>();
 
         var fakeProfile = new Profile { Path = @"C:\fake\path\to\profiles\one" };
+        //fakeProfile.Path.Render(ImmutableList<VariableGroup>.Empty);
+
         var fakeRelativePath = @"workflows\fake-workflow.json";
 
         if (initialWorkflow is not null)

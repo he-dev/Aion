@@ -8,6 +8,20 @@ using Serilog.Events;
 
 namespace Aion.Core;
 
+public record ProfileLogEventSignature(string ProfileName) : ILogEventSignature
+{
+    public bool Matches(LogEvent logEvent)
+    {
+        // core: The profile logger is allowed to log only console-engine events, no std.
+        if (!logEvent.TryGetScalar<ConsoleStreamType>(nameof(ConsoleStreamType), out var source)) return false;
+        if (!(source == ConsoleStreamType.Engine)) return false;
+        if (!logEvent.TryGetScalar<string>(nameof(ProfileName), out var profileName)) return false;
+        if (!profileName.Equals(ProfileName, StringComparison.InvariantCultureIgnoreCase)) return false;
+
+        return true;
+    }
+}
+
 public record WorkflowLogEventSignature(string WorkflowName) : ILogEventSignature
 {
     public bool Matches(LogEvent logEvent)

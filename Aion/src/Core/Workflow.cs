@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -23,7 +24,7 @@ public record Workflow
             ? TimeZoneInfo.Local
             : TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
 
-    public Dictionary<string, object?> Args { get; init; } = new();
+    public IImmutableDictionary<string, object?> Variables { get; init; } = ImmutableDictionary<string, object?>.Empty;
 
     public List<Step> Steps { get; init; } = [];
 
@@ -66,6 +67,7 @@ public record Workflow
             Converters =
             {
                 new StringTemplateConverter(),
+                new StringTemplate2Converter(),
                 new ArgumentsTemplateConverter(),
                 new LoggingTemplateConverter(),
             }

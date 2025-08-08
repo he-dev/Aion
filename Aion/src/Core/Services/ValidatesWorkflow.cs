@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
@@ -38,10 +39,10 @@ public static class ValidatesWorkflow
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange(
         [
-            new EngineVariableGroup { Instance = "test" },
-            new ProfileVariableGroup { Name = "test" },
-            new ArgumentVariableGroup(workflow.Args),
-            new WorkflowVariableGroup { Name = "test" }
+            new EngineVariableGroup(new Dictionary<string, object?>()) { Name = "test" },
+            new ProfileVariableGroup(new Dictionary<string, object?>()) { Name = "test" },
+            new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Test },
+            new WorkflowVariableGroup(workflow.Variables) { Name = "test" },
         ]);
 
         if (workflow.Logging is { } workflowLogging)

@@ -11,7 +11,7 @@
           {
             "Name": "File",
             "Args": {
-              "path": "C:\\temp\\aion\\{{ profile.name}}\\{{ workflow.name }}\\{{ workflow.name }}-step-{{ step.index }}_.log",
+              "path": "C:\\temp\\aion\\{{ profile.name}}\\{{ execution.mode }}\\{{ workflow.name }}\\{{ workflow.name }}-step-{{ step.index }}_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ConsoleStreamType} » {Message:lj}{NewLine}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 3
@@ -30,7 +30,26 @@
           {
             "Name": "File",
             "Args": {
-              "path": "C:\\temp\\aion\\{{ profile.name }}\\{{ workflow.name }}\\{{ workflow.name }}_.log",
+              "path": "C:\\temp\\aion\\profiles\\{{ profile.name }}\\{{ execution.mode }}\\{{ workflow.name }}\\{{ workflow.name }}_.log",
+              "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
+              "rollingInterval": "Day",
+              "retainedFileCountLimit": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Name": "Profile.Simple",
+      "Serilog": {
+        "MinimumLevel": {
+          "Default": "Debug"
+        },
+        "WriteTo": [
+          {
+            "Name": "File",
+            "Args": {
+              "path": "{{ Profile.LogsDirectory }}\\{{ Profile.Name }}_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 3

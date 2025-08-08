@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
@@ -6,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services;
+using Aion.Util.Scriban;
 using Aion.Util.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -23,8 +25,15 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
         var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<EngineOptions>>();
         var executesWorkflow = scope.ServiceProvider.GetRequiredService<ExecutesWorkflow>();
 
+        var variables = ImmutableList<VariableGroup>.Empty.AddRange
+        ([
+            new EngineVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Instance },
+            new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Test },
+            new ProfileVariableGroup(new Dictionary<string, object?>()) { Name = profileName }
+        ]);
+
         var workflowMatch = await engineOptions.Value[profileName].Workflows.Single(workflowName).Load();
-        return await executesWorkflow.Now(workflowMatch);
+        return await executesWorkflow.Now(workflowMatch, variables);
     }
 
     [Theory]
@@ -106,7 +115,7 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
     {
         // "c3.1-null-0" -> count=3, exitCodes=[1, null, 0]
         var parts = workflowName[1..].Split('.');
-        var count = int.Parse(parts[0]);
+        //var count = int.Parse(parts[0]);
         return parts[1].Split('_').ToImmutableList();
     }
 }

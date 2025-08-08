@@ -1,51 +1,57 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using Aion.Util.Scriban;
 
 namespace Aion.Core;
 
-public class EngineVariableGroup() : VariableGroup("Aion")
+public class EngineVariableGroup(Dictionary<string, object?> variables) : VariableGroup("Engine")
 {
-    public string Instance { get; init; } = null!;
-
-    public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
-    {
-        yield return new KeyValuePair<string, object?>(nameof(Instance), Instance);
-    }
-}
-
-public class ProfileVariableGroup() : VariableGroup("Profile")
-{
-    public string Name { get; init; } = null!;
+    public required string Name { get; init; } = null!;
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
+        foreach (var variable in variables) yield return variable;
     }
 }
 
-public class ArgumentVariableGroup(IDictionary<string, object?> variables) : VariableGroup("Arg")
+public class ProfileVariableGroup(Dictionary<string, object?> variables) : VariableGroup("Profile")
 {
-    public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator() => variables.GetEnumerator();
+    public required string Name { get; init; } = null!;
+
+    public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
+    {
+        yield return new KeyValuePair<string, object?>(nameof(Name), Name);
+        foreach (var variable in variables) yield return variable;
+    }
 }
 
-public class WorkflowVariableGroup() : VariableGroup("Workflow")
+public class ExecutionVariableGroup() : VariableGroup("Execution")
+{
+    public required WorkflowExecutionMode Mode { get; init; }
+
+    public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
+    {
+        if (Activity.Current is { } current)
+        {
+            yield return new KeyValuePair<string, object?>(nameof(Mode), Mode);
+            yield return new KeyValuePair<string, object?>(nameof(Activity.TraceId), current.TraceId);
+            yield return new KeyValuePair<string, object?>(nameof(Activity.SpanId), current.SpanId);
+            yield return new KeyValuePair<string, object?>(nameof(Activity.ParentId), current.ParentId);
+        }
+    }
+}
+
+public class WorkflowVariableGroup(IImmutableDictionary<string, object?> variables) : VariableGroup("Workflow")
 {
     public required string Name { get; init; }
 
-    public ActivityTraceId TraceId => Activity.Current?.TraceId ?? throw new InvalidOperationException("There is no activity in scope.");
-
-    public ActivitySpanId SpanId => Activity.Current?.SpanId ?? throw new InvalidOperationException("There is no activity in scope.");
-
-    public ActivitySpanId ParentId => Activity.Current?.ParentSpanId ?? throw new InvalidOperationException("There is no activity in scope.");
-
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
-        yield return new KeyValuePair<string, object?>(nameof(TraceId), TraceId);
-        yield return new KeyValuePair<string, object?>(nameof(SpanId), SpanId);
-        yield return new KeyValuePair<string, object?>(nameof(ParentId), ParentId);
+        foreach (var variable in variables) yield return variable;
     }
 }
 
@@ -55,18 +61,9 @@ public class StepVariableGroup() : VariableGroup("Step")
 
     public required int Index { get; init; }
 
-    public ActivityTraceId TraceId => Activity.Current?.TraceId ?? throw new InvalidOperationException("There is no activity in scope.");
-
-    public ActivitySpanId SpanId => Activity.Current?.SpanId ?? throw new InvalidOperationException("There is no activity in scope.");
-
-    public ActivitySpanId ParentId => Activity.Current?.ParentSpanId ?? throw new InvalidOperationException("There is no activity in scope.");
-
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
         yield return new KeyValuePair<string, object?>(nameof(Index), Index);
-        yield return new KeyValuePair<string, object?>(nameof(TraceId), TraceId);
-        yield return new KeyValuePair<string, object?>(nameof(SpanId), SpanId);
-        yield return new KeyValuePair<string, object?>(nameof(ParentId), ParentId);
     }
 }

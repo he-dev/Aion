@@ -1,9 +1,9 @@
 
 ### Starts workflow at the specified time.
-POST {{host}}{{profiles.two}}/single:start-now
+POST {{host}}{{profiles.two}}/workflows/single:start-now
 
 ### Starts workflow now.
-POST {{host}}{{profiles.two}}/slow-duo:start-now
+POST {{host}}{{profiles.two}}/workflows/slow-duo:start-now
 
 > {%
 

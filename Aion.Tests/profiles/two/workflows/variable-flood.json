@@ -17,14 +17,11 @@
         "--aion-instance", "{{ aion.instance }}",
         "--profile-name", "{{ profile.name }}",
         "--workflow-name", "{{ workflow.name }}",
-        "--workflow-trace-id", "{{ workflow.traceId }}",
-        "--workflow-span-id", "{{ workflow.spanId }}",
-        "--workflow-parent-id", "{{ workflow.parentId }}",
         "--step-index", "{{ step.index }}",
         "--step-name", "{{ step.name }}",
-        "--step-trace-id", "{{ step.traceId }}",
-        "--step-span-id", "{{ step.spanId }}",
-        "--step-parent-id", "{{ step.parentId }}"
+        "--execution-trace-id", "{{ execution.traceId }}",
+        "--execution-span-id", "{{ execution.spanId }}",
+        "--execution-parent-id", "{{ execution.parentId }}"
       ],
       "SerilogOrPreset": {
         "File": "{{ arg.presetFile }}",

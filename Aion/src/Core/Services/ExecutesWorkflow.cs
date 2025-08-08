@@ -10,7 +10,6 @@ using Aion.Util.Scriban;
 using Aion.Util.Serilog;
 using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Aion.Core.Services;
 
@@ -18,25 +17,21 @@ namespace Aion.Core.Services;
 public class ExecutesWorkflow
 (
     ILogger<ExecutesWorkflow> logger,
-    IOptions<EngineOptions> engineOptions,
     IEnumerable<IStepExecutionRule> stepExecutionRules,
     MapsLogEvent mapsLogEvent,
     StartsProcessAsync asyncProcess
 )
 {
-    public async Task<IImmutableList<StepResult>> Now(WorkflowMatch workflowMatch)
+    public async Task<IImmutableList<StepResult>> Now(WorkflowMatch workflowMatch, ImmutableList<VariableGroup> variables)
     {
         var stepResults = ImmutableList<StepResult>.Empty;
 
         var workflow = workflowMatch.Value;
         using var activity = new Activity("ExecutingWorkflow");
 
-        var variables = ImmutableList<VariableGroup>.Empty.AddRange
+        variables = variables.AddRange
         ([
-            new EngineVariableGroup { Instance = engineOptions.Value.Instance },
-            new ProfileVariableGroup { Name = workflowMatch.Profile.Name },
-            new ArgumentVariableGroup(workflow.Args),
-            new WorkflowVariableGroup { Name = workflowMatch.Name }
+            new WorkflowVariableGroup(workflow.Variables) { Name = workflowMatch.Name }
         ]);
 
         var logging =
@@ -86,7 +81,11 @@ public class ExecutesWorkflow
             };
         }
 
-        var variables = context.Variables.Add(new StepVariableGroup { Index = context.Index, Name = context.Step.Name });
+        var variables =
+            context
+                .Variables
+                .Add(new StepVariableGroup { Index = context.Index, Name = context.Step.Name });
+
         var stepLogging =
             context.Step.Logging is not null
                 ? await context.Step.Logging.RenderAsync(context.WorkflowMatch.Profile, variables)

@@ -31,10 +31,19 @@ public record LoggingPresetGroup
 // ReSharper disable once ClassNeverInstantiated.Global
 public record LoggingPreset
 {
-    public string Name { get; init; } = null!;
+    public string Name { get; set; } = null!;
 
-    public JsonObject Serilog { get; init; } = null!;
+    public JsonObject Serilog { get; set; } = null!;
 
     // core: Used in workflows to reference logging presets.
     public record Info(StringTemplate File, StringTemplate Name);
+
+    public record Lite(string File, string Name)
+    {
+        public JsonObject ToJsonObject() => new()
+        {
+            [nameof(File)] = File,
+            [nameof(Name)] = Name
+        };
+    }
 }
