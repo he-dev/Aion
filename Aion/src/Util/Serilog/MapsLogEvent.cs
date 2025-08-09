@@ -8,7 +8,7 @@ namespace Aion.Util.Serilog;
 
 public interface ILogEventSignature
 {
-    public bool Matches(LogEvent logEvent);
+    bool Matches(LogEvent logEvent);
 }
 
 // meta: This sink redirects log events into the custom logger.
@@ -22,7 +22,14 @@ public class MapsLogEvent : ILogEventSink
         Loggers.GetOrAdd(signature, _ => to);
 
         // core: Make the caller remove it when done.
-        return new RemovesLogger(() => Loggers.TryRemove(signature, out _));
+        return new RemovesLogger(() =>
+        {
+            // meta: Serilog recommends disposing of the logger this way.
+            if (Loggers.TryRemove(signature, out var logger) && logger is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        });
     }
 
     public void Emit(LogEvent logEvent)

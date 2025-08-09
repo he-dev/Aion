@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
+using Aion.Meta.Logging;
 using Aion.Util.Serilog;
 using Aion.Util.Services;
+using Microsoft.Extensions.Logging;
 using Serilog.Events;
 
 // ReSharper disable NegativeEqualityExpression
@@ -8,44 +11,72 @@ using Serilog.Events;
 
 namespace Aion.Core;
 
-public record ProfileLogEventSignature(string ProfileName) : ILogEventSignature
+public class ProfileLogEventSignature : ILogEventSignature
 {
+    private ProfileLogEventSignature() { }
+
+    public ActivitySpanId SpanId { get; } = Activity.Current?.SpanId ?? throw new InvalidOperationException("Activity.Current is null.");
+
     public bool Matches(LogEvent logEvent)
     {
         // core: The profile logger is allowed to log only console-engine events, no std.
         if (!logEvent.TryGetScalar<ConsoleStreamType>(nameof(ConsoleStreamType), out var source)) return false;
         if (!(source == ConsoleStreamType.Engine)) return false;
-        if (!logEvent.TryGetScalar<string>(nameof(ProfileName), out var profileName)) return false;
-        if (!profileName.Equals(ProfileName, StringComparison.InvariantCultureIgnoreCase)) return false;
+        if (!logEvent.TryGetScalar<ActivitySpanId>(nameof(SpanId), out var spanId)) return false;
+        if (!(spanId == SpanId)) return false;
 
         return true;
     }
+
+    public static ILogEventSignature FromScope() => new ProfileLogEventSignature();
 }
 
-public record WorkflowLogEventSignature(string WorkflowName) : ILogEventSignature
+public class WorkflowSignatureScope : ILogEventSignature, IDisposable
 {
+    public WorkflowSignatureScope(ILogger logger)
+    {
+        WorkflowExecutionId = ActivitySpanId.CreateRandom();
+        Scope = logger.BeginScopeFrom(new { WorkflowExecutionId });
+    }
+
+    public ActivitySpanId WorkflowExecutionId { get; init; }
+
+    private IDisposable? Scope { get; init; }
+
     public bool Matches(LogEvent logEvent)
     {
         // core: The workflow logger is allowed to log only console-engine events, no std.
         if (!logEvent.TryGetScalar<ConsoleStreamType>(nameof(ConsoleStreamType), out var source)) return false;
         if (!(source == ConsoleStreamType.Engine)) return false;
-        if (!logEvent.TryGetScalar<string>(nameof(WorkflowName), out var workflowName)) return false;
-        if (!workflowName.Equals(WorkflowName, StringComparison.InvariantCultureIgnoreCase)) return false;
+        if (!logEvent.TryGetScalar<string>(nameof(WorkflowExecutionId), out var workflowExecutionId)) return false;
+        if (!(ActivitySpanId.CreateFromString(workflowExecutionId) == WorkflowExecutionId)) return false;
 
         return true;
     }
+
+    public void Dispose() => Scope?.Dispose();
 }
 
-public record ConsoleLogEventSignature(string WorkflowName, int StepIndex) : ILogEventSignature
+public class StepSignatureScope : ILogEventSignature, IDisposable
 {
+    public StepSignatureScope(ILogger logger)
+    {
+        StepExecutionId = ActivitySpanId.CreateRandom();
+        Scope = logger.BeginScopeFrom(new { StepExecutionId });
+    }
+
+    public ActivitySpanId StepExecutionId { get; init; }
+
+    private IDisposable? Scope { get; init; }
+
     public bool Matches(LogEvent logEvent)
     {
         if (!logEvent.TryGetScalar<ConsoleStreamType>(nameof(ConsoleStreamType), out _)) return false;
-        if (!logEvent.TryGetScalar<string>(nameof(WorkflowName), out var workflowName)) return false;
-        if (!workflowName.Equals(WorkflowName, StringComparison.InvariantCultureIgnoreCase)) return false;
-        if (!logEvent.TryGetScalar<int>(nameof(StepIndex), out var stepIndex)) return false;
-        if (!(stepIndex == StepIndex)) return false;
+        if (!logEvent.TryGetScalar<string>(nameof(StepExecutionId), out var stepExecutionId)) return false;
+        if (!(ActivitySpanId.CreateFromString(stepExecutionId) == StepExecutionId)) return false;
 
         return true;
     }
+
+    public void Dispose() => Scope?.Dispose();
 }

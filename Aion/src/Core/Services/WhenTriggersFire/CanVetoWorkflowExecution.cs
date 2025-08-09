@@ -12,7 +12,7 @@ namespace Aion.Core.Services.WhenTriggersFire;
 public class CanVetoWorkflowExecution
 (
     ILogger<CanVetoWorkflowExecution> logger,
-    IOptions<EngineOptions> engineOptions
+    IOptions<InstanceOptions> engineOptions
 ) : ITriggerListener
 {
     public string Name => nameof(CanVetoWorkflowExecution);

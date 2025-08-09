@@ -16,7 +16,7 @@ namespace Aion.Home.Endpoints.Downtimes;
 public class ListsWorkflowDowntimes
 (
     ILogger<ListsWorkflowDowntimes> logger,
-    IOptionsSnapshot<EngineOptions> engineOptions
+    IOptionsSnapshot<InstanceOptions> engineOptions
 ) : ControllerBase
 {
     [HttpGet]

@@ -1,80 +1,51 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.IO;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-using Aion.Core.Templates;
+using System.Text.Json.Nodes;
+using Aion.Util.Scriban;
+using Quartz;
 
 namespace Aion.Core;
 
 public record Workflow
 {
+    public string Name { get; init; } = null!;
+
     // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
-    public bool IsOn { get; init; }
+    public bool Enabled { get; init; }
 
-    public string Cron { get; init; } = null!;
+    public JobKey CronJobKey { get; init; } = null!;
 
-    public string? TimeZoneId { get; init; }
+    public ICronTrigger CronTrigger { get; init; } = null!;
 
-    // util: Use the local time-zone if the request did not specify any.
-    public TimeZoneInfo TimeZone =>
-        string.IsNullOrEmpty(TimeZoneId)
-            ? TimeZoneInfo.Local
-            : TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+    public IImmutableDictionary<string, string> Variables { get; init; } = null!;
 
-    public IImmutableDictionary<string, object?> Variables { get; init; } = ImmutableDictionary<string, object?>.Empty;
+    public IImmutableDictionary<string, string> Environment { get; init; } = null!;
 
-    public List<Step> Steps { get; init; } = [];
+    public IImmutableList<Step> Steps { get; init; } = [];
 
-    [JsonPropertyName("SerilogOrPreset")]
-    public LoggingTemplate? Logging { get; init; }
+    public JsonObject? Logging { get; init; }
 
-    public record Step
+    public class Step(string arguments, IImmutableList<VariableGroup> variables)
     {
+        public int Index { get; init; }
+
         public string? Name { get; init; }
 
-        public bool IsOn { get; init; } = true;
+        public bool Enabled { get; init; } = true;
 
-        public StringTemplate File { get; init; } = null!;
+        public string FileName { get; init; } = null!;
 
-        [JsonPropertyName("ArgsOrString")]
-        public ArgumentsTemplate Args { get; init; } = new(null, null);
+        // note: Arguments can pass activity ids which are available only during runtime, so this property must be lazy.
+        public string Arguments() => RendersTemplates.In(arguments, variables);
 
-        public StringTemplate? WorkingDirectory { get; init; }
+        public IImmutableDictionary<string, string> Environment { get; init; } = null!;
 
-        public TimeSpan Timeout { get; init; } = System.Threading.Timeout.InfiniteTimeSpan;
+        public string WorkingDirectory { get; init; } = null!;
 
-        [JsonPropertyName("SerilogOrPreset")]
-        public LoggingTemplate? Logging { get; init; }
+        public TimeSpan Timeout { get; init; }
+
+        public JsonObject? Logging { get; init; } = null!;
 
         public string? DependsOn { get; init; }
     }
-
-    public static async Task<Workflow> FromFile(string path)
-    {
-        if (!File.Exists(path))
-        {
-            // note: This is pretty unlikely, but who knows...
-            throw new FileNotFoundException($"Workflow '{path}' not found.", fileName: path);
-        }
-
-        await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        var workflow = await JsonSerializer.DeserializeAsync<Workflow>(fileStream, new JsonSerializerOptions
-        {
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            Converters =
-            {
-                new StringTemplateConverter(),
-                new StringTemplate2Converter(),
-                new ArgumentsTemplateConverter(),
-                new LoggingTemplateConverter(),
-            }
-        });
-
-        return workflow ?? throw new InvalidWorkflow(path);
-    }
 }
-
-public class InvalidWorkflow(string path) : Exception($"File '{path}' is not a valid workflow.");

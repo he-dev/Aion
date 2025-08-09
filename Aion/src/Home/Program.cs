@@ -58,7 +58,7 @@ public class Program
             .ConfigureLogging(builder => { builder.ClearProviders(); })
             .UseSerilog((context, services, configuration) =>
             {
-                var engineOptions = context.Configuration.GetRequiredSection(EngineOptions.SectionName).Get<EngineOptions>()!;
+                var engineOptions = context.Configuration.GetRequiredSection(InstanceOptions.SectionName).Get<InstanceOptions>()!;
 
                 // note: Main loggers are filtered in the appsettings.Serilog.json as there is no way to set up these filters here.
                 // See https://github.com/serilog/serilog-expressions for all filter expressions.
@@ -68,16 +68,15 @@ public class Program
                     .Enrich.With<EnrichesLogEventWithActivity>()
                     .Enrich.WithProperty("Application", Program.Name)
                     .Enrich.WithProperty("Version", Program.Version)
-                    .Enrich.WithProperty("Instance", engineOptions.Instance)
+                    .Enrich.WithProperty("Instance", engineOptions.Name)
                     .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
                     .WriteTo.Sink(services.GetRequiredService<MapsLogEvent>());
             })
             .ConfigureServices((context, services) =>
             {
-                services.Configure<EngineOptions>(context.Configuration.GetSection(EngineOptions.SectionName));
-                services.AddSingleton<IValidateOptions<EngineOptions>, EnsuresProfileUniqueness>();
-                services.AddSingleton<IPostConfigureOptions<EngineOptions>, RendersProfilePath>();
-                services.AddSingleton<MapsLogEvent>();
+                services.Configure<InstanceOptions>(context.Configuration.GetSection(InstanceOptions.SectionName));
+                services.AddSingleton<IValidateOptions<InstanceOptions>, EnsuresProfileUniqueness>();
+                services.AddSingleton<IPostConfigureOptions<InstanceOptions>, RendersProfilePath>();
                 services.AddSingleton<MapsLogEvent>();
 
                 services
@@ -121,14 +120,17 @@ public class Program
 
                 services.AddQuartz(q =>
                 {
-                    var engineOptions = services.BuildServiceProvider().GetRequiredService<IOptions<EngineOptions>>().Value;
+                    using var serviceProvider = services.BuildServiceProvider();
+                    //var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+                    var instanceOptions = serviceProvider.GetRequiredService<IOptions<InstanceOptions>>().Value;
                     //var engineOptions = context.Configuration.GetRequiredSection(EngineOptions.SectionName).Get<EngineOptions>()!;
 
-                    foreach (var profile in engineOptions.Profiles)
+                    foreach (var profile in instanceOptions.Profiles)
                     {
-                        if (string.IsNullOrEmpty(profile.Sync))
+                        if (!profile.SyncOn)
                         {
-                            continue;
+                            //logger.LogWarning("Skipping profile '{ProfileName}' because it is not configured to sync.", profile.Name);
+                            //continue;
                         }
 
                         var jobDetail = JobBuilder

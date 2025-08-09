@@ -12,7 +12,7 @@ namespace Aion.Home.Endpoints.Workflows;
 public class SchedulesWorkflowOnce
 (
     ILogger<SchedulesWorkflowOnce> logger,
-    IOptions<EngineOptions> engineOptions,
+    IOptions<InstanceOptions> engineOptions,
     Core.Services.Scheduling.SchedulesWorkflowOnce schedulesWorkflowOnce
 ) : ControllerBase
 {
@@ -39,7 +39,7 @@ public class SchedulesWorkflowOnce
         try
         {
             var profile = engineOptions.Value[profileName];
-            var workflowMatch = await profile.Workflows.Single(workflowName).Load();
+            var workflowMatch = profile.Workflows.Single(workflowName);
             var next = await action(workflowMatch);
             return Accepted(new { next = next.ToLocalTime() });
         }

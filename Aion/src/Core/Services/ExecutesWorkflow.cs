@@ -6,7 +6,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.StepExecutionRules;
 using Aion.Meta.Logging;
-using Aion.Util.Scriban;
 using Aion.Util.Serilog;
 using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
@@ -22,94 +21,68 @@ public class ExecutesWorkflow
     StartsProcessAsync asyncProcess
 )
 {
-    public async Task<IImmutableList<StepResult>> Now(WorkflowMatch workflowMatch, ImmutableList<VariableGroup> variables)
+    public async Task<IImmutableList<StepResult>> Now(Workflow workflow)
     {
-        var stepResults = ImmutableList<StepResult>.Empty;
-
-        var workflow = workflowMatch.Value;
-        using var activity = new Activity("ExecutingWorkflow");
-
-        variables = variables.AddRange
-        ([
-            new WorkflowVariableGroup(workflow.Variables) { Name = workflowMatch.Name }
-        ]);
-
-        var logging =
-            workflowMatch.Value.Logging is not null
-                ? await workflowMatch.Value.Logging.RenderAsync(workflowMatch.Profile, variables)
-                : null;
-
-        using (mapsLogEvent.By(new WorkflowLogEventSignature(workflowMatch.Name), to: logging.ToLogger()))
+        using var activity = new Activity("ExecutingWorkflow").Start();
+        using var executionSignature = new WorkflowSignatureScope(logger);
+        using (mapsLogEvent.By(executionSignature, to: workflow.Logging.ToLogger()))
         {
-            activity.Start();
             logger.LogInformation("Executing workflow...");
 
             // core: Does not filter out disabled steps because we want them logged.
-            foreach (var (step, index) in workflow.Steps.Select((step, index) => (step, index)))
+            var stepResults = ImmutableList<StepResult>.Empty;
+            foreach (var step in workflow.Steps)
             {
-                var stepResult = await ExecuteStep(new StepContext
-                {
-                    WorkflowMatch = workflowMatch,
-                    Step = step,
-                    Index = index,
-                    Variables = variables,
-                    StepResults = stepResults
-                });
+                var stepResult = await ExecuteStep(step, stepResults);
                 stepResults = stepResults.Add(stepResult);
             }
 
             activity.SetStatus(ActivityStatusCode.Ok).Stop();
             logger.LogInformation("Workflow completed in {Duration}.", activity.Duration);
-        }
 
-        return stepResults;
+            return stepResults;
+        }
     }
 
-    private async Task<StepResult> ExecuteStep(StepContext context)
+    private async Task<StepResult> ExecuteStep(Workflow.Step step, IImmutableList<StepResult> results)
     {
         // meta: Setup logging contexts.
-        using var activity = new Activity("ExecutingStep");
-        using var scope = logger.BeginScopeFrom(new { StepIndex = context.Index, StepName = context.Step.Name });
+        using var activity = new Activity("ExecutingStep").Start();
+        using var executionSignature = new StepSignatureScope(logger);
+        using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name });
+        using var logging = mapsLogEvent.By(executionSignature, to: step.Logging.ToLogger());
 
-        var exitCodes = context.StepResults.Select(r => r.ExitCode).ToImmutableList();
-        if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(context.Step, context.Index, exitCodes)))
+        var exitCodes = results.Select(r => r.ExitCode).ToImmutableList();
+        if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(step, exitCodes)))
         {
             return new StepResult
             {
-                Step = context.Step,
-                Index = context.Index
+                Step = step,
             };
         }
 
-        var variables =
-            context
-                .Variables
-                .Add(new StepVariableGroup { Index = context.Index, Name = context.Step.Name });
-
-        var stepLogging =
-            context.Step.Logging is not null
-                ? await context.Step.Logging.RenderAsync(context.WorkflowMatch.Profile, variables)
-                : null;
-
-        using var logging = mapsLogEvent.By(new ConsoleLogEventSignature(context.WorkflowMatch.Name, context.Index), to: stepLogging.ToLogger());
-
         try
         {
-            activity.Start();
+            //activity.Start();
             logger.LogInformation("Executing step...");
             var exitCode = await asyncProcess.Now
             (
-                context.Step.File.Render(variables),
-                context.Step.Timeout,
+                step.FileName,
+                step.Timeout,
                 psi =>
                 {
-                    foreach (var arg in context.Step.Args.RenderArgList(variables))
-                    {
-                        psi.ArgumentList.Add(arg);
-                    }
+                    // foreach (var arg in context.Step.Arguments.RenderArgList(variables))
+                    // {
+                    //     psi.ArgumentList.Add(arg);
+                    // }
 
-                    psi.Arguments = context.Step.Args.RenderArgString(variables);
-                    psi.WorkingDirectory = context.Step.WorkingDirectory?.Render(variables);
+                    psi.Arguments = step.Arguments();
+                    psi.WorkingDirectory = step.WorkingDirectory;
+
+                    foreach (var (name, value) in step.Environment)
+                    {
+                        psi.EnvironmentVariables[name] = value;
+                    }
                 }
             );
             activity.SetStatus(ActivityStatusCode.Ok).Stop();
@@ -122,8 +95,7 @@ public class ExecutesWorkflow
 
             return new StepResult
             {
-                Step = context.Step,
-                Index = context.Index,
+                Step = step,
                 ExitCode = exitCode,
                 Duration = activity.Duration,
             };
@@ -134,8 +106,7 @@ public class ExecutesWorkflow
             logger.LogWarning("Step was cancelled in {Duration} by timeout.", activity.Duration);
             return new StepResult
             {
-                Step = context.Step,
-                Index = context.Index,
+                Step = step,
                 Exception = ex,
                 Duration = activity.Duration,
             };
@@ -146,22 +117,11 @@ public class ExecutesWorkflow
             logger.LogError(ex, "Step failed in {Duration} with an exception.", activity.Duration);
             return new StepResult
             {
-                Step = context.Step,
-                Index = context.Index,
+                Step = step,
                 Exception = ex,
                 Duration = activity.Duration,
             };
         }
-    }
-
-    // util: Reduces the number of parameters.
-    private record StepContext
-    {
-        public required WorkflowMatch WorkflowMatch { get; init; }
-        public required Workflow.Step Step { get; init; }
-        public required int Index { get; init; }
-        public required IImmutableList<VariableGroup> Variables { get; init; }
-        public required IImmutableList<StepResult> StepResults { get; init; }
     }
 }
 
@@ -169,7 +129,6 @@ public class ExecutesWorkflow
 public record StepResult
 {
     public required Workflow.Step Step { get; init; }
-    public required int Index { get; init; }
     public int? ExitCode { get; init; }
     public Exception? Exception { get; init; }
     public TimeSpan? Duration { get; init; }

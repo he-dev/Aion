@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using Aion.Core.Templates;
 
 namespace Aion.Core;
 
@@ -36,10 +35,11 @@ public record LoggingPreset
     public JsonObject Serilog { get; set; } = null!;
 
     // core: Used in workflows to reference logging presets.
-    public record Info(StringTemplate File, StringTemplate Name);
-
-    public record Lite(string File, string Name)
+    public record Info
     {
+        public string File { get; init; } = "logging-presets.json";
+        public string Name { get; init; } = null!;
+
         public JsonObject ToJsonObject() => new()
         {
             [nameof(File)] = File,

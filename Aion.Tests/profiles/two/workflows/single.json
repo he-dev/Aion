@@ -1,23 +1,31 @@
 {
-  "IsOn": true,
+  "Enabled": true,
   "Cron": "0/5 * * * * ?",
   "Variables": {
-    "AionNpcExe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
+    "NpcExe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
     "Message": "This is step {{ step.index }} from {{ workflow.name }}."
+  },
+  "Environment": {
+    "Foo": "Foo"
   },
   "Steps": [
     {
-      "IsOn": true,
-      "File": "{{ Workflow.AionNpcExe }}",
-      "ArgsOrString": "--sleep-seconds 1 --message \"{{ Workflow.Message }}\"",
-      "SerilogOrPreset": {
-        "File": "logging-presets.json",
-        "Name": "Console.Simple"
+      "Enabled": true,
+      "FileName": "{{ Workflow.NpcExe }}",
+      "Arguments": "--sleep-seconds 1 --message \"{{ Workflow.Message }}\"",
+      "Environment": {
+        "Bar": "Bar"
+      },
+      "Logging": {
+        "Preset": {
+          "Name": "Console.Simple"
+        }
       }
     }
   ],
-  "SerilogOrPreset": {
-    "File": "logging-presets.json",
-    "Name": "Workflow.Simple"
+  "Logging": {
+    "Preset": {
+      "Name": "Workflow.Simple"
+    }
   }
 }

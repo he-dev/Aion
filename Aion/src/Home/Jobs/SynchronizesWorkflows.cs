@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
+using Aion.Core.Services;
 using Aion.Core.Services.Scheduling;
 using Aion.Meta.Logging;
+using Aion.Util.Scriban;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -14,7 +17,7 @@ namespace Aion.Home.Jobs;
 internal class SynchronizesWorkflows
 (
     ILogger<SynchronizesWorkflows> logger,
-    IOptions<EngineOptions> engineOptions,
+    IOptions<InstanceOptions> engineOptions,
     SchedulesWorkflowCron schedulesWorkflowCron
 ) : IJob
 {
@@ -31,7 +34,8 @@ internal class SynchronizesWorkflows
         {
             try
             {
-                await schedulesWorkflowCron.For(match);
+                var workflow = await RendersWorkflow.From(match, ImmutableList<VariableGroup>.Empty);
+                await schedulesWorkflowCron.For(workflow);
                 logger.LogInformation("Workflow '{WorkflowPath}' has been scheduled.", match.Path);
             }
             catch (Exception ex)

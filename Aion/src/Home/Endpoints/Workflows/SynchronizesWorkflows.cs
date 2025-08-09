@@ -2,7 +2,9 @@
 using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Aion.Core;
+using Aion.Core.Services;
 using Aion.Core.Services.Scheduling;
+using Aion.Util.Scriban;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,7 +16,7 @@ namespace Aion.Home.Endpoints.Workflows;
 public class SynchronizesWorkflows
 (
     ILogger<SynchronizesWorkflows> logger,
-    IOptions<EngineOptions> engineOptions,
+    IOptions<InstanceOptions> engineOptions,
     SchedulesWorkflowCron schedulesWorkflowCron
 ) : ControllerBase
 {
@@ -31,10 +33,10 @@ public class SynchronizesWorkflows
         {
             try
             {
-                await workflowMatch.Load();
+                var workflow = await RendersWorkflow.From(workflowMatch, ImmutableList<VariableGroup>.Empty);
 
                 // core: Not using the synchronization-job because we want to see the results immediately in the response.
-                var (sync, deleted, next) = await schedulesWorkflowCron.For(workflowMatch);
+                var (sync, deleted, next) = await schedulesWorkflowCron.For(workflow);
                 result = result.Add(new
                 {
                     path = workflowMatch.Path,

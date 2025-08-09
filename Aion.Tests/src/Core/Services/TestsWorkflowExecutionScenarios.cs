@@ -22,12 +22,12 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
         using var activity = new Activity("TestingWorkflowExecution").Start();
         using var scope = testWebApplication.Services.CreateScope();
 
-        var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<EngineOptions>>();
+        var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<InstanceOptions>>();
         var executesWorkflow = scope.ServiceProvider.GetRequiredService<ExecutesWorkflow>();
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange
         ([
-            new EngineVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Instance },
+            new InstanceVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Name },
             new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Test },
             new ProfileVariableGroup(new Dictionary<string, object?>()) { Name = profileName }
         ]);

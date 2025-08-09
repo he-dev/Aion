@@ -4,9 +4,9 @@ using Microsoft.Extensions.Options;
 
 namespace Aion.Core.Services.Options;
 
-public class EnsuresProfileUniqueness : IValidateOptions<EngineOptions>
+public class EnsuresProfileUniqueness : IValidateOptions<InstanceOptions>
 {
-    public ValidateOptionsResult Validate(string? name, EngineOptions options)
+    public ValidateOptionsResult Validate(string? name, InstanceOptions options)
     {
         var duplicatePaths =
             options

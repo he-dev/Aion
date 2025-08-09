@@ -39,7 +39,7 @@ public static class ValidatesWorkflow
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange(
         [
-            new EngineVariableGroup(new Dictionary<string, object?>()) { Name = "test" },
+            new InstanceVariableGroup(new Dictionary<string, object?>()) { Name = "test" },
             new ProfileVariableGroup(new Dictionary<string, object?>()) { Name = "test" },
             new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Test },
             new WorkflowVariableGroup(workflow.Variables) { Name = "test" },
@@ -47,7 +47,7 @@ public static class ValidatesWorkflow
 
         if (workflow.Logging is { } workflowLogging)
         {
-            await workflowLogging.RenderAsync(profile, variables);
+            //await workflowLogging.RenderAsync(profile, variables);
         }
 
         foreach (var (step, index) in workflow.Steps.Select((step, index) => (step, index)))
@@ -62,13 +62,13 @@ public static class ValidatesWorkflow
         using var activity = new Activity("testing-step").Start();
         if (step.Logging is { } stepLogging)
         {
-            await stepLogging.RenderAsync(profile, variables);
+            //await stepLogging.RenderAsync(profile, variables);
         }
 
-        step.File.Render(variables);
-        step.Args.RenderArgList(variables);
-        step.Args.RenderArgString(variables);
-        step.WorkingDirectory?.Render(variables);
+        // step.FileName.Render(variables);
+        // step.Arguments.RenderArgList(variables);
+        // step.Arguments.RenderArgString(variables);
+        // step.WorkingDirectory?.Render(variables);
     }
 
     // core: Ensures that the trigger can actually be created from its cron.
@@ -78,7 +78,7 @@ public static class ValidatesWorkflow
         TriggerBuilder
             .Create()
             .WithIdentity("test-name", "test-group")
-            .WithCronSchedule(workflow.Cron)
+            //.WithCronSchedule(workflow.Cron)
             .Build();
     }
 }

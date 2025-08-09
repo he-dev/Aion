@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services.Scheduling;
-using Aion.Core.Templates;
 using Aion.Util.Scriban;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
@@ -51,9 +50,9 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
     {
         var changedWorkflow = new Workflow
         {
-            IsOn = false,
+            Enabled = false,
             Cron = "0/5 * * * * ?",
-            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+            Steps = { new Workflow.Step { Enabled = true, FileName = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var result = await Synchronize(null, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.IgnoreBecauseDisabled, result.Action);
@@ -65,7 +64,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
     {
         var fakeWorkflow = new Workflow
         {
-            IsOn = true,
+            Enabled = true,
             Cron = "0/5 * * * * ?",
             Steps = { }
         };
@@ -79,15 +78,15 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
     {
         var initialWorkflow = new Workflow
         {
-            IsOn = true,
+            Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+            Steps = { new Workflow.Step { Enabled = true, FileName = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var changedWorkflow = new Workflow
         {
-            IsOn = true,
+            Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+            Steps = { new Workflow.Step { Enabled = true, FileName = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.IgnoreBecauseUnchanged, result.Action);
@@ -99,15 +98,15 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
     {
         var initialWorkflow = new Workflow
         {
-            IsOn = true,
+            Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+            Steps = { new Workflow.Step { Enabled = true, FileName = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var changedWorkflow = new Workflow
         {
-            IsOn = false,
+            Enabled = false,
             Cron = "0/5 * * * * ?",
-            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+            Steps = { new Workflow.Step { Enabled = true, FileName = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.UnscheduleBecauseDisabled, result.Action);
@@ -119,13 +118,13 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
     {
         var initialWorkflow = new Workflow
         {
-            IsOn = true,
+            Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+            Steps = { new Workflow.Step { Enabled = true, FileName = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var changedWorkflow = new Workflow
         {
-            IsOn = true,
+            Enabled = true,
             Cron = "0/5 * * * * ?",
             Steps = { }
         };
@@ -139,15 +138,15 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
     {
         var initialWorkflow = new Workflow
         {
-            IsOn = true,
+            Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+            Steps = { new Workflow.Step { Enabled = true, FileName = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var changedWorkflow = new Workflow
         {
-            IsOn = true,
+            Enabled = true,
             Cron = "0/10 * * * * ?",
-            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+            Steps = { new Workflow.Step { Enabled = true, FileName = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.UpdateBecauseChanged, result.Action);
@@ -159,9 +158,9 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
     {
         var changedWorkflow = new Workflow
         {
-            IsOn = true,
+            Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = { new Workflow.Step { IsOn = true, File = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
+            Steps = { new Workflow.Step { Enabled = true, FileName = new StringTemplate(@"c:\fake\path\to\fake.exe") } }
         };
         var result = await Synchronize(null, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.ScheduleBecauseNew, result.Action);

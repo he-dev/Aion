@@ -16,7 +16,7 @@ namespace Aion.Home.Endpoints.Downtimes;
 public class SchedulesWorkflowDowntime
 (
     ILogger<SchedulesWorkflowDowntime> logger,
-    IOptionsSnapshot<EngineOptions> engineOptions
+    IOptionsSnapshot<InstanceOptions> engineOptions
 ) : ControllerBase
 {
     [HttpPost(":start-in")]

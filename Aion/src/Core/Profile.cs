@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Aion.Core.Templates;
 using Aion.Util;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
@@ -23,22 +22,21 @@ public class Profile
 
     public string Sync { get; set; } = null!;
 
+    public bool SyncOn { get; set; }
+
     public string[] Includes { get; set; } = [];
 
     public string[] Excludes { get; set; } = [];
 
     public Dictionary<string, object?> Variables { get; set; } = new();
 
-    public LoggingPreset.Lite? LoggingPreset { get; set; }
-
-    [JsonIgnore]
-    public LoggingTemplate? LoggingTemplate => LoggingPreset is not null ? new LoggingTemplate(LoggingPreset.ToJsonObject()) : null;
+    public LoggingPreset.Info? Logging { get; set; }
 
     [JsonIgnore]
     public WorkflowRepository Workflows => new(this);
 
     [JsonIgnore]
-    public LoggingPresetRepository LoggingPresets => new(this);
+    public LoggingPresetRepository LoggingPresets => new(Path);
 }
 
 // meta: Converts the url-safe workflow "path" into a glob-filter.
@@ -84,12 +82,12 @@ public class WorkflowRepository(Profile profile)
     }
 }
 
-public class LoggingPresetRepository(Profile profile)
+public class LoggingPresetRepository(string profilePath)
 {
     public async Task<JsonObject> Single(string file, string preset)
     {
         // meta: Create the path to the logging-presets-file and load it.
-        var presetPath = Path.Combine(profile.Path, file);
+        var presetPath = Path.Combine(profilePath, file);
         if (await LoggingPresetGroup.FromJson(presetPath) is { } loggingPresetGroup)
         {
             try

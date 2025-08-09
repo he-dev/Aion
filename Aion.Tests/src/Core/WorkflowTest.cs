@@ -46,7 +46,7 @@ public class WorkflowTest
     {
         var workflow = await Workflow.FromFile(@"workflows\says-hallo.json");
         //Assert.Equal("says-hallo", workflow.Name);
-        Assert.Equal(true, workflow.IsOn);
+        Assert.Equal(true, workflow.Enabled);
         Assert.Equal("0/15 * * * * ?", workflow.Cron);
         Assert.Equal(1, workflow.Steps.Count);
     }

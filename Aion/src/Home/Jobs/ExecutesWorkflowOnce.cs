@@ -18,7 +18,7 @@ namespace Aion.Home.Jobs;
 public class ExecutesWorkflowOnce
 (
     ILogger<ExecutesWorkflowOnce> logger,
-    IOptions<EngineOptions> engineOptions,
+    IOptions<InstanceOptions> engineOptions,
     MapsLogEvent mapsLogEvent,
     ExecutesWorkflow executesWorkflow
 ) : IJob
@@ -35,35 +35,33 @@ public class ExecutesWorkflowOnce
             ExecutionMode = WorkflowExecutionMode.Once,
             ProfileName = profileName,
             WorkflowName = workflowName,
-            WorkflowStart = workflowStart
+            WorkflowStart = workflowStart,
         });
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange
         ([
-            new EngineVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Instance },
+            new InstanceVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Name },
             new ProfileVariableGroup(profile.Variables) { Name = profileName },
             new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Once },
         ]);
 
-        var logging =
-            profile.LoggingTemplate is not null
-                ? await profile.LoggingTemplate.RenderAsync(profile, variables)
-                : null;
 
-        using var profileLogging = mapsLogEvent.By(new ProfileLogEventSignature(profileName), to: logging.ToLogger());
+        var logging = await RendersLogging.From(profile.Logging?.ToJsonObject(), profile.LoggingPresets, variables);
+        using var profileLogging = mapsLogEvent.By(ProfileLogEventSignature.FromScope(), to: logging.ToLogger());
 
         try
         {
-            var workflowMatch = await profile.Workflows.Single(workflowName).Load();
-            switch (workflowMatch)
+            var workflowMatch = profile.Workflows.Single(workflowName);
+            var workflow = await RendersWorkflow.From(workflowMatch, variables);
+            switch (workflow)
             {
                 // util: Logging.
-                case { Value.Steps: { } steps } when steps.Any(s => s.IsOn) == false:
+                case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
                     logger.LogWarning("Skipping workflow because it has no enabled steps.");
                     break;
                 // core: This is where the actual magic happens.
                 default:
-                    await executesWorkflow.Now(workflowMatch, variables);
+                    await executesWorkflow.Now(workflow);
                     break;
             }
 

@@ -16,7 +16,7 @@ namespace Aion.Home.Endpoints.Workflows;
 public class ListsWorkflows
 (
     ILogger<ListsWorkflows> logger,
-    IOptionsSnapshot<EngineOptions> engineOptions
+    IOptionsSnapshot<InstanceOptions> engineOptions
 ) : ControllerBase
 {
     [HttpGet]
@@ -26,7 +26,7 @@ public class ListsWorkflows
         var profile = engineOptions.Value[profileName];
 
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
-        var workflowMatches = ImmutableList<WorkflowMatch>.Empty;
+        var workflows = ImmutableList<Workflow>.Empty;
         var workflowFailure = ImmutableList<object>.Empty;
         var matchesWorkflows = workflowFilter is not null ? profile.Workflows.Where(workflowFilter) : profile.Workflows.All();
         foreach (var workflowMatch in matchesWorkflows)
@@ -35,7 +35,7 @@ public class ListsWorkflows
             {
                 if (workflowMatch.Name.IsUrlSafe)
                 {
-                    workflowMatches = workflowMatches.Add(await workflowMatch.Load());
+                    //workflows = workflows.Add(await workflowMatch.Load());
                     logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowMatch.Path);
                 }
                 else
@@ -51,20 +51,22 @@ public class ListsWorkflows
         }
 
         var utcNow = DateTimeOffset.UtcNow; // note: Keeps the timestamp stable for all items.
-        var result =
-            from match in workflowMatches
-            let next = match.CronTrigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
-            //orderby next.FirstOrDefault(), match.Name
-            orderby match.Name.ToString()
-            select new
-            {
-                path = match.Path,
-                name = match.Name.ToString(),
-                isOn = match.Value.IsOn,
-                cron = match.Value.Cron,
-                next = next,
-                jobs = match.Value.Steps.Count(s => s.IsOn),
-            };
+        // var result =
+        //     from match in workflows
+        //     let next = match.CronTrigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
+        //     //orderby next.FirstOrDefault(), match.Name
+        //     orderby match.Name.ToString()
+        //     select new
+        //     {
+        //         path = match.Path,
+        //         name = match.Name.ToString(),
+        //         isOn = match.Template.Enabled,
+        //         cron = match.Template.Cron,
+        //         next = next,
+        //         jobs = match.Template.Steps.Count(s => s.Enabled),
+        //     };
+
+        var result = string.Empty;
 
         return Ok(new
         {

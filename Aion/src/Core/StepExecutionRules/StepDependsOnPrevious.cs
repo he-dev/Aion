@@ -10,11 +10,11 @@ public class StepDependsOnPrevious(ILogger<StepDependsOnPrevious> logger) : ISte
 {
     private static readonly Regex IntArrayRegex = new(@"^\[(-?\d+(?:,-?\d+)*)?\]$", RegexOptions.Compiled);
 
-    public bool Violated(Workflow.Step step, int index, IImmutableList<int?> exitCodes)
+    public bool Violated(Workflow.Step step, IImmutableList<int?> exitCodes)
     {
         // note: Currently, there is only one DependsOn rule: "$previous".
         // core: This check is irrelevant for the first step, so ignore it.
-        if (index > 0 && step is { DependsOn: not null })
+        if (step.Index > 0 && step is { DependsOn: not null })
         {
             if (step is { DependsOn: "$previous" } && exitCodes.Last() is not 0)
             {

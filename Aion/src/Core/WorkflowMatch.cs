@@ -10,7 +10,7 @@ namespace Aion.Core;
 
 public class WorkflowMatch(Profile profile, string pathWithinProfile)
 {
-    private Workflow? _workflow;
+    private WorkflowTemplate? _template;
 
     public Profile Profile => profile;
 
@@ -20,35 +20,21 @@ public class WorkflowMatch(Profile profile, string pathWithinProfile)
 
     public WorkflowName Name => new(PathWithinProfile);
 
-    public Workflow Value => _workflow ?? throw new InvalidOperationException("Workflow has not been loaded yet.");
+    public WorkflowTemplate Template => _template ?? throw new InvalidOperationException("Workflow has not been loaded yet.");
 
     // meta: The parameter makes testing easy.
-    public async Task<WorkflowMatch> Load(Workflow? workflow = null)
-    {
-        _workflow = workflow ?? await Workflow.FromFile(Path);
-        _workflow.EnsureCronSchedulable();
-        await _workflow.EnsureTemplatesRenderable(Profile);
-        return this;
-    }
+    // public async Task<WorkflowMatch> Load(WorkflowTemplate? template = null)
+    // {
+    //     _template = template ?? await WorkflowTemplate.FromFile(Path);
+    //     return this;
+    // }
 
     // meta: Creating workflow-matches for tests is easier this way.
-    internal static async Task<WorkflowMatch> Fake(Profile profile, string pathWithinProfile, Workflow workflow)
+    internal static async Task<WorkflowMatch> Fake(Profile profile, string pathWithinProfile, WorkflowTemplate template)
     {
-        return await new WorkflowMatch(profile, pathWithinProfile).Load(workflow);
+        //return await new WorkflowMatch(profile, pathWithinProfile).Load(template);
+        return new WorkflowMatch(profile, pathWithinProfile);
     }
-
-    public JobKey CronJobKey => new(Name, JobGroupName.From<ExecutesWorkflowCron>(Profile.Name));
-
-    // note: Catch this property as it might throw when the Cron property is invalid.
-    public ICronTrigger CronTrigger =>
-        (ICronTrigger)TriggerBuilder
-            .Create()
-            .WithIdentity(Name, JobGroupName.From<ExecutesWorkflowCron>(Profile.Name))
-            .UsingJobData(JobDataKeys.WorkflowName, Name)
-            .UsingJobData(JobDataKeys.ProfileName, Profile.Name)
-            .UsingJobData(WorkflowStart.Cron)
-            .WithCronSchedule(Value.Cron) //, x => x.InTimeZone(Value.TimeZone))
-            .Build();
 }
 
 public record WorkflowName(string PathWithinProfile)

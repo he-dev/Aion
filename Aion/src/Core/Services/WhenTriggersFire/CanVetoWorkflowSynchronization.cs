@@ -10,17 +10,19 @@ namespace Aion.Core.Services.WhenTriggersFire;
 public class CanVetoWorkflowSynchronization
 (
     ILogger<CanVetoWorkflowSynchronization> logger,
-    IOptions<EngineOptions> engineOptions
+    IOptions<InstanceOptions> engineOptions
 ) : ITriggerListener
 {
     public string Name => nameof(CanVetoWorkflowSynchronization);
 
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = new())
     {
-        if (!engineOptions.Value.SyncOn)
+        var profileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
+        var profile = engineOptions.Value[profileName];
+        if (!profile.SyncOn)
         {
             using var scope = logger.BeginScopeFrom(new { TriggerName = trigger.Key.Name, ProfileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName) });
-            logger.LogWarning("Workflow synchronization is off - pausing it.");
+            logger.LogWarning("Profile synchronization for '{ProfileName}' is off - pausing it.", profileName);
             await context.Scheduler.PauseJob(context.JobDetail.Key, cancellationToken);
             return true;
         }

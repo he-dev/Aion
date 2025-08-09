@@ -8,15 +8,15 @@
   "Steps": [
     {
       "IsOn": true,
-      "File": "{{ Workflow.AionNpcExe }}",
-      "ArgsOrString": "--sleep-seconds 1 --message \"{{ Workflow.Message }}\" --exit-code 1",
-      "SerilogOrPreset": {
+      "FileName": "{{ Workflow.AionNpcExe }}",
+      "Arguments": "--sleep-seconds 1 --message \"{{ Workflow.Message }}\" --exit-code 1",
+      "Logging": {
         "File": "logging-presets.json",
         "Name": "Console.Simple"
       }
     }
   ],
-  "SerilogOrPreset": {
+  "Logging": {
     "File": "logging-presets.json",
     "Name": "Workflow.Simple"
   }

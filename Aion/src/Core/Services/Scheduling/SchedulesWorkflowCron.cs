@@ -16,33 +16,30 @@ public class SchedulesWorkflowCron
     ISchedulerFactory schedulerFactory
 )
 {
-    public async Task<WorkflowSyncResult> For(WorkflowMatch match)
+    public async Task<WorkflowSyncResult> For(Workflow workflow)
     {
         var scheduler = await schedulerFactory.GetScheduler();
-        using var scope = logger.BeginScopeFrom(new { WorkflowName = match.Name });
+        using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
-        var jobKey = match.CronJobKey;
-        var cronTrigger = match.CronTrigger;
-
-        var syncAction = await WhatToDoAbout(match.Value, jobKey, cronTrigger);
+        var syncAction = await WhatToDoAbout(workflow);
         var deleted = syncAction switch
         {
-            WorkflowSyncAction.UnscheduleBecauseDisabled => await scheduler.DeleteJob(jobKey),
-            WorkflowSyncAction.UnscheduleBecauseEmpty => await scheduler.DeleteJob(jobKey),
+            WorkflowSyncAction.UnscheduleBecauseDisabled => await scheduler.DeleteJob(workflow.CronJobKey),
+            WorkflowSyncAction.UnscheduleBecauseEmpty => await scheduler.DeleteJob(workflow.CronJobKey),
             _ => default(bool?)
         };
 
         var jobDetail =
             JobBuilder
                 .Create<ExecutesWorkflowCron>()
-                .WithIdentity(jobKey.Name, jobKey.Group)
+                .WithIdentity(workflow.CronJobKey.Name, workflow.CronJobKey.Group)
                 .DisallowConcurrentExecution()
                 .Build();
 
         var next = syncAction switch
         {
-            WorkflowSyncAction.UpdateBecauseChanged => await scheduler.RescheduleJob(cronTrigger.Key, cronTrigger),
-            WorkflowSyncAction.ScheduleBecauseNew => await scheduler.ScheduleJob(jobDetail, cronTrigger),
+            WorkflowSyncAction.UpdateBecauseChanged => await scheduler.RescheduleJob(workflow.CronTrigger.Key, workflow.CronTrigger),
+            WorkflowSyncAction.ScheduleBecauseNew => await scheduler.ScheduleJob(jobDetail, workflow.CronTrigger),
             _ => null
         };
 
@@ -55,13 +52,13 @@ public class SchedulesWorkflowCron
         return new WorkflowSyncResult(syncAction, deleted, next);
     }
 
-    public async Task<WorkflowSyncAction> WhatToDoAbout(Workflow workflow, JobKey workflowKey, ICronTrigger trigger)
+    public async Task<WorkflowSyncAction> WhatToDoAbout(Workflow workflow)
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
-        if (!workflow.IsOn)
+        if (!workflow.Enabled)
         {
-            if (await scheduler.CheckExists(workflowKey))
+            if (await scheduler.CheckExists(workflow.CronJobKey))
             {
                 return WorkflowSyncAction.UnscheduleBecauseDisabled;
             }
@@ -69,9 +66,9 @@ public class SchedulesWorkflowCron
             return WorkflowSyncAction.IgnoreBecauseDisabled;
         }
 
-        if (!workflow.Steps.Any(s => s.IsOn))
+        if (!workflow.Steps.Any(s => s.Enabled))
         {
-            if (await scheduler.CheckExists(workflowKey))
+            if (await scheduler.CheckExists(workflow.CronJobKey))
             {
                 return WorkflowSyncAction.UnscheduleBecauseEmpty;
             }
@@ -79,9 +76,9 @@ public class SchedulesWorkflowCron
             return WorkflowSyncAction.IgnoreBecauseEmpty;
         }
 
-        if (await scheduler.GetTrigger(trigger.Key) is ICronTrigger { CronExpressionString: { } cron } current)
+        if (await scheduler.GetTrigger(workflow.CronTrigger.Key) is ICronTrigger { CronExpressionString: { } cron } current)
         {
-            if (cron.Equals(trigger.CronExpressionString))
+            if (cron.Equals(workflow.CronTrigger.CronExpressionString))
             {
                 return WorkflowSyncAction.IgnoreBecauseUnchanged;
             }

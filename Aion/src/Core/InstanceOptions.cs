@@ -5,13 +5,13 @@ using System.Linq;
 
 namespace Aion.Core;
 
-public record EngineOptions
+public record InstanceOptions
 {
-    public const string SectionName = "Aion";
+    public const string SectionName = "Instance";
 
-    public string Instance { get; init; } = null!;
+    public string Name { get; init; } = null!;
 
-    public bool SyncOn { get; init; }
+    //public bool SyncOn { get; init; }
 
     public Dictionary<string, object?> Variables { get; internal init; } = new();
 

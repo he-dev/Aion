@@ -2,25 +2,26 @@
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Aion.Util.Json;
 using Aion.Util.Scriban;
 
-namespace Aion.Core.Templates;
+namespace Aion.Core.Services;
 
 // core: Use this type for all logging-templates, so you don't forget to render them.
-public class LoggingTemplate(JsonObject template)
+public static class RendersLogging
 {
-    public async Task<JsonObject> RenderAsync(Profile profile, IImmutableList<VariableGroup> variables)
+    public static async Task<JsonObject?> From(JsonObject? template, LoggingPresetRepository loggingPresets, IImmutableList<VariableGroup> variables)
     {
+        if (template is null) return null;
+
         // core: Use the logger configuration that is embedded in the workflow.
         if (template.ContainsKey("WriteTo"))
         {
             return RenderFilePaths(template, variables);
         }
 
-        if (await TryGetLoggingPreset(template, profile, variables) is { } preset)
+        if (await TryGetLoggingPreset(template, loggingPresets, variables) is { } preset)
         {
             return RenderFilePaths(preset, variables);
         }
@@ -29,21 +30,16 @@ public class LoggingTemplate(JsonObject template)
         throw new InvalidLoggingConfigurationException();
     }
 
-    private static async Task<JsonObject?> TryGetLoggingPreset(JsonObject logging, Profile profile, IImmutableList<VariableGroup> variables)
+    private static async Task<JsonObject?> TryGetLoggingPreset(JsonObject logging, LoggingPresetRepository loggingPresets, IImmutableList<VariableGroup> variables)
     {
         // core: Use the logger configuration that is specified by the preset.
-        if (!logging.ContainsKey(nameof(LoggingPreset.Info.File))) return null;
-        if (!logging.ContainsKey(nameof(LoggingPreset.Info.Name))) return null;
-
-        var presetInfo = logging.Deserialize<LoggingPreset.Info>(new JsonSerializerOptions
+        if (logging.TryGetPropertyValue("Preset", out var preset))
         {
-            Converters = { new StringTemplateConverter() }
-        })!;
+            var presetInfo = preset.Deserialize<LoggingPreset.Info>()!;
+            return await loggingPresets.Single(presetInfo.File, presetInfo.Name);
+        }
 
-        var file = presetInfo.File.Render(variables);
-        var name = presetInfo.Name.Render(variables);
-
-        return await profile.LoggingPresets.Single(file, name);
+        return null;
     }
 
     // core: Renders each path property it finds that looks like a template.
@@ -67,20 +63,6 @@ public class LoggingTemplate(JsonObject template)
         }
 
         return serilog;
-    }
-}
-
-public class LoggingTemplateConverter : JsonConverter<LoggingTemplate>
-{
-    public override LoggingTemplate Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        var template = JsonNode.Parse(ref reader)!.AsObject();
-        return new LoggingTemplate(template);
-    }
-
-    public override void Write(Utf8JsonWriter writer, LoggingTemplate value, JsonSerializerOptions options)
-    {
-        throw new NotImplementedException("This method is not supported.");
     }
 }
 

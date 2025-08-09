@@ -20,7 +20,7 @@ namespace Aion.Home.Jobs;
 public class ExecutesWorkflowCron
 (
     ILogger<ExecutesWorkflowCron> logger,
-    IOptions<EngineOptions> engineOptions,
+    IOptions<InstanceOptions> engineOptions,
     CancelsWorkflowSchedule cancelsWorkflowSchedule,
     MapsLogEvent mapsLogEvent,
     ExecutesWorkflow executesWorkflow
@@ -43,36 +43,39 @@ public class ExecutesWorkflowCron
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange
         ([
-            new EngineVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Instance },
+            new InstanceVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Name },
             new ProfileVariableGroup(profile.Variables) { Name = profileName },
             new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Once },
         ]);
 
-        var logging =
-            profile.LoggingTemplate is not null
-                ? await profile.LoggingTemplate.RenderAsync(profile, variables)
-                : null;
 
-        using var profileLogging = mapsLogEvent.By(new ProfileLogEventSignature(profileName), to: logging.ToLogger());
+        //var logging = RendersLogging.From(profile.Logging);
+        // var logging =
+        //     profile.LoggingTemplate is not null
+        //         ? await profile.LoggingTemplate.RenderAsync(profile, variables)
+        //         : null;
+        //
+        // using var profileLogging = mapsLogEvent.By(ProfileLogEventSignature.FromScope(), to: logging.ToLogger());
 
         try
         {
-            var workflowMatch = await profile.Workflows.Single(workflowName).Load();
-            switch (workflowMatch)
+            var workflowMatch = profile.Workflows.Single(workflowName);
+            var workflow = await RendersWorkflow.From(workflowMatch, variables);
+            switch (workflow)
             {
                 // core: Do not execute disabled workflows.
-                case { Value.IsOn: false }:
+                case { Enabled: false }:
                     logger.LogWarning("Unscheduling workflow because it is disabled.");
                     await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
                     break;
                 // core: Do not execute workflows without any enabled steps.
-                case { Value.Steps: { } steps } when steps.Any(s => s.IsOn) == false:
+                case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
                     logger.LogWarning("Unscheduling workflow because it has no enabled steps.");
                     await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
                     break;
                 // core: This workflow is fine.
                 default:
-                    await executesWorkflow.Now(workflowMatch, variables);
+                    await executesWorkflow.Now(workflow);
                     break;
             }
 

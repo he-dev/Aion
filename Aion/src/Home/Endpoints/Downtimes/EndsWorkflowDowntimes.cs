@@ -17,7 +17,7 @@ namespace Aion.Home.Endpoints.Downtimes;
 public class EndsWorkflowDowntime
 (
     ILogger<EndsWorkflowDowntime> logger,
-    IOptionsSnapshot<EngineOptions> engineOptions
+    IOptionsSnapshot<InstanceOptions> engineOptions
 ) : ControllerBase
 {
     [HttpPost(":end")]

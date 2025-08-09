@@ -6,7 +6,7 @@ using Aion.Util.Scriban;
 
 namespace Aion.Core;
 
-public class EngineVariableGroup(Dictionary<string, object?> variables) : VariableGroup("Engine")
+public class InstanceVariableGroup(Dictionary<string, object?> variables) : VariableGroup("Instance")
 {
     public required string Name { get; init; } = null!;
 
@@ -44,14 +44,14 @@ public class ExecutionVariableGroup() : VariableGroup("Execution")
     }
 }
 
-public class WorkflowVariableGroup(IImmutableDictionary<string, object?> variables) : VariableGroup("Workflow")
+public class WorkflowVariableGroup(IImmutableDictionary<string, string>? variables) : VariableGroup("Workflow")
 {
     public required string Name { get; init; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
-        foreach (var variable in variables) yield return variable;
+        foreach (var variable in variables ?? ImmutableDictionary<string, string>.Empty) yield return new KeyValuePair<string, object?>(variable.Key, variable.Value);
     }
 }
 

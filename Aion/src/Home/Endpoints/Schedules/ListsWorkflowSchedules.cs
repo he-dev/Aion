@@ -20,7 +20,7 @@ namespace Aion.Home.Endpoints.Schedules;
 public class ListsWorkflowSchedules
 (
     ILogger<ListsWorkflowSchedules> logger,
-    IOptionsSnapshot<EngineOptions> engineOptions,
+    IOptionsSnapshot<InstanceOptions> engineOptions,
     FindsTriggers findsTriggers
 ) : ControllerBase
 {

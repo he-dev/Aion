@@ -19,7 +19,7 @@ public class EnsuresProfileExists : ActionFilterAttribute
         }
 
         // meta: Get the engine options from DI.
-        var engineOptions = context.HttpContext.RequestServices.GetRequiredService<IOptionsSnapshot<EngineOptions>>();
+        var engineOptions = context.HttpContext.RequestServices.GetRequiredService<IOptionsSnapshot<InstanceOptions>>();
 
         // core: Check the profile exists.
         if (!engineOptions.Value.Profiles.Any(p => p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase)))
