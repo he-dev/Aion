@@ -32,8 +32,9 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
             new ProfileVariableGroup(new Dictionary<string, object?>()) { Name = profileName }
         ]);
 
-        var workflowMatch = await engineOptions.Value[profileName].Workflows.Single(workflowName).Load();
-        return await executesWorkflow.Now(workflowMatch, variables);
+        var workflowMatch = engineOptions.Value[profileName].Workflows.Single(workflowName);
+        var workflow = await RendersWorkflow.From(workflowMatch, variables);
+        return await executesWorkflow.Now(workflow);
     }
 
     [Theory]

@@ -10,8 +10,6 @@ namespace Aion.Core;
 
 public class WorkflowMatch(Profile profile, string pathWithinProfile)
 {
-    private WorkflowTemplate? _template;
-
     public Profile Profile => profile;
 
     public string PathWithinProfile => pathWithinProfile;
@@ -20,20 +18,9 @@ public class WorkflowMatch(Profile profile, string pathWithinProfile)
 
     public WorkflowName Name => new(PathWithinProfile);
 
-    public WorkflowTemplate Template => _template ?? throw new InvalidOperationException("Workflow has not been loaded yet.");
-
-    // meta: The parameter makes testing easy.
-    // public async Task<WorkflowMatch> Load(WorkflowTemplate? template = null)
-    // {
-    //     _template = template ?? await WorkflowTemplate.FromFile(Path);
-    //     return this;
-    // }
-
-    // meta: Creating workflow-matches for tests is easier this way.
-    internal static async Task<WorkflowMatch> Fake(Profile profile, string pathWithinProfile, WorkflowTemplate template)
+    public virtual async Task<WorkflowTemplate> Load()
     {
-        //return await new WorkflowMatch(profile, pathWithinProfile).Load(template);
-        return new WorkflowMatch(profile, pathWithinProfile);
+        return await WorkflowTemplate.FromFile(Path);
     }
 }
 

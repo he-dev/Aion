@@ -52,13 +52,13 @@ public record WorkflowTemplate
         }
 
         await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        var workflow = await JsonSerializer.DeserializeAsync<WorkflowTemplate>(fileStream, new JsonSerializerOptions
+        var template = await JsonSerializer.DeserializeAsync<WorkflowTemplate>(fileStream, new JsonSerializerOptions
         {
             ReadCommentHandling = JsonCommentHandling.Skip
         });
 
-        return workflow ?? throw new InvalidWorkflow(path);
+        return template ?? throw new InvalidWorkflowTemplate(path);
     }
 }
 
-public class InvalidWorkflow(string path) : Exception($"File '{path}' is not a valid workflow.");
+public class InvalidWorkflowTemplate(string path) : Exception($"File '{path}' is not a valid workflow template.");

@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Aion.Home.Jobs;
 using Aion.Util.Quartz;
 using Aion.Util.Scriban;
-using Aion.Util.Serilog;
 using Quartz;
 
 namespace Aion.Core.Services;
@@ -13,7 +12,7 @@ public static class RendersWorkflow
 {
     public static async Task<Workflow> From(WorkflowMatch workflowMatch, IImmutableList<VariableGroup> variables)
     {
-        var template = await WorkflowTemplate.FromFile(workflowMatch.Path);
+        var template = await workflowMatch.Load();
 
         variables = variables.Add(new WorkflowVariableGroup(template.Variables?.ToImmutableDictionary())
         {

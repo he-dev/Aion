@@ -1,5 +1,5 @@
 {
-  "IsOn": true,
+  "Enabled": true,
   "Cron": "0/15 * * * * ?",
   "Variables": {
     "AionNpcExe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
@@ -7,17 +7,9 @@
   },
   "Steps": [
     {
-      "IsOn": true,
+      "Enabled": true,
       "FileName": "{{ Workflow.AionNpcExe }}",
-      "Arguments": "--sleep-seconds 1 --message \"{{ Workflow.Message }}\" --exit-code 1",
-      "Logging": {
-        "File": "logging-presets.json",
-        "Name": "Console.Simple"
-      }
+      "Arguments": "--sleep-seconds 1 --message \"{{ Workflow.Message }}\" --exit-code 1"
     }
-  ],
-  "Logging": {
-    "File": "logging-presets.json",
-    "Name": "Workflow.Simple"
-  }
+  ]
 }
