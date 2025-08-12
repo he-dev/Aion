@@ -1,42 +1,26 @@
 {
-  "IsOn": true,
+  "Enabled": true,
   "Cron": "0/15 * * * * ?",
-  "Args": {
+  "Variables": {
     "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
     "msg": "This is step {{ step.index }} from {{ workflow.name }}."
   },
   "Steps": [
     {
-      "IsOn": false,
-      "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 0 --message \"{{ arg.msg }}\" --exit-code 1",
-      "SerilogOrPreset": {
-        "File": "logging-presets.json",
-        "Name": "Console.Simple"
-      }
+      "Enabled": false,
+      "FileName": "{{ Workflow.exe }}",
+      "Arguments": "--sleep-seconds 0 --message \"{{ Workflow.msg }}\" --exit-code 1"
     },
     {
-      "IsOn": false,
-      "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 0 --message \"{{ arg.msg }}\" --exit-code 0",
-      "DependsOn": "$previous",
-      "SerilogOrPreset": {
-        "File": "logging-presets.json",
-        "Name": "Console.Simple"
-      }
+      "Enabled": false,
+      "FileName": "{{ Workflow.exe }}",
+      "Arguments": "--sleep-seconds 0 --message \"{{ Workflow.msg }}\" --exit-code 0",
+      "DependsOn": "$previous"
     },
     {
-      "IsOn": true,
-      "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 0 --message \"{{ arg.msg }}\" --exit-code 0",
-      "SerilogOrPreset": {
-        "File": "logging-presets.json",
-        "Name": "Console.Simple"
-      }
+      "Enabled": true,
+      "FileName": "{{ Workflow.exe }}",
+      "Arguments": "--sleep-seconds 0 --message \"{{ Workflow.msg }}\" --exit-code 0"
     }
-  ],
-  "SerilogOrPreset": {
-    "File": "logging-presets.json",
-    "Name": "Workflow.Simple"
-  }
+  ]
 }

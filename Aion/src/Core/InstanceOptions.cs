@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 
 namespace Aion.Core;
@@ -11,9 +10,7 @@ public record InstanceOptions
 
     public string Name { get; init; } = null!;
 
-    //public bool SyncOn { get; init; }
-
-    public Dictionary<string, object?> Variables { get; internal init; } = new();
+    public Dictionary<string, string> Variables { get; init; } = new();
 
     public Profile[] Profiles { get; init; } = null!;
 

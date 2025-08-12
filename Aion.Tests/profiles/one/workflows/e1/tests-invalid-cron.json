@@ -1,5 +1,5 @@
 {
-  "IsOn": true,
+  "Enabled": true,
   // test: Cron has too many places.
   "Cron": "* 0/15 * * * * ?",
   "Args": {
@@ -7,8 +7,8 @@
   },
   "Steps": [
     {
-      "IsOn": true,
-      "File": "{{ arg.exe }}",
+      "Enabled": true,
+      "FileName": "{{ Workflow.exe }}",
       "Args": [
         "--sleep 5",
         "--message \"Hallo NPC!\""

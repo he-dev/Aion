@@ -61,13 +61,16 @@ public static class RendersTemplates
         var previous = string.Empty;
         var passes = 0;
 
-        var maxPasses = 3;
-
+        var maxPasses = 10;
+        var parserOptions = new ParserOptions()
+        {
+            ExpressionDepthLimit = 10
+        };
         // meta: Ensure we also render nested variables but don't fall into an infinite loop.
         while (current != previous && passes < maxPasses)
         {
             previous = current;
-            current = Template.Parse(current).Render(customContext);
+            current = Template.Parse(current, parserOptions: parserOptions).Render(customContext);
             passes++;
         }
 

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services;
-using Aion.Meta.Logging;
+using Aion.Util.Logging;
 using Aion.Util.Quartz;
 using Aion.Util.Scriban;
 using Aion.Util.Serilog;

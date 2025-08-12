@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Aion.Meta.Logging;
+namespace Aion.Util.Logging;
 
 public static class LoggerExtensions
 {

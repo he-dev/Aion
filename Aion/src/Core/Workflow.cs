@@ -25,7 +25,7 @@ public record Workflow
 
     public JsonObject? Logging { get; init; }
 
-    public class Step(string arguments, IImmutableList<VariableGroup> variables)
+    public class Step
     {
         public int Index { get; init; }
 
@@ -35,8 +35,8 @@ public record Workflow
 
         public string FileName { get; init; } = null!;
 
-        // note: Arguments can pass activity ids which are available only during runtime, so this property must be lazy.
-        public string Arguments() => RendersTemplates.In(arguments, variables);
+        // note: Arguments can pass runtime values such as activity ids, so this property must be lazy.
+        public Func<string> Arguments { get; init; } = null!;
 
         public IImmutableDictionary<string, string> Environment { get; init; } = null!;
 

@@ -29,7 +29,7 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
         ([
             new InstanceVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Name },
             new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Test },
-            new ProfileVariableGroup(new Dictionary<string, object?>()) { Name = profileName }
+            new ProfileVariableGroup(new Dictionary<string, string>()) { Name = profileName }
         ]);
 
         var workflowMatch = engineOptions.Value[profileName].Workflows.Single(workflowName);

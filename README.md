@@ -1,80 +1,77 @@
-# Aion v3.0.0
+# Aion v3
 
-`Aion` _(Greek: Αἰών)_ is a Hellenistic deity associated with time, the orb or circle encompassing the universe. As a tool `Aion` is a cron scheduler that launches robots at the specified time. You install it as a windows service. It's build with the `Quartz` scheduler.
+`Aion` is a cron scheduler. You install it as a Windows Service. It's built on top of the `Quartz` scheduler.
+
+The name comes from the _(Greek: Αἰών)_ `Aion` who is a Hellenistic deity associated with time, the orb or circle encompassing the universe. 
 
 ## Configuration
 
-`Aion` requires a minimal configuration. Via the `app.config` file you need to specify three settings. 
 
-- `Environment` - used for logging.
-- `Jobs.RobotConfigUpdater.Schedule` - used for robot scheme pulling.
-- `Paths.RobotsDirectoryName` - used for robot schema pulling and for launching robots. This is the directory where you _install_ your robots if you want to use a relative path. 
 
-```xml
-<appSettings>
+### `appsettings.json` schema
 
-    <add key="aion.Environment" value="debug" />
-    <add key="aion.Jobs.RobotConfigUpdater.Schedule" value="0/20 * * * * ?"/>
-    <add key="aion.Paths.RobotsDirectoryName" value="C:\Home\Temp\Services\Aion-v4\Robots"/>
+This file contains two custom sections.
 
-</appSettings>
+- `Instance`
+
+```yaml
+Name: string # Required name of the instance.
+Variables: #
+  string: string
+Profiles:
+  - Path: string # Path where to find this profile.
+    Sync: string # Cron expression to synchronize this profile.
+    SyncEnabled: boolean # Whether to synchronize this profile.
+    Variables:
+      string: string # Key/value pairs of profile-wide variables.
+    Environment:
+      string: string # Key/value pairs of profile-wide evnrionment variables.
+    Includes: array # Glob filters that specify which workflows to include in the search.
+    Excludes: array # Glob filters that specify which workflows to exclude from the search.
+    Logging:
+      Preset:
+        Name: string # Specifies the logging preset for this profile.
+
 ```
 
-The second part of the configuration is the robot scheme. It's a `JSON` file that contains the schedule and the list of robots. Settings marked with `<>` are mandatory and those with `[]` are optional. The value shown for optional settings is the default value.
+- `QuartzServer`
 
-`Aion` will look for `Aion.Schemes.*.json` files in the `Paths.RobotsDirectoryName`. 
+```yaml
+StartDelaySeconds: int # Specifies how long to wait before the scheduler takes on its job.
 
-```js
-{
-  "Schedule": "0/12 * * * * ?", // <string> - cron expression
-  "Enabled": true, // [bool]
-  "StartImmediately": false, // [bool]
-  // <object[]> - an array of robots to run
-  "Robots": [
-    {
-      "FileName": "Aion.Robots.TestRobot2.exe", // <string> - an absolute or relative path to the *.exe
-      "Enabled": true, // [bool]
-      "WindowStyle": "Hidden" // [ProcessWindowStyle]
-    }
-  ]
-}
 ```
 
-## Installing robots
+You configure `Aion` workflows through JSON files.
 
-In order to install a robot you need to put it in the `Paths.RobotsDirectoryName` directory in a folder with the same name as the `*.exe`. Withing this folder you need to create another folder that will be the version of the robot e.g. `v2.0.8`.
+### `WorkflowTemplate` schema
 
-Example:
+Workflow template files support only URL safe names like:
 
-If `Paths.RobotsDirectoryName` = `C:\Robots` and the robot's file name is `robot.exe` and its version is `2.0.8` then the full path `Aion` will look for it is `C:\Robots\robot\v2.0.8\robot.exe`.
-
-## Logging
-
-By default `Aoin` uses the Sql Server for logging and would like to find a table like this one:
-
-```sql
-SET ANSI_NULLS ON
-GO
-
-SET QUOTED_IDENTIFIER ON
-GO
-
-CREATE TABLE [dbo].[AionLog](
-	[Id] [int] IDENTITY(1,1) NOT NULL,
-	[Timestamp] [datetime2](7) NOT NULL,
-	[Environment] [nvarchar](53) NOT NULL,
-	[LogLevel] [nvarchar](53) NOT NULL,
-	[Logger] [nvarchar](103) NOT NULL,
-	[ThreadId] [int] NOT NULL,
-	[ElapsedSeconds] [float] NULL,
-	[Message] [nvarchar](max) NULL,
-	[Exception] [nvarchar](max) NULL,
- CONSTRAINT [PK_dbo_AionLog] PRIMARY KEY CLUSTERED 
-(
-	[Id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 80) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+```regex
+^[a-zA-Z0-9._~-]+$
 ```
+
+Their body needs to conform to this:
+
+
+```yaml
+Enabled: boolean # Required if this workflow should be scheduled. Defaults to false.
+Cron: string # Required cron-expression.
+Variables: # Workflow variables.
+  string: string # Name/value pairs.
+Environment: # Environment variables to apply to each step.
+  string: string # Name/value pairs.
+Logging: json # Logging preset or Serilog configuration.
+Steps:
+  - Enabled: boolean # Required if this step should be executed. Defaults to false.
+    FileName: string | template # Required file-name to execute.
+    Arguments: string | array # Arguments to use.
+    Environment: # Environment variables to apply to each step.
+      string: string # Name/value pairs.
+    DependsOn: $previous | array<int> # Whether this step depends on the result of the previous one.
+    Logging: json # Logging preset or Serilog configuration.
+```
+
 
 
 

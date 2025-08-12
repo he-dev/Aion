@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Serilog;
 
-namespace Aion.Meta.Serilog;
+namespace Aion.Util.Serilog;
 
 public static class LoggerExtensions
 {

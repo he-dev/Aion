@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services;
 using Aion.Core.Services.Scheduling;
-using Aion.Meta.Logging;
+using Aion.Util.Logging;
 using Aion.Util.Scriban;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

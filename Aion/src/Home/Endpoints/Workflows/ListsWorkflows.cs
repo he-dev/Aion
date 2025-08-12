@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services.Meta.Mvc;
-using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

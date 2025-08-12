@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Services.Meta.Mvc;
-using Aion.Meta.Logging;
+using Aion.Util.Logging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

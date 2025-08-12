@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 
-namespace Aion.Meta.Mvc;
+namespace Aion.Util.Mvc;
 
 // hack: AspNetCore joins route segments with '/' by default, but this does not work for routes that start with ':'.
 // They become '/:', which is crap. This class rewrites them as absolute routes.

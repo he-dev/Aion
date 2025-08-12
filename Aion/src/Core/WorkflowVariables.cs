@@ -6,25 +6,25 @@ using Aion.Util.Scriban;
 
 namespace Aion.Core;
 
-public class InstanceVariableGroup(Dictionary<string, object?> variables) : VariableGroup("Instance")
+public class InstanceVariableGroup(Dictionary<string, string> variables) : VariableGroup("Instance")
 {
     public required string Name { get; init; } = null!;
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
-        foreach (var variable in variables) yield return variable;
+        foreach (var variable in variables) yield return new KeyValuePair<string, object?>(variable.Key, variable.Value);
     }
 }
 
-public class ProfileVariableGroup(Dictionary<string, object?> variables) : VariableGroup("Profile")
+public class ProfileVariableGroup(Dictionary<string, string> variables) : VariableGroup("Profile")
 {
     public required string Name { get; init; } = null!;
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
-        foreach (var variable in variables) yield return variable;
+        foreach (var variable in variables) yield return new KeyValuePair<string, object?>(variable.Key, variable.Value);
     }
 }
 

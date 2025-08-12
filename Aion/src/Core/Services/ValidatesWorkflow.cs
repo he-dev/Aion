@@ -39,8 +39,8 @@ public static class ValidatesWorkflow
 
         var variables = ImmutableList<VariableGroup>.Empty.AddRange(
         [
-            new InstanceVariableGroup(new Dictionary<string, object?>()) { Name = "test" },
-            new ProfileVariableGroup(new Dictionary<string, object?>()) { Name = "test" },
+            new InstanceVariableGroup(new Dictionary<string, string>()) { Name = "test" },
+            new ProfileVariableGroup(new Dictionary<string, string>()) { Name = "test" },
             new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Test },
             new WorkflowVariableGroup(workflow.Variables) { Name = "test" },
         ]);
