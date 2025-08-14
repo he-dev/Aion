@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Home.Endpoints;
+namespace Aion.Home.Controllers;
 
 [ApiController]
 [Route("api/diagnostics")]
-public class ListsDiagnosticsInfo(ILogger<ListsDiagnosticsInfo> logger) : ControllerBase
+public class DiagnosticsController(ILogger<DiagnosticsController> logger) : ControllerBase
 {
     [HttpGet("routes")]
     public IActionResult Routes([FromServices] IEnumerable<EndpointDataSource> sources)

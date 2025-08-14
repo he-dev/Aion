@@ -12,13 +12,13 @@ using Microsoft.Extensions.Options;
 using Quartz;
 using Quartz.Impl.Matchers;
 
-namespace Aion.Home.Endpoints.Schedules;
+namespace Aion.Home.Controllers.Schedules;
 
 [ApiController]
 [Route("api/profiles/{profileName}/schedules")]
-public class ListsWorkflowSchedules
+public class SchedulesController
 (
-    ILogger<ListsWorkflowSchedules> logger,
+    ILogger<SchedulesController> logger,
     IOptionsSnapshot<InstanceOptions> engineOptions,
     TriggerStore triggerStore
 ) : ControllerBase

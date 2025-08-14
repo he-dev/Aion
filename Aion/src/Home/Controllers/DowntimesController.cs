@@ -9,16 +9,62 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Home.Endpoints.Downtimes;
+namespace Aion.Home.Controllers.Downtimes;
 
 [ApiController]
 [Route("api/profiles/{profileName}/downtimes")]
-public class SchedulesWorkflowDowntime
+public class DowntimesController
 (
-    ILogger<SchedulesWorkflowDowntime> logger,
+    ILogger<DowntimesController> logger,
     IOptionsSnapshot<InstanceOptions> engineOptions
 ) : ControllerBase
 {
+    [HttpGet]
+    [EnsuresProfileExists]
+    public async Task<IActionResult> Get(string profileName)
+    {
+        var profile = engineOptions.Value[profileName];
+        var workflowDowntimes = ImmutableList<WorkflowDowntime>.Empty;
+
+        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
+
+        foreach (var workflowMatch in profile.Workflows.All())
+        {
+            try
+            {
+                if (await WorkflowDowntime.FromFile(workflowMatch.Path) is { } lockFile)
+                {
+                    workflowDowntimes = workflowDowntimes.Add(lockFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unable to load lock file '{LockFileName}'.", workflowMatch.Path);
+            }
+        }
+
+        var downtimes =
+                from s in workflowDowntimes
+                orderby s.Remaining descending, s.Duration descending
+                select new
+                {
+                    s.FileName,
+                    CreatedOn = s.CreatedOnUtc.ToLocalTime(),
+                    StartsOn = s.StartsOnUtc.ToLocalTime(),
+                    EndsOn = s.EndsOnUtc.ToLocalTime(),
+                    s.Duration,
+                    s.Remaining,
+                    Status = s.Status.ToString()
+                }
+            ;
+
+        return Ok(new
+        {
+            profile = profile.Path,
+            downtimes
+        });
+    }
+
     [HttpPost(":start-in")]
     [EnsuresProfileExists]
     public async Task<IActionResult> ToStartIn(string profileName, [FromBody] StartInBody body)
@@ -86,5 +132,42 @@ public class SchedulesWorkflowDowntime
 
         public DateTimeOffset StartsAtUtc => StartsAt.ToUniversalTime();
         public DateTimeOffset EndsAtUtc => EndsAt.ToUniversalTime();
+    }
+
+    [HttpPost(":end")]
+    [EnsuresProfileExists]
+    public async Task<IActionResult> Where(string profileName, [FromBody] EndBody body)
+    {
+        var profile = engineOptions.Value[profileName];
+        var workflowMatches = ImmutableList<WorkflowMatch>.Empty;
+
+        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
+
+        foreach (var workflowMatch in profile.Workflows.Where(body.Filter))
+        {
+            try
+            {
+                if (await WorkflowDowntime.FromFile(workflowMatch.Path) is { } lockFile)
+                {
+                    await lockFile.EndsNow();
+                    workflowMatches = workflowMatches.Add(workflowMatch);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unable to end downtime for '{WorkflowName}'.", workflowMatch.Name);
+            }
+        }
+
+        return Ok(new
+        {
+            profile = profile.Path,
+            workflows = workflowMatches.Select(m => m.PathWithinProfile),
+        });
+    }
+
+    public record EndBody
+    {
+        public string Filter { get; init; } = null!;
     }
 }
