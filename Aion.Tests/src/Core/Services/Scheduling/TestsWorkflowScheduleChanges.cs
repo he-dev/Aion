@@ -1,10 +1,9 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Aion.Core;
-using Aion.Core.Services;
-using Aion.Core.Services.Scheduling;
-using Aion.Util.Scriban;
+using Aion.Core.Data;
+using Aion.Core.Flow;
+using Aion.Util.Flow.Scriban;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Xunit;
@@ -22,7 +21,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         using var activity = new Activity("TestingWorkflowExecution").Start();
         using var scope = testWebApplication.Services.CreateScope();
 
-        var schedulesWorkflowCron = scope.ServiceProvider.GetRequiredService<SchedulesWorkflowCron>();
+        var schedulesWorkflowCron = scope.ServiceProvider.GetRequiredService<WorkflowScheduleRegistry>();
 
         var fakeProfile = new Profile { Path = @"C:\fake\path\to\profiles\one" };
         //fakeProfile.Path.Render(ImmutableList<VariableGroup>.Empty);
@@ -33,14 +32,14 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         {
             var workflowMatch = new FakeWorkflowMatch(fakeProfile, fakeRelativePath, initialWorkflow);
             var workflow = await RendersWorkflow.From(workflowMatch, ImmutableList<VariableGroup>.Empty);
-            await schedulesWorkflowCron.For(workflow);
+            await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
 
         try
         {
             var workflowMatch = new FakeWorkflowMatch(fakeProfile, fakeRelativePath, changedWorkflow);
             var workflow = await RendersWorkflow.From(workflowMatch, ImmutableList<VariableGroup>.Empty);
-            return await schedulesWorkflowCron.For(workflow);
+            return await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
         finally
         {

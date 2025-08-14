@@ -1,9 +1,8 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core;
-using Aion.Core.Services;
-using Aion.Core.Services.Meta.Mvc;
+using Aion.Core.Data;
+using Aion.Core.Flow.Mvc;
 using Aion.Home.Jobs;
 using Aion.Util;
 using Aion.Util.Quartz;
@@ -21,7 +20,7 @@ public class ListsWorkflowSchedules
 (
     ILogger<ListsWorkflowSchedules> logger,
     IOptionsSnapshot<InstanceOptions> engineOptions,
-    FindsTriggers findsTriggers
+    TriggerStore triggerStore
 ) : ControllerBase
 {
     [HttpGet]
@@ -39,8 +38,8 @@ public class ListsWorkflowSchedules
         var jobGroupMatcher = GroupMatcher<JobKey>.GroupEquals(JobGroupName.From<ExecutesWorkflowCron>(profileName));
 
         var query =
-            findsTriggers
-                .Where(jobGroupMatcher)
+            triggerStore
+                .FindBy(jobGroupMatcher)
                 .Where(trigger => trigger.JobKey.Name.IsLike(filter))
                 .Select(trigger => new
                 {

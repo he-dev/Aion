@@ -3,13 +3,12 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core;
-using Aion.Core.Services;
-using Aion.Core.Services.Scheduling;
+using Aion.Core.Data;
+using Aion.Core.Flow;
+using Aion.Util.Flow.Scriban;
+using Aion.Util.Flow.Serilog;
 using Aion.Util.Logging;
 using Aion.Util.Quartz;
-using Aion.Util.Scriban;
-using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -21,7 +20,7 @@ public class ExecutesWorkflowCron
 (
     ILogger<ExecutesWorkflowCron> logger,
     IOptions<InstanceOptions> engineOptions,
-    CancelsWorkflowSchedule cancelsWorkflowSchedule,
+    WorkflowScheduleRegistry workflowScheduleRegistry,
     MapsLogEvent mapsLogEvent,
     ExecutesWorkflow executesWorkflow
 ) : IJob
@@ -66,12 +65,12 @@ public class ExecutesWorkflowCron
                 // core: Do not execute disabled workflows.
                 case { Enabled: false }:
                     logger.LogWarning("Unscheduling workflow because it is disabled.");
-                    await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
+                    await workflowScheduleRegistry.Remove(context.JobDetail.Key);
                     break;
                 // core: Do not execute workflows without any enabled steps.
                 case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
                     logger.LogWarning("Unscheduling workflow because it has no enabled steps.");
-                    await cancelsWorkflowSchedule.Where(context.JobDetail.Key);
+                    await workflowScheduleRegistry.Remove(context.JobDetail.Key);
                     break;
                 // core: This workflow is fine.
                 default:
@@ -85,7 +84,7 @@ public class ExecutesWorkflowCron
         {
             activity.SetStatus(ActivityStatusCode.Error).Stop();
             logger.LogError(ex, "Error executing workflow.");
-            if (await cancelsWorkflowSchedule.Where(context.JobDetail.Key))
+            if (await workflowScheduleRegistry.Remove(context.JobDetail.Key))
             {
                 logger.LogWarning("Workflow has been unscheduled.");
             }

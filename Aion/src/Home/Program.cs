@@ -2,17 +2,16 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Aion.Core;
-using Aion.Core.Services;
-using Aion.Core.Services.Options;
-using Aion.Core.Services.Scheduling;
-using Aion.Core.Services.WhenTriggersFire;
-using Aion.Core.StepExecutionRules;
+using Aion.Core.Data;
+using Aion.Core.Data.JobExecutionRules;
+using Aion.Core.Data.StepExecutionRules;
+using Aion.Core.Flow;
+using Aion.Core.Flow.Options;
 using Aion.Home.Jobs;
-using Aion.Util.Mvc;
+using Aion.Meta.Flow.Mvc;
+using Aion.Util.Flow;
+using Aion.Util.Flow.Serilog;
 using Aion.Util.Quartz;
-using Aion.Util.Serilog;
-using Aion.Util.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -101,10 +100,7 @@ public class Program
 
                 services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
 
-                services.AddScoped<SchedulesWorkflowCron>();
-                services.AddScoped<SchedulesWorkflowOnce>();
-                services.AddScoped<CancelsWorkflowSchedule>();
-
+                services.AddScoped<WorkflowScheduleRegistry>();
                 services.AddScoped<ExecutesWorkflowCron>();
                 services.AddScoped<ExecutesWorkflowOnce>();
                 services.AddScoped<SynchronizesWorkflows>();
@@ -113,9 +109,9 @@ public class Program
                 services.AddScoped<IStepExecutionRule, StepMustBeEnabled>();
                 services.AddScoped<IStepExecutionRule, StepDependsOnPrevious>();
                 services.AddScoped<StartsProcessAsync>();
-                services.AddScoped<FindsTriggers>();
-                services.AddScoped<CanVetoWorkflowSynchronization>();
-                services.AddScoped<CanVetoWorkflowExecution>();
+                services.AddScoped<TriggerStore>();
+                services.AddScoped<WorkflowSynchronizationMustBeEnabled>();
+                services.AddScoped<WorkflowCannotExecuteWhenDowntime>();
 
                 services.AddQuartz(q =>
                 {
@@ -157,8 +153,8 @@ public class Program
                         });
                     }
 
-                    q.AddTriggerListener<CanVetoWorkflowSynchronization>(GroupMatcher<TriggerKey>.GroupStartsWith(JobGroupName.From<SynchronizesWorkflows>()));
-                    q.AddTriggerListener<CanVetoWorkflowExecution>(GroupMatcher<TriggerKey>.GroupStartsWith(JobGroupName.From<ExecutesWorkflowCron>()));
+                    q.AddTriggerListener<WorkflowSynchronizationMustBeEnabled>(GroupMatcher<TriggerKey>.GroupStartsWith(JobGroupName.From<SynchronizesWorkflows>()));
+                    q.AddTriggerListener<WorkflowCannotExecuteWhenDowntime>(GroupMatcher<TriggerKey>.GroupStartsWith(JobGroupName.From<ExecutesWorkflowCron>()));
 
                     // note: The docs say that the default is 1 minute.
                     q.MisfireThreshold = TimeSpan.FromMinutes(2);

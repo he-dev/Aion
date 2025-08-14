@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.Threading.Tasks;
-using Aion.Core;
+using Aion.Core.Data;
+using Aion.Core.Flow;
+using Aion.Util.Flow.Scriban;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,35 +16,36 @@ public class SchedulesWorkflowOnce
 (
     ILogger<SchedulesWorkflowOnce> logger,
     IOptions<InstanceOptions> engineOptions,
-    Core.Services.Scheduling.SchedulesWorkflowOnce schedulesWorkflowOnce
+    WorkflowScheduleRegistry workflowScheduleRegistry
 ) : ControllerBase
 {
     [HttpPost("{workflowName}:start-now")]
     public async Task<IActionResult> ToStartNow(string profileName, string workflowName)
     {
-        return await Start(profileName, workflowName, async workflowMatch => await schedulesWorkflowOnce.ToStartNow(workflowMatch));
+        return await Start(profileName, workflowName, null);
     }
 
     [HttpPost("{workflowName}:start-in")]
     public async Task<IActionResult> ToStartIn(string profileName, string workflowName, [FromBody] StartInBody body)
     {
-        return await Start(profileName, workflowName, async workflowMatch => await schedulesWorkflowOnce.ToStartIn(workflowMatch, body.Wait));
+        return await Start(profileName, workflowName, DateTimeOffset.UtcNow + body.Wait);
     }
 
     [HttpPost("{workflowName}:start-at")]
     public async Task<IActionResult> ToStartAt(string profileName, string workflowName, [FromBody] StartAtBody body)
     {
-        return await Start(profileName, workflowName, async workflowMatch => await schedulesWorkflowOnce.ToStartAt(workflowMatch, body.WhenUtc));
+        return await Start(profileName, workflowName, body.WhenUtc);
     }
 
-    private async Task<IActionResult> Start(string profileName, string workflowName, Func<WorkflowMatch, Task<DateTimeOffset>> action)
+    private async Task<IActionResult> Start(string profileName, string workflowName, DateTimeOffset? startAtUtc)
     {
         try
         {
             var profile = engineOptions.Value[profileName];
             var workflowMatch = profile.Workflows.Single(workflowName);
-            var next = await action(workflowMatch);
-            return Accepted(new { next = next.ToLocalTime() });
+            var workflow = await RendersWorkflow.From(workflowMatch, ImmutableList<VariableGroup>.Empty);
+            var result = await workflowScheduleRegistry.AddOrUpdate(workflow, workflow.OnceTrigger(startAtUtc));
+            return Accepted(new { next = result.NextUtc!.Value.ToLocalTime() });
         }
         catch (NoWorkflowMatch)
         {

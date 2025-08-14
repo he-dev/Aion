@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
-using Aion.Core;
-using Aion.Core.Services;
-using Aion.Core.Services.Scheduling;
-using Aion.Util.Scriban;
+using Aion.Core.Data;
+using Aion.Core.Flow;
+using Aion.Util.Flow.Scriban;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,7 +16,7 @@ public class SynchronizesWorkflows
 (
     ILogger<SynchronizesWorkflows> logger,
     IOptions<InstanceOptions> engineOptions,
-    SchedulesWorkflowCron schedulesWorkflowCron
+    WorkflowScheduleRegistry workflowScheduleRegistry
 ) : ControllerBase
 {
     // core: Synchronizes workflows outside the regular synchronization schedule.
@@ -36,7 +35,7 @@ public class SynchronizesWorkflows
                 var workflow = await RendersWorkflow.From(workflowMatch, ImmutableList<VariableGroup>.Empty);
 
                 // core: Not using the synchronization-job because we want to see the results immediately in the response.
-                var (sync, deleted, next) = await schedulesWorkflowCron.For(workflow);
+                var (sync, deleted, next) = await workflowScheduleRegistry.AddOrUpdate(workflow);
                 result = result.Add(new
                 {
                     path = workflowMatch.Path,

@@ -49,6 +49,10 @@
       <None Remove="src.zip" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="src\Meta\Flow\" />
+    </ItemGroup>
+
 
 
 </Project>
