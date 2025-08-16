@@ -16,9 +16,9 @@ using Quartz;
 
 namespace Aion.Home.Jobs;
 
-public class ExecutesWorkflowOnce
+public class WorkflowExecutionJob
 (
-    ILogger<ExecutesWorkflowOnce> logger,
+    ILogger<WorkflowExecutionJob> logger,
     IOptions<InstanceOptions> engineOptions,
     MapsLogEvent mapsLogEvent,
     WorkflowExecution workflowExecution

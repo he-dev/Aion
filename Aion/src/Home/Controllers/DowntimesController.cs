@@ -2,14 +2,14 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Data;
-using Aion.Core.Flow.Mvc;
+using Aion.Core.Entities;
+using Aion.Core.Services.Mvc;
 using Aion.Util.Logging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Home.Controllers.Downtimes;
+namespace Aion.Home.Controllers;
 
 [ApiController]
 [Route("api/profiles/{profileName}/downtimes")]
@@ -20,7 +20,7 @@ public class DowntimesController
 ) : ControllerBase
 {
     [HttpGet]
-    [EnsuresProfileExists]
+    [ProfileExistenceValidation]
     public async Task<IActionResult> Get(string profileName)
     {
         var profile = engineOptions.Value[profileName];
@@ -66,14 +66,14 @@ public class DowntimesController
     }
 
     [HttpPost(":start-in")]
-    [EnsuresProfileExists]
+    [ProfileExistenceValidation]
     public async Task<IActionResult> ToStartIn(string profileName, [FromBody] StartInBody body)
     {
         return await Starts(profileName, body.Filter, () => WorkflowDowntime.StartsIn(body.Wait, body.Duration));
     }
 
     [HttpPost(":start-at")]
-    [EnsuresProfileExists]
+    [ProfileExistenceValidation]
     public async Task<IActionResult> ToStartAt(string profileName, [FromBody] StartAtBody body)
     {
         return await Starts(profileName, body.Filter, () => WorkflowDowntime.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
@@ -87,7 +87,7 @@ public class DowntimesController
             var profile = engineOptions.Value[profileName];
             var workflowDowntime = createsWorkflowDowntime();
             var workflowMatches = ImmutableList<WorkflowMatch>.Empty;
-            foreach (var workflowMatch in profile.Workflows.Where(workflowNameOrFilter))
+            foreach (var workflowMatch in profile.Workflows.Find(workflowNameOrFilter))
             {
                 try
                 {
@@ -135,7 +135,7 @@ public class DowntimesController
     }
 
     [HttpPost(":end")]
-    [EnsuresProfileExists]
+    [ProfileExistenceValidation]
     public async Task<IActionResult> Where(string profileName, [FromBody] EndBody body)
     {
         var profile = engineOptions.Value[profileName];
@@ -143,7 +143,7 @@ public class DowntimesController
 
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
 
-        foreach (var workflowMatch in profile.Workflows.Where(body.Filter))
+        foreach (var workflowMatch in profile.Workflows.Find(body.Filter))
         {
             try
             {

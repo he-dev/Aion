@@ -1,10 +1,11 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Data;
-using Aion.Core.Flow.Mvc;
+using Aion.Core.Entities;
+using Aion.Core.Services.Mvc;
 using Aion.Home.Jobs;
 using Aion.Util;
+using Aion.Util.Entities.Quartz;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -12,7 +13,7 @@ using Microsoft.Extensions.Options;
 using Quartz;
 using Quartz.Impl.Matchers;
 
-namespace Aion.Home.Controllers.Schedules;
+namespace Aion.Home.Controllers;
 
 [ApiController]
 [Route("api/profiles/{profileName}/schedules")]
@@ -24,7 +25,7 @@ public class SchedulesController
 ) : ControllerBase
 {
     [HttpGet]
-    [EnsuresProfileExists]
+    [ProfileExistenceValidation]
     public async Task<IActionResult> Get
     (
         string profileName,

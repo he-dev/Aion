@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
-using Aion.Core.Data;
-using Aion.Core.Flow;
-using Aion.Core.Flow.Mvc;
-using Aion.Util.Flow.Scriban;
+using Aion.Core.Entities;
+using Aion.Core.Services;
+using Aion.Core.Services.Mvc;
+using Aion.Util.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Home.Controllers.Workflows;
+namespace Aion.Home.Controllers;
 
 [ApiController]
 [Route("api/profiles/{profileName}/workflows")]
@@ -21,7 +21,7 @@ public class WorkflowsController
 ) : ControllerBase
 {
     [HttpGet]
-    [EnsuresProfileExists]
+    [ProfileExistenceValidation]
     public async Task<IActionResult> Get(string profileName, [FromQuery(Name = "q")] string? workflowFilter, [FromQuery] bool? isOn = null)
     {
         var profile = engineOptions.Value[profileName];
@@ -29,7 +29,7 @@ public class WorkflowsController
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflows = ImmutableList<Workflow>.Empty;
         var workflowFailure = ImmutableList<object>.Empty;
-        var matchesWorkflows = workflowFilter is not null ? profile.Workflows.Where(workflowFilter) : profile.Workflows.All();
+        var matchesWorkflows = workflowFilter is not null ? profile.Workflows.Find(workflowFilter) : profile.Workflows.All();
         foreach (var workflowMatch in matchesWorkflows)
         {
             try
@@ -105,7 +105,7 @@ public class WorkflowsController
         {
             var profile = engineOptions.Value[profileName];
             var workflowMatch = profile.Workflows.Single(workflowName);
-            var workflow = await RendersWorkflow.From(workflowMatch, ImmutableList<VariableGroup>.Empty);
+            var workflow = await workflowMatch.ToWorkflow(ImmutableList<TemplateVariableGroup>.Empty);
             var result = await workflowScheduleRegistry.AddOrUpdate(workflow, workflow.OnceTrigger(startAtUtc));
             return Accepted(new { next = result.NextUtc!.Value.ToLocalTime() });
         }
@@ -155,7 +155,7 @@ public class WorkflowsController
         {
             try
             {
-                var workflow = await RendersWorkflow.From(workflowMatch, ImmutableList<VariableGroup>.Empty);
+                var workflow = await workflowMatch.ToWorkflow(ImmutableList<TemplateVariableGroup>.Empty);
 
                 // core: Not using the synchronization-job because we want to see the results immediately in the response.
                 var (sync, deleted, next) = await workflowScheduleRegistry.AddOrUpdate(workflow);

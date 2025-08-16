@@ -50,7 +50,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="src\Meta\Flow\" />
+      <Folder Include="src\Meta\Services\" />
     </ItemGroup>
 
 

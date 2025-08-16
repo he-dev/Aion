@@ -2,10 +2,10 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Aion.Core.Data;
-using Aion.Core.Flow;
-using Aion.Util.Flow.Scriban;
+using Aion.Core.Entities;
+using Aion.Core.Services;
 using Aion.Util.Logging;
+using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -33,7 +33,7 @@ internal class SynchronizesWorkflows
         {
             try
             {
-                var workflow = await RendersWorkflow.From(match, ImmutableList<VariableGroup>.Empty);
+                var workflow = await match.ToWorkflow(ImmutableList<TemplateVariableGroup>.Empty);
                 await workflowScheduleRegistry.AddOrUpdate(workflow);
                 logger.LogInformation("Workflow '{WorkflowPath}' has been scheduled.", match.Path);
             }

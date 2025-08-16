@@ -1,9 +1,9 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Aion.Core.Data;
-using Aion.Core.Flow;
-using Aion.Util.Flow.Scriban;
+using Aion.Core.Entities;
+using Aion.Core.Services;
+using Aion.Util.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Xunit;
@@ -24,21 +24,20 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         var schedulesWorkflowCron = scope.ServiceProvider.GetRequiredService<WorkflowScheduleRegistry>();
 
         var fakeProfile = new Profile { Path = @"C:\fake\path\to\profiles\one" };
-        //fakeProfile.Path.Render(ImmutableList<VariableGroup>.Empty);
 
         var fakeRelativePath = @"workflows\fake-workflow.json";
 
         if (initialWorkflow is not null)
         {
-            var workflowMatch = new FakeWorkflowMatch(fakeProfile, fakeRelativePath, initialWorkflow);
-            var workflow = await RendersWorkflow.From(workflowMatch, ImmutableList<VariableGroup>.Empty);
+            var workflowMatch = new WorkflowMatch(fakeProfile, WorkflowFilter.Any, fakeRelativePath);
+            var workflow = await workflowMatch.ToWorkflow(ImmutableList<TemplateVariableGroup>.Empty, _ => Task.FromResult(initialWorkflow));
             await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
 
         try
         {
-            var workflowMatch = new FakeWorkflowMatch(fakeProfile, fakeRelativePath, changedWorkflow);
-            var workflow = await RendersWorkflow.From(workflowMatch, ImmutableList<VariableGroup>.Empty);
+            var workflowMatch = new WorkflowMatch(fakeProfile, WorkflowFilter.Any, fakeRelativePath);
+            var workflow = await workflowMatch.ToWorkflow(ImmutableList<TemplateVariableGroup>.Empty, _ => Task.FromResult(changedWorkflow));
             return await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
         finally
@@ -170,9 +169,4 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         Assert.Equal(WorkflowSyncAction.ScheduleBecauseNew, result.Action);
         Assert.NotNull(result.NextUtc);
     }
-}
-
-public class FakeWorkflowMatch(Profile profile, string path, WorkflowTemplate template) : WorkflowMatch(profile, path)
-{
-    public override Task<WorkflowTemplate> Load() => Task.FromResult(template);
 }

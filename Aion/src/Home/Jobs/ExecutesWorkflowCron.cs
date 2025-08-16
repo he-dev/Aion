@@ -3,12 +3,12 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Data;
-using Aion.Core.Flow;
-using Aion.Util.Flow.Scriban;
-using Aion.Util.Flow.Serilog;
+using Aion.Core.Entities;
+using Aion.Core.Services;
 using Aion.Util.Logging;
 using Aion.Util.Quartz;
+using Aion.Util.Services;
+using Aion.Util.Services.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -22,7 +22,7 @@ public class ExecutesWorkflowCron
     IOptions<InstanceOptions> engineOptions,
     WorkflowScheduleRegistry workflowScheduleRegistry,
     MapsLogEvent mapsLogEvent,
-    ExecutesWorkflow executesWorkflow
+    WorkflowExecution workflowExecution
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -40,26 +40,18 @@ public class ExecutesWorkflowCron
             WorkflowStart = workflowStart
         });
 
-        var variables = ImmutableList<VariableGroup>.Empty.AddRange
+        var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
         ([
             new InstanceVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Name },
             new ProfileVariableGroup(profile.Variables) { Name = profileName },
-            new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Once },
+            new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Cron },
         ]);
 
-
-        //var logging = RendersLogging.From(profile.Logging);
-        // var logging =
-        //     profile.LoggingTemplate is not null
-        //         ? await profile.LoggingTemplate.RenderAsync(profile, variables)
-        //         : null;
-        //
-        // using var profileLogging = mapsLogEvent.By(ProfileLogEventSignature.FromScope(), to: logging.ToLogger());
 
         try
         {
             var workflowMatch = profile.Workflows.Single(workflowName);
-            var workflow = await RendersWorkflow.From(workflowMatch, variables);
+            var workflow = await workflowMatch.ToWorkflow(variables);
             switch (workflow)
             {
                 // core: Do not execute disabled workflows.
@@ -68,13 +60,13 @@ public class ExecutesWorkflowCron
                     await workflowScheduleRegistry.Remove(context.JobDetail.Key);
                     break;
                 // core: Do not execute workflows without any enabled steps.
-                case { Steps: { } steps } when steps.Any(s => s.Enabled) == false:
+                case { Steps: { } steps } when !steps.Any(s => s.Enabled):
                     logger.LogWarning("Unscheduling workflow because it has no enabled steps.");
                     await workflowScheduleRegistry.Remove(context.JobDetail.Key);
                     break;
                 // core: This workflow is fine.
                 default:
-                    await executesWorkflow.Now(workflow);
+                    await workflowExecution.Start(workflow);
                     break;
             }
 

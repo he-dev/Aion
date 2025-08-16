@@ -5,10 +5,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Aion.Core.Data;
-using Aion.Core.Flow;
-using Aion.Util.Flow;
-using Aion.Util.Flow.Scriban;
+using Aion.Core.Entities;
+using Aion.Core.Services;
+using Aion.Util.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -23,9 +22,9 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
         using var scope = testWebApplication.Services.CreateScope();
 
         var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<InstanceOptions>>();
-        var executesWorkflow = scope.ServiceProvider.GetRequiredService<ExecutesWorkflow>();
+        var executesWorkflow = scope.ServiceProvider.GetRequiredService<WorkflowExecution>();
 
-        var variables = ImmutableList<VariableGroup>.Empty.AddRange
+        var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
         ([
             new InstanceVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Name },
             new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Test },
@@ -33,8 +32,8 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
         ]);
 
         var workflowMatch = engineOptions.Value[profileName].Workflows.Single(workflowName);
-        var workflow = await RendersWorkflow.From(workflowMatch, variables);
-        return await executesWorkflow.Now(workflow);
+        var workflow = await workflowMatch.ToWorkflow(variables);
+        return await executesWorkflow.Start(workflow);
     }
 
     [Theory]

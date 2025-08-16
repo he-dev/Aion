@@ -2,16 +2,17 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Aion.Core.Data;
-using Aion.Core.Data.JobExecutionRules;
-using Aion.Core.Data.StepExecutionRules;
-using Aion.Core.Flow;
-using Aion.Core.Flow.Options;
+using Aion.Core.Entities;
+using Aion.Core.Entities.JobExecutionRules;
+using Aion.Core.Entities.StepExecutionRules;
+using Aion.Core.Services;
+using Aion.Core.Services.OptionsPostConfiguration;
+using Aion.Core.Services.OptionsValidation;
 using Aion.Home.Jobs;
-using Aion.Meta.Flow.Mvc;
-using Aion.Util.Flow;
-using Aion.Util.Flow.Serilog;
-using Aion.Util.Quartz;
+using Aion.Meta.Services.Mvc;
+using Aion.Util.Entities.Quartz;
+using Aion.Util.Services;
+using Aion.Util.Services.Serilog;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -73,8 +74,8 @@ public class Program
             .ConfigureServices((context, services) =>
             {
                 services.Configure<InstanceOptions>(context.Configuration.GetSection(InstanceOptions.SectionName));
-                services.AddSingleton<IValidateOptions<InstanceOptions>, EnsuresProfileUniqueness>();
-                services.AddSingleton<IPostConfigureOptions<InstanceOptions>, RendersProfilePath>();
+                services.AddSingleton<IValidateOptions<InstanceOptions>, ProfileUniquenessValidation>();
+                services.AddSingleton<IPostConfigureOptions<InstanceOptions>, ProfilePathRendering>();
                 services.AddSingleton<MapsLogEvent>();
 
                 services
@@ -105,7 +106,7 @@ public class Program
                 services.AddScoped<ExecutesWorkflowOnce>();
                 services.AddScoped<SynchronizesWorkflows>();
 
-                services.AddScoped<ExecutesWorkflow>();
+                services.AddScoped<WorkflowExecution>();
                 services.AddScoped<IStepExecutionRule, StepMustBeEnabled>();
                 services.AddScoped<IStepExecutionRule, StepDependsOnPrevious>();
                 services.AddScoped<StartsProcessAsync>();
