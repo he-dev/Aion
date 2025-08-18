@@ -6,9 +6,9 @@ using Aion.Core.Entities;
 using Aion.Core.Entities.JobExecutionRules;
 using Aion.Core.Entities.StepExecutionRules;
 using Aion.Core.Services;
+using Aion.Core.Services.Jobs;
 using Aion.Core.Services.OptionsPostConfiguration;
 using Aion.Core.Services.OptionsValidation;
-using Aion.Home.Jobs;
 using Aion.Meta.Services.Mvc;
 using Aion.Util.Entities.Quartz;
 using Aion.Util.Services;
@@ -69,14 +69,14 @@ public class Program
                     .Enrich.WithProperty("Version", Program.Version)
                     .Enrich.WithProperty("Instance", engineOptions.Name)
                     .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
-                    .WriteTo.Sink(services.GetRequiredService<MapsLogEvent>());
+                    .WriteTo.Sink(services.GetRequiredService<LogEventMapping>());
             })
             .ConfigureServices((context, services) =>
             {
                 services.Configure<InstanceOptions>(context.Configuration.GetSection(InstanceOptions.SectionName));
                 services.AddSingleton<IValidateOptions<InstanceOptions>, ProfileUniquenessValidation>();
                 services.AddSingleton<IPostConfigureOptions<InstanceOptions>, ProfilePathRendering>();
-                services.AddSingleton<MapsLogEvent>();
+                services.AddSingleton<LogEventMapping>();
 
                 services
                     .AddControllers(options => { options.Conventions.Add(new CreatesAbsoluteRouteWhenStartsWithColon()); })
@@ -102,15 +102,13 @@ public class Program
                 services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
 
                 services.AddScoped<WorkflowScheduleRegistry>();
-                services.AddScoped<ExecutesWorkflowCron>();
-                services.AddScoped<ExecutesWorkflowOnce>();
-                services.AddScoped<SynchronizesWorkflows>();
+                services.AddScoped<WorkflowExecutionJob>();
+                services.AddScoped<WorkflowSynchronizationJob>();
 
                 services.AddScoped<WorkflowExecution>();
                 services.AddScoped<IStepExecutionRule, StepMustBeEnabled>();
                 services.AddScoped<IStepExecutionRule, StepDependsOnPrevious>();
                 services.AddScoped<StartsProcessAsync>();
-                services.AddScoped<TriggerStore>();
                 services.AddScoped<WorkflowSynchronizationMustBeEnabled>();
                 services.AddScoped<WorkflowCannotExecuteWhenDowntime>();
 
@@ -130,32 +128,32 @@ public class Program
                         }
 
                         var jobDetail = JobBuilder
-                            .Create<SynchronizesWorkflows>()
-                            .WithIdentity("sync-workflows", JobGroupName.From<SynchronizesWorkflows>(profile.Name))
+                            .Create<WorkflowSynchronizationJob>()
+                            .WithIdentity("sync-workflows", GroupName.For<WorkflowSynchronizationJob>(profile.Name))
                             .Build();
 
-                        q.ScheduleJob<SynchronizesWorkflows>(trigger =>
+                        q.ScheduleJob<WorkflowSynchronizationJob>(trigger =>
                         {
                             trigger
                                 .ForJob(jobDetail)
-                                .WithIdentity("sync-workflows-cron", JobGroupName.From<SynchronizesWorkflows>(profile.Name))
+                                .WithIdentity("sync-workflows-cron", GroupName.For<WorkflowSynchronizationJob>(profile.Name))
                                 .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                                 .WithCronSchedule(CronScheduleBuilder.CronSchedule(profile.Sync));
                         });
 
-                        q.ScheduleJob<SynchronizesWorkflows>(trigger =>
+                        q.ScheduleJob<WorkflowSynchronizationJob>(trigger =>
                         {
                             trigger
                                 .ForJob(jobDetail)
-                                .WithIdentity("sync-workflows-once", JobGroupName.From<SynchronizesWorkflows>(profile.Name))
+                                .WithIdentity("sync-workflows-once", GroupName.For<WorkflowSynchronizationJob>(profile.Name))
                                 .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                                 .WithSimpleSchedule(x => x.WithRepeatCount(0))
                                 .StartNow();
                         });
                     }
 
-                    q.AddTriggerListener<WorkflowSynchronizationMustBeEnabled>(GroupMatcher<TriggerKey>.GroupStartsWith(JobGroupName.From<SynchronizesWorkflows>()));
-                    q.AddTriggerListener<WorkflowCannotExecuteWhenDowntime>(GroupMatcher<TriggerKey>.GroupStartsWith(JobGroupName.From<ExecutesWorkflowCron>()));
+                    q.AddTriggerListener<WorkflowSynchronizationMustBeEnabled>(GroupMatcher<TriggerKey>.GroupStartsWith(GroupName.For<WorkflowSynchronizationJob>()));
+                    q.AddTriggerListener<WorkflowCannotExecuteWhenDowntime>(GroupMatcher<TriggerKey>.GroupStartsWith(GroupName.For<WorkflowExecutionJob>()));
 
                     // note: The docs say that the default is 1 minute.
                     q.MisfireThreshold = TimeSpan.FromMinutes(2);

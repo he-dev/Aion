@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Entities;
-using Aion.Home.Jobs;
+using Aion.Core.Services.Jobs;
 using Aion.Util.Entities.Quartz;
 using Aion.Util.Quartz;
 using Aion.Util.Services;
@@ -23,7 +23,7 @@ public static class WorkflowRendering
         loadTemplate ??= WorkflowTemplate.FromFile;
         var template = await loadTemplate(workflowMatch.Path);
 
-        variables = variables.Add(new WorkflowVariableGroup(template.Variables?.ToImmutableDictionary())
+        variables = variables.Add(new WorkflowVariableGroup(template.Variables)
         {
             Name = workflowMatch.Name,
         });
@@ -36,36 +36,30 @@ public static class WorkflowRendering
         {
             Name = new WorkflowName(workflowMatch.PathWithinProfile),
             Enabled = template.Enabled,
-            CronJobKey = new JobKey(workflowMatch.Name, JobGroupName.From<ExecutesWorkflowCron>(workflowMatch.Profile.Name)),
-            CronTrigger =
-                (ICronTrigger)TriggerBuilder
-                    .Create()
-                    .WithIdentity(workflowMatch.Name, JobGroupName.From<ExecutesWorkflowCron>(workflowMatch.Profile.Name))
-                    .UsingJobData(JobDataKeys.WorkflowName, workflowMatch.Name)
-                    .UsingJobData(JobDataKeys.ProfileName, workflowMatch.Profile.Name)
-                    .UsingJobData(WorkflowStart.Cron)
-                    .UsingJobData(WorkflowExecutionMode.Cron)
-                    // note: This will throw if the cron expression is invalid.
-                    .WithCronSchedule(template.Cron) //, x => x.InTimeZone(Value.TimeZone))
-                    .Build(),
-            OnceTrigger = startAtUtc =>
+            CreateTrigger = (startOnceAtUtc) =>
             {
+                var executionMode = startOnceAtUtc is null ? WorkflowExecutionMode.Cron : WorkflowExecutionMode.Once;
+                var group = GroupName.For<WorkflowExecutionJob>(workflowMatch.Profile.Name, executionMode);
+
                 var triggerBuilder =
                     TriggerBuilder
                         .Create()
-                        .WithIdentity(workflowMatch.Name, JobGroupName.From<ExecutesWorkflowOnce>(workflowMatch.Profile.Name))
-                        .UsingJobData(JobDataKeys.ProfileName, workflowMatch.Profile.Name)
+                        .ForJob(nameof(WorkflowExecutionJob), group)
+                        .WithIdentity(workflowMatch.Name, group)
                         .UsingJobData(JobDataKeys.WorkflowName, workflowMatch.Name)
-                        .UsingJobData(WorkflowExecutionMode.Once)
-                        .WithSimpleSchedule(x => x.WithRepeatCount(0));
+                        .UsingJobData(JobDataKeys.ProfileName, workflowMatch.Profile.Name)
+                        .UsingJobData(executionMode);
 
-                if (startAtUtc is null)
+                // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault - There are only these two cases.
+                switch (executionMode)
                 {
-                    triggerBuilder.StartNow();
-                }
-                else
-                {
-                    triggerBuilder.StartAt(startAtUtc.Value);
+                    case WorkflowExecutionMode.Cron:
+                        triggerBuilder.WithCronSchedule(template.Cron);
+                        break;
+                    case WorkflowExecutionMode.Once:
+                        triggerBuilder.StartAt(startOnceAtUtc!.Value);
+                        triggerBuilder.WithSimpleSchedule(x => x.WithRepeatCount(0));
+                        break;
                 }
 
                 return triggerBuilder.Build();
@@ -99,5 +93,21 @@ public static class WorkflowRendering
             DependsOn = template.DependsOn,
             Logging = await template.Logging.OrPreset(loggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
         };
+    }
+
+    public static async Task<Workflow> ToWorkflowDraft
+    (
+        this WorkflowMatch workflowMatch,
+        Func<string, Task<WorkflowTemplate>>? loadTemplate = null
+    )
+    {
+        var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
+        ([
+            new InstanceVariableGroup([]) { Name = "Draft" },
+            new ProfileVariableGroup([]) { Name = "Draft" },
+            new ExecutionVariableGroup { Mode = WorkflowExecutionMode.None },
+        ]);
+
+        return await workflowMatch.ToWorkflow(variables, loadTemplate);
     }
 }

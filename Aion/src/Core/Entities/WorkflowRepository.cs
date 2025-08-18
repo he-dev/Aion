@@ -30,7 +30,7 @@ public class WorkflowRepository(Profile profile)
             from filePatternMatch in results
             let pathWithinProfile = filePatternMatch.Path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
             let workflowMatch = new WorkflowMatch(profile, workflowFilter, pathWithinProfile)
-            where workflowMatch.Name.IsUrlSafe
+            // where workflowMatch.Name.IsUrlSafe
             select workflowMatch;
     }
 

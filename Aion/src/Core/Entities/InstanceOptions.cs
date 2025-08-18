@@ -16,7 +16,12 @@ public record InstanceOptions
 
     public Profile this[string name]
     {
-        get { return Profiles.SingleOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ?? throw new ProfileNotFoundException(name); }
+        get
+        {
+            return
+                Profiles.SingleOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                ?? throw new ProfileNotFoundException(name);
+        }
     }
 }
 

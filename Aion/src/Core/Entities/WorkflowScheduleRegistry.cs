@@ -1,10 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
-using Aion.Home.Jobs;
+using Aion.Core.Services.Jobs;
+using Aion.Util.Entities.Quartz;
 using Aion.Util.Logging;
 using Microsoft.Extensions.Logging;
 using Quartz;
+using Quartz.Impl.Matchers;
 
 namespace Aion.Core.Entities;
 
@@ -16,36 +21,32 @@ public class WorkflowScheduleRegistry
     ISchedulerFactory schedulerFactory
 )
 {
-    public async Task<WorkflowSyncResult> AddOrUpdate(Workflow workflow, ITrigger? customTrigger = null)
+    public async Task<WorkflowSyncResult> AddOrUpdate(Workflow workflow)
     {
-        if (customTrigger is not null)
-        {
-            var next1 = await AddCustom(workflow, customTrigger);
-            return new WorkflowSyncResult(WorkflowSyncAction.ScheduleBecauseCustom, false, next1);
-        }
-
         var scheduler = await schedulerFactory.GetScheduler();
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
-        var syncAction = await WhatToDoAbout(workflow);
+        var trigger = workflow.CreateTrigger(null);
+
+        var syncAction = await WhatToDoAbout(workflow, trigger);
         var deleted = syncAction switch
         {
-            WorkflowSyncAction.UnscheduleBecauseDisabled => await scheduler.DeleteJob(workflow.CronJobKey),
-            WorkflowSyncAction.UnscheduleBecauseEmpty => await scheduler.DeleteJob(workflow.CronJobKey),
+            WorkflowSyncAction.UnscheduleBecauseDisabled => await scheduler.DeleteJob(trigger.JobKey),
+            WorkflowSyncAction.UnscheduleBecauseEmpty => await scheduler.DeleteJob(trigger.JobKey),
             _ => default(bool?)
         };
 
         var jobDetail =
             JobBuilder
-                .Create<ExecutesWorkflowCron>()
-                .WithIdentity(workflow.CronJobKey.Name, workflow.CronJobKey.Group)
+                .Create<WorkflowExecutionJob>()
+                .WithIdentity(trigger.JobKey)
                 .DisallowConcurrentExecution()
                 .Build();
 
         var next = syncAction switch
         {
-            WorkflowSyncAction.UpdateBecauseChanged => await scheduler.RescheduleJob(workflow.CronTrigger.Key, workflow.CronTrigger),
-            WorkflowSyncAction.ScheduleBecauseNew => await scheduler.ScheduleJob(jobDetail, workflow.CronTrigger),
+            WorkflowSyncAction.UpdateBecauseChanged => await scheduler.RescheduleJob(trigger.Key, trigger),
+            WorkflowSyncAction.ScheduleBecauseNew => await scheduler.ScheduleJob(jobDetail, trigger),
             _ => null
         };
 
@@ -58,13 +59,13 @@ public class WorkflowScheduleRegistry
         return new WorkflowSyncResult(syncAction, deleted, next);
     }
 
-    public async Task<WorkflowSyncAction> WhatToDoAbout(Workflow workflow)
+    public async Task<WorkflowSyncAction> WhatToDoAbout(Workflow workflow, ITrigger trigger)
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
         if (!workflow.Enabled)
         {
-            if (await scheduler.CheckExists(workflow.CronJobKey))
+            if (await scheduler.CheckExists(trigger.JobKey))
             {
                 return WorkflowSyncAction.UnscheduleBecauseDisabled;
             }
@@ -74,7 +75,7 @@ public class WorkflowScheduleRegistry
 
         if (!workflow.Steps.Any(s => s.Enabled))
         {
-            if (await scheduler.CheckExists(workflow.CronJobKey))
+            if (await scheduler.CheckExists(trigger.JobKey))
             {
                 return WorkflowSyncAction.UnscheduleBecauseEmpty;
             }
@@ -82,9 +83,9 @@ public class WorkflowScheduleRegistry
             return WorkflowSyncAction.IgnoreBecauseEmpty;
         }
 
-        if (await scheduler.GetTrigger(workflow.CronTrigger.Key) is ICronTrigger { CronExpressionString: { } cron } current)
+        if (await scheduler.GetTrigger(trigger.Key) is ICronTrigger { CronExpressionString: { } currentCron })
         {
-            if (cron.Equals(workflow.CronTrigger.CronExpressionString))
+            if (trigger is ICronTrigger { CronExpressionString: { } otherCron } && currentCron.Equals(otherCron))
             {
                 return WorkflowSyncAction.IgnoreBecauseUnchanged;
             }
@@ -95,12 +96,14 @@ public class WorkflowScheduleRegistry
         return WorkflowSyncAction.ScheduleBecauseNew;
     }
 
-    private async Task<DateTimeOffset> AddCustom(Workflow workflow, ITrigger trigger)
+    public async Task<WorkflowSyncResult> AddCustom(Workflow workflow, DateTimeOffset? startsOneAtUtc)
     {
+        var trigger = workflow.CreateTrigger(startsOneAtUtc);
+
         var jobDetail =
             JobBuilder
-                .Create<ExecutesWorkflowOnce>()
-                .WithIdentity(workflow.Name, trigger.JobKey.Group)
+                .Create<WorkflowExecutionJob>()
+                .WithIdentity(trigger.JobKey)
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();
@@ -113,13 +116,29 @@ public class WorkflowScheduleRegistry
 
         logger.LogInformation("Workflow '{WorkflowName}' will be executed once at '{Next}'.", workflow.Name, trigger.GetNextFireTimeUtc());
 
-        return await scheduler.ScheduleJob(jobDetail, trigger);
+        var next = await scheduler.ScheduleJob(jobDetail, trigger);
+        return new WorkflowSyncResult(WorkflowSyncAction.ScheduleBecauseCustom, false, next);
     }
 
     public async Task<bool> Remove(JobKey jobKey)
     {
         var scheduler = await schedulerFactory.GetScheduler();
         return await scheduler.DeleteJob(jobKey);
+    }
+
+    public async IAsyncEnumerable<ITrigger> EnumerateTriggersFor(string profileName, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var groupMatcher = GroupMatcher<JobKey>.GroupEquals(GroupName.For<WorkflowExecutionJob>(profileName, WorkflowExecutionMode.Cron));
+
+        var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
+        var jobKeys = await scheduler.GetJobKeys(groupMatcher, cancellationToken);
+        foreach (var jobKey in jobKeys)
+        {
+            foreach (var trigger in await scheduler.GetTriggersOfJob(jobKey, cancellationToken))
+            {
+                yield return trigger;
+            }
+        }
     }
 }
 

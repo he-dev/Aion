@@ -2,8 +2,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Entities;
+using Aion.Core.Services.Jobs;
 using Aion.Core.Services.Mvc;
-using Aion.Home.Jobs;
 using Aion.Util;
 using Aion.Util.Entities.Quartz;
 using Aion.Util.Quartz;
@@ -21,7 +21,7 @@ public class SchedulesController
 (
     ILogger<SchedulesController> logger,
     IOptionsSnapshot<InstanceOptions> engineOptions,
-    TriggerStore triggerStore
+    WorkflowScheduleRegistry workflowScheduleRegistry
 ) : ControllerBase
 {
     [HttpGet]
@@ -36,11 +36,10 @@ public class SchedulesController
     {
         // var profile = engineOptions.Value[profileName];
         var utcNow = DateTimeOffset.UtcNow;
-        var jobGroupMatcher = GroupMatcher<JobKey>.GroupEquals(JobGroupName.From<ExecutesWorkflowCron>(profileName));
 
         var query =
-            triggerStore
-                .FindBy(jobGroupMatcher)
+            workflowScheduleRegistry
+                .EnumerateTriggersFor(profileName)
                 .Where(trigger => trigger.JobKey.Name.IsLike(filter))
                 .Select(trigger => new
                 {

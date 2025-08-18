@@ -12,15 +12,9 @@ public record Workflow
     // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
     public bool Enabled { get; init; }
 
-    public JobKey CronJobKey { get; init; } = null!;
-
-    public ICronTrigger CronTrigger { get; init; } = null!;
-
-    public Func<DateTimeOffset?, ITrigger> OnceTrigger { get; init; } = null!;
+    public Func<DateTimeOffset?, ITrigger> CreateTrigger { get; init; } = null!;
 
     public IImmutableDictionary<string, string> Variables { get; init; } = null!;
-
-    //public IImmutableDictionary<string, string> Environment { get; init; } = null!;
 
     public IImmutableList<Step> Steps { get; init; } = [];
 

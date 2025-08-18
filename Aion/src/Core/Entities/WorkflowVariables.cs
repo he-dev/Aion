@@ -5,7 +5,7 @@ using Aion.Util.Services;
 
 namespace Aion.Core.Entities;
 
-public class InstanceVariableGroup(Dictionary<string, string> variables) : TemplateVariableGroup("Instance")
+public class InstanceVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Instance")
 {
     public required string Name { get; init; } = null!;
 
@@ -16,7 +16,7 @@ public class InstanceVariableGroup(Dictionary<string, string> variables) : Templ
     }
 }
 
-public class ProfileVariableGroup(Dictionary<string, string> variables) : TemplateVariableGroup("Profile")
+public class ProfileVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Profile")
 {
     public required string Name { get; init; } = null!;
 
@@ -43,14 +43,14 @@ public class ExecutionVariableGroup() : TemplateVariableGroup("Execution")
     }
 }
 
-public class WorkflowVariableGroup(IImmutableDictionary<string, string>? variables) : TemplateVariableGroup("Workflow")
+public class WorkflowVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Workflow")
 {
     public required string Name { get; init; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
-        foreach (var variable in variables ?? ImmutableDictionary<string, string>.Empty) yield return new KeyValuePair<string, object?>(variable.Key, variable.Value);
+        foreach (var variable in variables) yield return new KeyValuePair<string, object?>(variable.Key, variable.Value);
     }
 }
 

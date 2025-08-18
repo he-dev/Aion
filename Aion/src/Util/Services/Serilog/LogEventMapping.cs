@@ -12,7 +12,7 @@ public interface ILogEventSignature
 }
 
 // meta: This sink redirects log events into the custom logger.
-public class MapsLogEvent : ILogEventSink
+public class LogEventMapping : ILogEventSink
 {
     private ConcurrentDictionary<ILogEventSignature, ILogger> Loggers { get; } = new();
 

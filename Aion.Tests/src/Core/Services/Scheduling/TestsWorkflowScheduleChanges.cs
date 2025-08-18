@@ -30,14 +30,14 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         if (initialWorkflow is not null)
         {
             var workflowMatch = new WorkflowMatch(fakeProfile, WorkflowFilter.Any, fakeRelativePath);
-            var workflow = await workflowMatch.ToWorkflow(ImmutableList<TemplateVariableGroup>.Empty, _ => Task.FromResult(initialWorkflow));
+            var workflow = await workflowMatch.ToWorkflowDraft(_ => Task.FromResult(initialWorkflow));
             await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
 
         try
         {
             var workflowMatch = new WorkflowMatch(fakeProfile, WorkflowFilter.Any, fakeRelativePath);
-            var workflow = await workflowMatch.ToWorkflow(ImmutableList<TemplateVariableGroup>.Empty, _ => Task.FromResult(changedWorkflow));
+            var workflow = await workflowMatch.ToWorkflowDraft(_ => Task.FromResult(changedWorkflow));
             return await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
         finally

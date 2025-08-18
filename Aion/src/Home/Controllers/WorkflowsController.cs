@@ -36,7 +36,7 @@ public class WorkflowsController
             {
                 if (workflowMatch.Name.IsUrlSafe)
                 {
-                    //workflows = workflows.Add(await workflowMatch.Load());
+                    workflows = workflows.Add(await workflowMatch.ToWorkflowDraft());
                     logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowMatch.Path);
                 }
                 else
@@ -105,8 +105,8 @@ public class WorkflowsController
         {
             var profile = engineOptions.Value[profileName];
             var workflowMatch = profile.Workflows.Single(workflowName);
-            var workflow = await workflowMatch.ToWorkflow(ImmutableList<TemplateVariableGroup>.Empty);
-            var result = await workflowScheduleRegistry.AddOrUpdate(workflow, workflow.OnceTrigger(startAtUtc));
+            var workflow = await workflowMatch.ToWorkflowDraft();
+            var result = await workflowScheduleRegistry.AddCustom(workflow, startAtUtc);
             return Accepted(new { next = result.NextUtc!.Value.ToLocalTime() });
         }
         catch (NoWorkflowMatch)
@@ -155,7 +155,7 @@ public class WorkflowsController
         {
             try
             {
-                var workflow = await workflowMatch.ToWorkflow(ImmutableList<TemplateVariableGroup>.Empty);
+                var workflow = await workflowMatch.ToWorkflowDraft();
 
                 // core: Not using the synchronization-job because we want to see the results immediately in the response.
                 var (sync, deleted, next) = await workflowScheduleRegistry.AddOrUpdate(workflow);

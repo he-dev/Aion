@@ -19,7 +19,7 @@ public class WorkflowExecution
 (
     ILogger<WorkflowExecution> logger,
     IEnumerable<IStepExecutionRule> stepExecutionRules,
-    MapsLogEvent mapsLogEvent,
+    LogEventMapping logEventMapping,
     StartsProcessAsync asyncProcess
 )
 {
@@ -27,7 +27,7 @@ public class WorkflowExecution
     {
         using var activity = new Activity("ExecutingWorkflow").Start();
         using var executionSignature = new WorkflowSignatureScope(logger);
-        using (mapsLogEvent.By(executionSignature, to: workflow.Logging.ToLogger()))
+        using (logEventMapping.By(executionSignature, to: workflow.Logging.ToLogger()))
         {
             logger.LogInformation("Executing workflow...");
 
@@ -52,7 +52,7 @@ public class WorkflowExecution
         using var activity = new Activity("ExecutingStep").Start();
         using var executionSignature = new StepSignatureScope(logger);
         using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name });
-        using var logging = mapsLogEvent.By(executionSignature, to: step.Logging.ToLogger());
+        using var logging = logEventMapping.By(executionSignature, to: step.Logging.ToLogger());
 
         var exitCodes = results.Select(r => r.ExitCode).ToImmutableList();
         if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(step, exitCodes)))
