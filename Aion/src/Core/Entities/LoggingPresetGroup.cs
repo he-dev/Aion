@@ -22,7 +22,9 @@ public record LoggingPresetGroup
         await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         return await JsonSerializer.DeserializeAsync<LoggingPresetGroup>(fileStream, new JsonSerializerOptions
         {
-            ReadCommentHandling = JsonCommentHandling.Skip
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+            PropertyNameCaseInsensitive = true
         });
     }
 }

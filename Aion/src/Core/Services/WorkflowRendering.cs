@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Entities;
@@ -28,6 +29,8 @@ public class WorkflowRendering
     {
         var executionMode = startOnceAtUtc is null ? WorkflowExecutionMode.Cron : WorkflowExecutionMode.Once;
 
+        logger.LogDebug("Rendering workflow for '{ExecutionMode}' mode.", executionMode);
+
         loadTemplate ??= WorkflowTemplate.FromFile;
         var template = await loadTemplate(workflowMatch.Path);
 
@@ -39,9 +42,11 @@ public class WorkflowRendering
             new WorkflowVariableGroup(template.Variables) { Name = workflowMatch.Name }
         ]);
 
-        var environment = workflowMatch.Profile.Environment.ToImmutableDictionary().AddRange(template.Environment);
-        var stepTasks = template.Steps.Select((step, index) => CreateStep(step, index, workflowMatch.Profile.LoggingPresets, environment, variables));
+        var environment = workflowMatch.Profile.Environment.ToImmutableDictionary().SetItems(template.Environment);
+        var stepTasks = template.Steps.Select((step, index) => RenderStep(step, index, workflowMatch.Profile.LoggingPresets, environment, variables));
         var steps = await Task.WhenAll(stepTasks);
+
+        logger.LogDebug("Steps rendered: {StepCount}", steps.Length);
 
         return new Workflow
         {
@@ -64,6 +69,7 @@ public class WorkflowRendering
                 switch (executionMode)
                 {
                     case WorkflowExecutionMode.Cron:
+                        CronExpression.ValidateExpression(template.Cron);
                         triggerBuilder.WithCronSchedule(template.Cron);
                         break;
                     case WorkflowExecutionMode.Once:
@@ -80,10 +86,14 @@ public class WorkflowRendering
             Variables = template.Variables.ToImmutableDictionary(),
             Logging = await template.Logging.OrPreset(workflowMatch.Profile.LoggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
             Steps = steps.ToImmutableList(),
-        };
+        }.Also(workflow =>
+        {
+            // meta: Make sure that the trigger is renderable before it is used.
+            workflow.CreateTrigger();
+        });
     }
 
-    private static async Task<Workflow.Step> CreateStep
+    private static async Task<Workflow.Step> RenderStep
     (
         WorkflowTemplate.StepTemplate template,
         int index,
@@ -100,11 +110,18 @@ public class WorkflowRendering
             Enabled = template.Enabled,
             FileName = template.FileName.Render(variables),
             Arguments = () => (template.Arguments ?? string.Empty).Render(variables),
-            Environment = template.Environment.ToImmutableDictionary().AddRange(environment),
+            // core: Merge environment with intended precedence: the step overrides workflow.
+            Environment = environment.SetItems(template.Environment),
             WorkingDirectory = (template.WorkingDirectory ?? string.Empty).Render(variables),
             Timeout = template.Timeout ?? System.Threading.Timeout.InfiniteTimeSpan,
             DependsOn = template.DependsOn,
             Logging = await template.Logging.OrPreset(loggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
-        };
+        }.Also(step =>
+        {
+            // meta: Rendering arguments requires an activity in scope.
+            using var activity = new Activity("RenderingStepArguments").Start();
+            // meta: Make sure that arguments are renderable before they are used.
+            step.Arguments();
+        });
     }
 }

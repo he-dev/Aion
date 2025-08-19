@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Aion.Util.Services;
 
@@ -63,6 +64,10 @@ public class StepVariableGroup() : TemplateVariableGroup("Step")
             yield return new KeyValuePair<string, object?>(nameof(Activity.TraceId), current.TraceId);
             yield return new KeyValuePair<string, object?>(nameof(Activity.SpanId), current.SpanId);
             yield return new KeyValuePair<string, object?>(nameof(Activity.ParentId), current.ParentId);
+        }
+        else
+        {
+            throw new InvalidOperationException("There is no current activity.");
         }
     }
 }

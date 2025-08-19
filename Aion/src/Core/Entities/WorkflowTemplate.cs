@@ -54,7 +54,9 @@ public record WorkflowTemplate
         await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         var template = await JsonSerializer.DeserializeAsync<WorkflowTemplate>(fileStream, new JsonSerializerOptions
         {
-            ReadCommentHandling = JsonCommentHandling.Skip
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            PropertyNameCaseInsensitive = true,
+            AllowTrailingCommas = true,
         });
 
         return template ?? throw new InvalidWorkflowTemplate(path);
