@@ -9,6 +9,8 @@ public record Workflow
 {
     public string Name { get; init; } = null!;
 
+    public string Path { get; init; } = null!;
+
     // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
     public bool Enabled { get; init; }
 

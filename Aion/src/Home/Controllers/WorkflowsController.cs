@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Entities;
 using Aion.Core.Services;
 using Aion.Core.Services.Mvc;
+using Aion.Util.Quartz;
 using Aion.Util.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Quartz;
 
 namespace Aion.Home.Controllers;
 
@@ -52,22 +55,21 @@ public class WorkflowsController
         }
 
         var utcNow = DateTimeOffset.UtcNow; // note: Keeps the timestamp stable for all items.
-        // var result =
-        //     from match in workflows
-        //     let next = match.CronTrigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
-        //     //orderby next.FirstOrDefault(), match.Name
-        //     orderby match.Name.ToString()
-        //     select new
-        //     {
-        //         path = match.Path,
-        //         name = match.Name.ToString(),
-        //         isOn = match.Template.Enabled,
-        //         cron = match.Template.Cron,
-        //         next = next,
-        //         jobs = match.Template.Steps.Count(s => s.Enabled),
-        //     };
-
-        var result = string.Empty;
+        var result =
+            from match in workflows
+            let trigger = match.CreateTrigger(null)
+            let next = trigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
+            //orderby next.FirstOrDefault(), match.Name
+            orderby match.Name.ToString()
+            select new
+            {
+                path = match.Path,
+                name = match.Name,
+                isOn = match.Enabled,
+                cron = ((ICronTrigger)trigger).CronExpressionString,
+                next = next,
+                jobs = match.Steps.Count(s => s.Enabled),
+            };
 
         return Ok(new
         {

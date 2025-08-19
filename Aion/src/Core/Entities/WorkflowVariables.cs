@@ -33,13 +33,7 @@ public class ExecutionVariableGroup() : TemplateVariableGroup("Execution")
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
-        if (Activity.Current is { } current)
-        {
-            yield return new KeyValuePair<string, object?>(nameof(Mode), Mode);
-            yield return new KeyValuePair<string, object?>(nameof(Activity.TraceId), current.TraceId);
-            yield return new KeyValuePair<string, object?>(nameof(Activity.SpanId), current.SpanId);
-            yield return new KeyValuePair<string, object?>(nameof(Activity.ParentId), current.ParentId);
-        }
+        yield return new KeyValuePair<string, object?>(nameof(Mode), Mode);
     }
 }
 
@@ -64,5 +58,12 @@ public class StepVariableGroup() : TemplateVariableGroup("Step")
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
         yield return new KeyValuePair<string, object?>(nameof(Index), Index);
+
+        if (Activity.Current is { } current)
+        {
+            yield return new KeyValuePair<string, object?>(nameof(Activity.TraceId), current.TraceId);
+            yield return new KeyValuePair<string, object?>(nameof(Activity.SpanId), current.SpanId);
+            yield return new KeyValuePair<string, object?>(nameof(Activity.ParentId), current.ParentId);
+        }
     }
 }

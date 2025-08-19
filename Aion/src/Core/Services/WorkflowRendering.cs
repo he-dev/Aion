@@ -35,6 +35,7 @@ public static class WorkflowRendering
         return new Workflow
         {
             Name = new WorkflowName(workflowMatch.PathWithinProfile),
+            Path = workflowMatch.Path,
             Enabled = template.Enabled,
             CreateTrigger = (startOnceAtUtc) =>
             {
@@ -64,7 +65,7 @@ public static class WorkflowRendering
 
                 return triggerBuilder.Build();
             },
-            Variables = template.Variables?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty,
+            Variables = template.Variables.ToImmutableDictionary(),
             Logging = await template.Logging.OrPreset(workflowMatch.Profile.LoggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
             Steps = steps.ToImmutableList(),
         };
@@ -95,6 +96,7 @@ public static class WorkflowRendering
         };
     }
 
+    // meta: There are requests that require a workflow for informational purposes, but without the actual execution and variables.
     public static async Task<Workflow> ToWorkflowDraft
     (
         this WorkflowMatch workflowMatch,
