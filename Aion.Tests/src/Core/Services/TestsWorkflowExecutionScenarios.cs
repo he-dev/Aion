@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
@@ -23,16 +22,9 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
 
         var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<InstanceOptions>>();
         var executesWorkflow = scope.ServiceProvider.GetRequiredService<WorkflowExecution>();
-
-        var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
-        ([
-            new InstanceVariableGroup(engineOptions.Value.Variables) { Name = engineOptions.Value.Name },
-            new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Test },
-            new ProfileVariableGroup(new Dictionary<string, string>()) { Name = profileName }
-        ]);
-
+        var workflowRendering = scope.ServiceProvider.GetRequiredService<WorkflowRendering>();
         var workflowMatch = engineOptions.Value[profileName].Workflows.Single(workflowName);
-        var workflow = await workflowMatch.ToWorkflow(variables);
+        var workflow = await workflowRendering.RenderFrom(workflowMatch);
         return await executesWorkflow.Start(workflow);
     }
 

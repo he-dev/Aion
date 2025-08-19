@@ -14,7 +14,7 @@ public record Workflow
     // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
     public bool Enabled { get; init; }
 
-    public Func<DateTimeOffset?, ITrigger> CreateTrigger { get; init; } = null!;
+    public Func<ITrigger> CreateTrigger { get; init; } = null!;
 
     public IImmutableDictionary<string, string> Variables { get; init; } = null!;
 

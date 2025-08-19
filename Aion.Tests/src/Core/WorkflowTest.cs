@@ -2,7 +2,6 @@
 using System.IO;
 using System.Threading.Tasks;
 using Aion.Core.Entities;
-using Aion.Core.Services;
 using Xunit;
 
 namespace Aion.Tests.Core;

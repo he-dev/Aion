@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core.Entities;
 using Aion.Util.Logging;
-using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -16,6 +14,7 @@ internal class WorkflowSynchronizationJob
 (
     ILogger<WorkflowSynchronizationJob> logger,
     IOptions<InstanceOptions> engineOptions,
+    WorkflowRendering workflowRendering,
     WorkflowScheduleRegistry workflowScheduleRegistry
 ) : IJob
 {
@@ -32,7 +31,7 @@ internal class WorkflowSynchronizationJob
         {
             try
             {
-                var workflow = await match.ToWorkflowDraft();
+                var workflow = await workflowRendering.RenderFrom(match);
                 await workflowScheduleRegistry.AddOrUpdate(workflow);
                 logger.LogInformation("Workflow '{WorkflowPath}' has been scheduled.", match.Path);
             }

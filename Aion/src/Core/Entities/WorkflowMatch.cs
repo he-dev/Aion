@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-
-namespace Aion.Core.Entities;
+﻿namespace Aion.Core.Entities;
 
 public record WorkflowMatch(Profile Profile, WorkflowFilter Filter, string PathWithinProfile)
 {

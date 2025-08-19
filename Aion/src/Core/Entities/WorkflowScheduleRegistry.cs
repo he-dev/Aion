@@ -26,7 +26,12 @@ public class WorkflowScheduleRegistry
         var scheduler = await schedulerFactory.GetScheduler();
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
-        var trigger = workflow.CreateTrigger(null);
+        var trigger = workflow.CreateTrigger();
+
+        if (trigger is not ICronTrigger)
+        {
+            return await AddCustom(workflow, trigger);
+        }
 
         var syncAction = await WhatToDoAbout(workflow, trigger);
         var deleted = syncAction switch
@@ -96,10 +101,8 @@ public class WorkflowScheduleRegistry
         return WorkflowSyncAction.ScheduleBecauseNew;
     }
 
-    public async Task<WorkflowSyncResult> AddCustom(Workflow workflow, DateTimeOffset? startsOneAtUtc)
+    private async Task<WorkflowSyncResult> AddCustom(Workflow workflow, ITrigger trigger)
     {
-        var trigger = workflow.CreateTrigger(startsOneAtUtc);
-
         var jobDetail =
             JobBuilder
                 .Create<WorkflowExecutionJob>()

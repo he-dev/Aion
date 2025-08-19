@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Aion.Core.Entities;
@@ -24,6 +26,8 @@ public class Profile
     public Dictionary<string, string> Environment { get; set; } = new();
 
     public LoggingPreset.Info? Logging { get; set; }
+
+    public Func<WorkflowExecutionMode, JsonObject?> RenderLogging { get; set; } = (_) => null;
 
     [JsonIgnore]
     public WorkflowRepository Workflows => new(this);

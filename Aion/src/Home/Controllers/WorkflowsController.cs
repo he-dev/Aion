@@ -6,7 +6,6 @@ using Aion.Core.Entities;
 using Aion.Core.Services;
 using Aion.Core.Services.Mvc;
 using Aion.Util.Quartz;
-using Aion.Util.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -20,6 +19,7 @@ public class WorkflowsController
 (
     ILogger<WorkflowsController> logger,
     IOptionsSnapshot<InstanceOptions> engineOptions,
+    WorkflowRendering workflowRendering,
     WorkflowScheduleRegistry workflowScheduleRegistry
 ) : ControllerBase
 {
@@ -39,7 +39,7 @@ public class WorkflowsController
             {
                 if (workflowMatch.Name.IsUrlSafe)
                 {
-                    workflows = workflows.Add(await workflowMatch.ToWorkflowDraft());
+                    workflows = workflows.Add(await workflowRendering.RenderFrom(workflowMatch));
                     logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowMatch.Path);
                 }
                 else
@@ -57,7 +57,7 @@ public class WorkflowsController
         var utcNow = DateTimeOffset.UtcNow; // note: Keeps the timestamp stable for all items.
         var result =
             from match in workflows
-            let trigger = match.CreateTrigger(null)
+            let trigger = match.CreateTrigger()
             let next = trigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
             //orderby next.FirstOrDefault(), match.Name
             orderby match.Name.ToString()
@@ -107,8 +107,8 @@ public class WorkflowsController
         {
             var profile = engineOptions.Value[profileName];
             var workflowMatch = profile.Workflows.Single(workflowName);
-            var workflow = await workflowMatch.ToWorkflowDraft();
-            var result = await workflowScheduleRegistry.AddCustom(workflow, startAtUtc);
+            var workflow = await workflowRendering.RenderFrom(workflowMatch, startAtUtc);
+            var result = await workflowScheduleRegistry.AddOrUpdate(workflow);
             return Accepted(new { next = result.NextUtc!.Value.ToLocalTime() });
         }
         catch (NoWorkflowMatch)
@@ -157,7 +157,7 @@ public class WorkflowsController
         {
             try
             {
-                var workflow = await workflowMatch.ToWorkflowDraft();
+                var workflow = await workflowRendering.RenderFrom(workflowMatch);
 
                 // core: Not using the synchronization-job because we want to see the results immediately in the response.
                 var (sync, deleted, next) = await workflowScheduleRegistry.AddOrUpdate(workflow);

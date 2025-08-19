@@ -2,8 +2,6 @@
 
 public enum WorkflowExecutionMode
 {
-    None,
     Once,
     Cron,
-    Test,
 }

@@ -105,6 +105,7 @@ public class Program
                 services.AddScoped<WorkflowExecutionJob>();
                 services.AddScoped<WorkflowSynchronizationJob>();
 
+                services.AddScoped<WorkflowRendering>();
                 services.AddScoped<WorkflowExecution>();
                 services.AddScoped<IStepExecutionRule, StepMustBeEnabled>();
                 services.AddScoped<IStepExecutionRule, StepDependsOnPrevious>();

@@ -1,9 +1,7 @@
-﻿using System.Collections.Immutable;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core.Entities;
 using Aion.Core.Services;
-using Aion.Util.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Xunit;
@@ -22,6 +20,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         using var scope = testWebApplication.Services.CreateScope();
 
         var schedulesWorkflowCron = scope.ServiceProvider.GetRequiredService<WorkflowScheduleRegistry>();
+        var workflowRendering = scope.ServiceProvider.GetRequiredService<WorkflowRendering>();
 
         var fakeProfile = new Profile { Path = @"C:\fake\path\to\profiles\one" };
 
@@ -30,14 +29,14 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         if (initialWorkflow is not null)
         {
             var workflowMatch = new WorkflowMatch(fakeProfile, WorkflowFilter.Any, fakeRelativePath);
-            var workflow = await workflowMatch.ToWorkflowDraft(_ => Task.FromResult(initialWorkflow));
+            var workflow = await workflowRendering.RenderFrom(workflowMatch, loadTemplate: _ => Task.FromResult(initialWorkflow));
             await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
 
         try
         {
             var workflowMatch = new WorkflowMatch(fakeProfile, WorkflowFilter.Any, fakeRelativePath);
-            var workflow = await workflowMatch.ToWorkflowDraft(_ => Task.FromResult(changedWorkflow));
+            var workflow = await workflowRendering.RenderFrom(workflowMatch, loadTemplate: _ => Task.FromResult(changedWorkflow));
             return await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
         finally

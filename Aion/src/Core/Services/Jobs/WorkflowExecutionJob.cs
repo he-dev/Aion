@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,7 +6,6 @@ using Aion.Core.Entities;
 using Aion.Util.Logging;
 using Aion.Util.Quartz;
 using Aion.Util.Serilog;
-using Aion.Util.Services;
 using Aion.Util.Services.Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -21,6 +19,7 @@ public class WorkflowExecutionJob
     IOptions<InstanceOptions> instanceOptions,
     WorkflowScheduleRegistry workflowScheduleRegistry,
     LogEventMapping logEventMapping,
+    WorkflowRendering workflowRendering,
     WorkflowExecution workflowExecution
 ) : IJob
 {
@@ -39,20 +38,13 @@ public class WorkflowExecutionJob
             ExecutionMode = executionMode,
         });
 
-        var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
-        ([
-            new InstanceVariableGroup(instanceOptions.Value.Variables) { Name = instanceOptions.Value.Name },
-            new ProfileVariableGroup(profile.Variables) { Name = profileName },
-            new ExecutionVariableGroup { Mode = WorkflowExecutionMode.Once },
-        ]);
-
-        var logging = profile.Logging?.ToJsonObject().RenderFilePaths(variables);
+        var logging = profile.RenderLogging(executionMode);
         using var profileLogging = logEventMapping.By(ProfileLogEventSignature.FromScope(), to: logging.ToLogger());
 
         try
         {
             var workflowMatch = profile.Workflows.Single(workflowName);
-            var workflow = await workflowMatch.ToWorkflow(variables);
+            var workflow = await workflowRendering.RenderFrom(workflowMatch);
             switch (workflow)
             {
                 // core: Do not execute disabled workflows in cron mode.

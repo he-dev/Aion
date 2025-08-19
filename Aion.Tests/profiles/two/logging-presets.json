@@ -49,7 +49,7 @@
           {
             "Name": "File",
             "Args": {
-              "path": "{{ Profile.LogsDirectory }}\\{{ Profile.Name }}_.log",
+              "path": "{{ Instance.LogsDirectory }}\\{{ Profile.Name }}_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 3
