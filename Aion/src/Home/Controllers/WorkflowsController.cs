@@ -86,7 +86,7 @@ public class WorkflowsController
     [HttpPost("{workflowName}:start-now")]
     public async Task<IActionResult> ToStartNow(string profileName, string workflowName)
     {
-        return await Start(profileName, workflowName, null);
+        return await Start(profileName, workflowName, DateTimeOffset.UtcNow);
     }
 
     [HttpPost("{workflowName}:start-in")]

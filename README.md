@@ -72,6 +72,18 @@ Steps:
     Logging: json # Logging preset or Serilog configuration.
 ```
 
+## Variables
 
+```yaml
 
+- Instance.Name
+- Profile.Name
+- Execution.Mode
+- Workflow.Name
+- Step.Name
+- Step.Index
+- Step.Iraceid
+- Step.Spanid
+- Step.Parentid
 
+```

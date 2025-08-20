@@ -12,6 +12,7 @@ public record WorkflowTemplate
     // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
     public bool Enabled { get; init; }
 
+    [Cron]
     public string Cron { get; init; } = null!;
 
     public Dictionary<string, string> Variables { get; init; } = new();
@@ -28,6 +29,7 @@ public record WorkflowTemplate
 
         public bool Enabled { get; init; } = true;
 
+        [NotNullOrWhiteSpace]
         public string FileName { get; init; } = null!;
 
         public string? Arguments { get; init; }
@@ -57,9 +59,9 @@ public record WorkflowTemplate
             ReadCommentHandling = JsonCommentHandling.Skip,
             PropertyNameCaseInsensitive = true,
             AllowTrailingCommas = true,
-        });
+        }) ?? throw new InvalidWorkflowTemplate(path);
 
-        return template ?? throw new InvalidWorkflowTemplate(path);
+        return WorkflowTemplateValidation.Validate(template);
     }
 }
 
