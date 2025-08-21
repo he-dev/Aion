@@ -1,15 +1,15 @@
 {
-  "IsOn": true,
+  "Enabled": true,
   "Cron": "0/20 * * * * ?",
-  "Args": {
+  "Variables": {
     "exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe"
   },
   "Steps": [
     {
-      "IsOn": true,
-      "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 7 --message \"This is step {{ step.index }} from {{ workflow.name }}.\"",
-      "SerilogOrPreset": {
+      "Enabled": true,
+      "FileName": "{{ arg.exe }}",
+      "Arguments": "--sleep-seconds 7 --message \"This is step {{ step.index }} from {{ workflow.name }}.\"",
+      "Logging": {
         "MinimumLevel": {
           "Default": "Information"
         },
@@ -27,10 +27,10 @@
       }
     },
     {
-      "IsOn": true,
-      "File": "{{ arg.exe }}",
-      "ArgsOrString": "--sleep-seconds 3 --message \"This is step {{ step.index }} from {{ workflow.name }}.\"",
-      "SerilogOrPreset": {
+      "Enabled": true,
+      "FileName": "{{ arg.exe }}",
+      "Arguments": "--sleep-seconds 3 --message \"This is step {{ step.index }} from {{ workflow.name }}.\"",
+      "Logging": {
         "File": "logging-presets.json",
         "Name": "Console.Simple"
       }

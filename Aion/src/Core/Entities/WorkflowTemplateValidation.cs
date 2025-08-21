@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Reflection;
+using System.Text.Json.Nodes;
 using Quartz;
 
 namespace Aion.Core.Entities;
@@ -10,30 +13,35 @@ public static class WorkflowTemplateValidation
 {
     public static WorkflowTemplate Validate(WorkflowTemplate template)
     {
-        var results = new List<ValidationResult>();
-        Validation.TryValidate(template, results);
-
-        foreach (var item in template.Steps.Select((step, index) => (step, index)).Where(x => x.step.Enabled))
-        {
-            Validation.TryValidate(item.step, results, new Dictionary<object, object?>
-            {
-                ["Parent"] = $"{nameof(WorkflowTemplate.StepTemplate)}[{item.index}]"
-            });
-        }
+        var results =
+            template
+                .Steps
+                .Select((step, index) => (step, index))
+                .Where(x => x.step.Enabled)
+                .Aggregate(Validation.Evaluate(template), (current, item) =>
+                {
+                    var items = new Dictionary<object, object?>
+                    {
+                        ["Parent"] = $"{nameof(WorkflowTemplate.StepTemplate)}[{item.index}]"
+                    };
+                    return current.AddRange(Validation.Evaluate(item.step, items));
+                });
 
         return
             results.Any()
-                ? throw new ValidationException(string.Join(" | ", results.ConvertAll(r => r.ErrorMessage)))
+                ? throw new ValidationException(string.Join(" | ", results.Select(r => r.ErrorMessage)))
                 : template;
     }
 }
 
 public static class Validation
 {
-    public static bool TryValidate(object obj, ICollection<ValidationResult> results, IDictionary<object, object?>? items = null)
+    public static IImmutableList<ValidationResult> Evaluate(object obj, IDictionary<object, object?>? items = null)
     {
+        var results = new List<ValidationResult>();
         var context = new ValidationContext(obj, items: items);
-        return Validator.TryValidateObject(context.ObjectInstance, context, results, validateAllProperties: true);
+        Validator.TryValidateObject(context.ObjectInstance, context, results, validateAllProperties: true);
+        return results.ToImmutableList();
     }
 }
 
@@ -46,7 +54,7 @@ public abstract class StringValidationAttribute : ValidationAttribute
         var propertyType = ctx.ObjectType.GetProperty(ctx.MemberName!)?.PropertyType;
         if (propertyType != typeof(string))
         {
-            return new ValidationResult($"{parent}.{ctx.MemberName} cannot be validated with {GetType().Name} as it applies only to string properties.");
+            return new ValidationResult($"{parent}.{ctx.MemberName} cannot be validated with {GetType().Name} as it applies only to string properties.", [ctx.MemberName!]);
         }
 
         return ValidateString(value as string, parent, ctx);
@@ -62,7 +70,7 @@ public sealed class NotNullOrWhiteSpaceAttribute : StringValidationAttribute
     {
         return
             string.IsNullOrWhiteSpace(value)
-                ? new ValidationResult($"{parent}.{ctx.MemberName} must not be null or white-space.")
+                ? new ValidationResult($"{parent}.{ctx.MemberName} must not be null or white-space.", [ctx.MemberName!])
                 : ValidationResult.Success;
     }
 }
@@ -87,5 +95,45 @@ public sealed class CronAttribute : StringValidationAttribute
         }
 
         return ValidationResult.Success;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
+public sealed class SerilogOrPresetAttribute : ValidationAttribute
+{
+    protected override ValidationResult? IsValid(object? value, ValidationContext ctx)
+    {
+        var property = ctx.ObjectType.GetProperty(ctx.MemberName!)!;
+        var parent = ctx.Items.TryGetValue("Parent", out var p) && p is string s ? s : ctx.ObjectInstance.GetType().Name;
+
+        if (property.PropertyType != typeof(JsonObject))
+        {
+            return new ValidationResult($"{parent}.{ctx.MemberName} must be a JsonObject.", [ctx.MemberName!]);
+        }
+
+        var nullabilityContext = new NullabilityInfoContext();
+        var nullabilityInfo = nullabilityContext.Create(property);
+
+        if (value is null && nullabilityInfo.ReadState == NullabilityState.Nullable)
+        {
+            return ValidationResult.Success;
+        }
+
+        if (value is JsonObject template)
+        {
+            // core: Serilog must have a 'WriteTo' property.
+            if (template.ContainsKey("WriteTo"))
+            {
+                return ValidationResult.Success;
+            }
+
+            // core: Preset must have a 'Preset' property.
+            if (template.ContainsKey("Preset"))
+            {
+                return ValidationResult.Success;
+            }
+        }
+
+        return new ValidationResult($"{parent}.{ctx.MemberName} must contain either a 'WriteTo' or a 'Preset' property.", [ctx.MemberName!]);
     }
 }

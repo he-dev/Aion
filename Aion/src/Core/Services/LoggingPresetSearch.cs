@@ -32,4 +32,4 @@ public static class LoggingPresetSearch
 
 
 public class InvalidLoggingConfigurationException()
-    : Exception("Unknown logging configuration. Expected either 'WriteTo' property or logging preset reference.");
+    : Exception("Unknown logging configuration. Expected either 'WriteTo' or 'Preset' property.");

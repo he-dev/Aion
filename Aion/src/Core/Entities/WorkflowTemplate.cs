@@ -19,6 +19,7 @@ public record WorkflowTemplate
 
     public Dictionary<string, string> Environment { get; init; } = new();
 
+    [SerilogOrPreset]
     public JsonObject? Logging { get; init; }
 
     public StepTemplate[] Steps { get; init; } = null!;
@@ -40,6 +41,7 @@ public record WorkflowTemplate
 
         public TimeSpan? Timeout { get; init; }
 
+        [SerilogOrPreset]
         public JsonObject? Logging { get; init; }
 
         public string? DependsOn { get; init; }
@@ -50,7 +52,7 @@ public record WorkflowTemplate
         if (!File.Exists(path))
         {
             // note: This is pretty unlikely, but who knows...
-            throw new FileNotFoundException($"Workflow '{path}' not found.", fileName: path);
+            throw new FileNotFoundException($"Workflow template '{path}' not found.", fileName: path);
         }
 
         await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
