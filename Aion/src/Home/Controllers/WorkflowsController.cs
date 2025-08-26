@@ -2,9 +2,9 @@
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Entities;
-using Aion.Core.Services;
-using Aion.Core.Services.Mvc;
+using Aion.Core.Mvc;
+using Aion.Core.Options;
+using Aion.Core.Workflows;
 using Aion.Util.Quartz;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -113,11 +113,11 @@ public class WorkflowsController
         }
         catch (NoWorkflowMatch)
         {
-            return NotFound("No workflow matches the name '{$workflowName}'.");
+            return NotFound($"No workflow matches the name '{workflowName}'.");
         }
         catch (AmbiguousWorkflowMatch)
         {
-            return BadRequest("Multiple workflows match the name '{$workflowName}'.");
+            return BadRequest($"Multiple workflows match the name '{workflowName}'.");
         }
         catch (Exception ex)
         {

@@ -1,0 +1,2 @@
+﻿
+Write-Host "Hallo PWSH!"

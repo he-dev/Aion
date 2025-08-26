@@ -19,6 +19,12 @@ POST {{host}}{{profiles.two}}/workflows/slow-duo:start-now
 %}
 
 ### Starts workflow now.
+POST {{host}}{{profiles.two}}/workflows/hallo-cmd:start-now
+
+### Starts workflow now.
+POST {{host}}{{profiles.two}}/workflows/hallo-pwsh:start-now
+
+### Starts workflow now.
 POST {{host}}{{profiles.two}}/fast-trio:start-now
 
 ### Start a workflow now only once; 202 Accepted

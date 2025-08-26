@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Threading.Tasks;
-using Aion.Core.Entities;
-using Aion.Core.Services;
+using Aion.Core;
+using Aion.Core.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Xunit;
