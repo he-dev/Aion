@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Aion.Core.Commands;
+using Aion.Core.Commands.Workflows;
 using Aion.Core.Options;
 using Aion.Core.Workflows;
 using Aion.Util;
@@ -20,12 +22,12 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
         using var activity = new Activity("TestingWorkflowExecution").Start();
         using var scope = testWebApplication.Services.CreateScope();
 
-        var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<InstanceOptions>>();
-        var executesWorkflow = scope.ServiceProvider.GetRequiredService<WorkflowExecution>();
-        var workflowRendering = scope.ServiceProvider.GetRequiredService<WorkflowRendering>();
+        var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<SchedulerOptions>>();
+        var executeWorkflow = scope.ServiceProvider.GetRequiredService<ExecuteWorkflow>();
+        var workflowRendering = scope.ServiceProvider.GetRequiredService<RenderWorkflow>();
         var workflowMatch = engineOptions.Value[profileName].Workflows.Single(workflowName);
-        var workflow = await workflowRendering.RenderFrom(workflowMatch);
-        return await executesWorkflow.Start(workflow);
+        var workflow = await workflowRendering.For(workflowMatch);
+        return await executeWorkflow.Start(workflow);
     }
 
     [Theory]

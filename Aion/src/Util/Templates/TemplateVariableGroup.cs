@@ -10,6 +10,8 @@ public abstract class TemplateVariableGroup(string name) : IEnumerable<KeyValueP
 {
     private static IEqualityComparer<string> Comparer => StringComparer.OrdinalIgnoreCase;
 
+    public string Name => name;
+
     public ScriptObject ToScriptObject()
     {
         var members = new ScriptObject(Comparer);
@@ -21,4 +23,12 @@ public abstract class TemplateVariableGroup(string name) : IEnumerable<KeyValueP
     public abstract IEnumerator<KeyValuePair<string, object?>> GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
+public class CompositeVariableGroup(IGrouping<string, TemplateVariableGroup> grouping) : TemplateVariableGroup(grouping.Key)
+{
+    public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
+    {
+        return grouping.SelectMany(group => group).GetEnumerator();
+    }
 }

@@ -17,15 +17,11 @@
         "Bar": "Bar"
       },
       "Logging": {
-        "Preset": {
-          "Name": "Console.Simple"
-        }
+        "Preset": "Console.Simple"
       }
     }
   ],
   "Logging": {
-    "Preset": {
-      "Name": "Workflow.Simple"
-    }
+    "Preset": "Workflow.Simple"
   }
 }

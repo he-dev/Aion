@@ -7,15 +7,11 @@
       "FileName": "pwsh",
       "Arguments": "-NoProfile -ExecutionPolicy Bypass -File \"{{ Profile.Path }}\\workflows\\hallo-pwsh.ps1\"",
       "Logging": {
-        "Preset": {
-          "Name": "Console.Simple"
-        }
+        "Preset": "Console.Simple"
       }
     }
   ],
   "Logging": {
-    "Preset": {
-      "Name": "Workflow.Simple"
-    }
+    "Preset": "Workflow.Simple"
   }
 }

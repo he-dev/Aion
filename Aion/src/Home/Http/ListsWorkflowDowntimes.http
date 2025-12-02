@@ -1,4 +1,0 @@
-
-
-### Lists maintenance locks.
-GET {{host}}{{profiles.two}}/downtimes

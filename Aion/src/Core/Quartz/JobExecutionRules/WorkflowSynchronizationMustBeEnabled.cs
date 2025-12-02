@@ -11,7 +11,7 @@ namespace Aion.Core.Quartz.JobExecutionRules;
 public class WorkflowSynchronizationMustBeEnabled
 (
     ILogger<WorkflowSynchronizationMustBeEnabled> logger,
-    IOptions<InstanceOptions> engineOptions
+    IOptions<SchedulerOptions> schedulerOptions
 ) : ITriggerListener
 {
     public string Name => nameof(WorkflowSynchronizationMustBeEnabled);
@@ -19,7 +19,7 @@ public class WorkflowSynchronizationMustBeEnabled
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = new())
     {
         var profileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
-        var profile = engineOptions.Value[profileName];
+        var profile = schedulerOptions.Value.Profiles[profileName];
         if (!profile.Enabled)
         {
             using var scope = logger.BeginScopeFrom(new { TriggerName = trigger.Key.Name, ProfileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName) });

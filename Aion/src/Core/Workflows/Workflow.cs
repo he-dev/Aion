@@ -5,14 +5,20 @@ using Quartz;
 
 namespace Aion.Core.Workflows;
 
+public delegate ITrigger WorkflowTriggerFactory(DateTimeOffset? scheduledTime = null);
+
 public record Workflow
 {
-    public string Name { get; init; } = null!;
-
-    public string Path { get; init; } = null!;
+    public string Profile { get; set; } = null!;
 
     // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
     public bool Enabled { get; init; }
+
+    public WorkflowMode Mode { get; set; }
+
+    public string Name { get; init; } = null!;
+
+    public string Path { get; init; } = null!;
 
     public Func<ITrigger> CreateTrigger { get; init; } = null!;
 

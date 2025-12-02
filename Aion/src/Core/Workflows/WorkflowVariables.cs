@@ -1,22 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Aion.Util.Templates;
 
 namespace Aion.Core.Workflows;
 
-public class InstanceVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Instance")
+public class GlobalVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Global")
+{
+    public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
+    {
+        return
+            variables
+                .Select(variable => new KeyValuePair<string, object?>(variable.Key, variable.Value))
+                .GetEnumerator();
+    }
+}
+
+public class SchedulerVariableGroup() : TemplateVariableGroup("Scheduler")
 {
     public required string Name { get; init; } = null!;
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
-        foreach (var variable in variables) yield return new KeyValuePair<string, object?>(variable.Key, variable.Value);
     }
 }
 
-public class ProfileVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Profile")
+public class ProfileVariableGroup() : TemplateVariableGroup("Profile")
 {
     public required string Name { get; init; } = null!;
 
@@ -26,13 +37,12 @@ public class ProfileVariableGroup(IEnumerable<KeyValuePair<string, string>> vari
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
         yield return new KeyValuePair<string, object?>(nameof(Path), Path);
-        foreach (var variable in variables) yield return new KeyValuePair<string, object?>(variable.Key, variable.Value);
     }
 }
 
 public class ExecutionVariableGroup() : TemplateVariableGroup("Execution")
 {
-    public required WorkflowExecutionMode Mode { get; init; }
+    public required WorkflowMode Mode { get; init; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
@@ -40,14 +50,16 @@ public class ExecutionVariableGroup() : TemplateVariableGroup("Execution")
     }
 }
 
-public class WorkflowVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Workflow")
+public class WorkflowVariableGroup() : TemplateVariableGroup("Workflow")
 {
     public required string Name { get; init; }
+
+    public WorkflowMode Mode { get; set; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
-        foreach (var variable in variables) yield return new KeyValuePair<string, object?>(variable.Key, variable.Value);
+        yield return new KeyValuePair<string, object?>(nameof(Mode), Mode);
     }
 }
 

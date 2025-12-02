@@ -1,48 +1,79 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Logging;
+using Aion.Core.Options;
+using Aion.Core.Quartz.Jobs;
+using Aion.Core.Workflows;
 using Aion.Core.Workflows.StepExecutionRules;
+using Aion.Home.Endpoints;
 using Aion.Util;
 using Aion.Util.Logging;
 using Aion.Util.Serilog;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Workflows;
+namespace Aion.Core.Commands.Workflows;
 
-// core: Executes workflow's enabled steps.
-public class WorkflowExecution
+public class ExecuteWorkflow
 (
-    ILogger<WorkflowExecution> logger,
-    IEnumerable<IStepExecutionRule> stepExecutionRules,
+    ILogger<WorkflowJob> logger,
+    IOptions<SchedulerOptions> schedulerOptions,
     LogEventMapping logEventMapping,
+    IEnumerable<IStepExecutionRule> stepExecutionRules,
+    RenderWorkflow renderWorkflow,
     AsyncProcess process
 )
 {
-    public async Task<IImmutableList<StepResult>> Start(Workflow workflow)
+    public async Task<IImmutableList<StepResult>> Now
+    (
+        string profileName,
+        string workflowName,
+        WorkflowMode mode,
+        IImmutableList<StepIdentifier>? stepOrder = null
+    )
     {
-        using var activity = new Activity("ExecutingWorkflow").Start();
-        using var executionSignature = new WorkflowSignatureScope(logger);
-        using (logEventMapping.By(executionSignature, to: workflow.Logging.ToLogger()))
+        var profile = schedulerOptions.Value.Profiles[profileName];
+        var workflowMatch = profile.Workflows.Single(workflowName);
+        var workflow = await renderWorkflow.For(workflowMatch, stepOrder: stepOrder);
+        return await Now(workflow);
+    }
+
+    public async Task<IImmutableList<StepResult>> Now(Workflow workflow)
+    {
+        if (workflow is { Mode: WorkflowMode.Cron, Enabled: false })
         {
-            logger.LogInformation("Executing workflow...");
-
-            // core: Does not filter out disabled steps because we want them logged.
-            var stepResults = ImmutableList<StepResult>.Empty;
-            foreach (var step in workflow.Steps)
-            {
-                var stepResult = await ExecuteStep(step, stepResults);
-                stepResults = stepResults.Add(stepResult);
-            }
-
-            activity.SetStatus(ActivityStatusCode.Ok).Stop();
-            logger.LogInformation("Workflow completed in {Duration}.", activity.Duration);
-
-            return stepResults;
+            return ImmutableList<StepResult>.Empty;
         }
+
+        using var activity = new Activity("ExecutingWorkflow").Start();
+        using var scope = logger.BeginScopeFrom(new
+        {
+            ProfileName = workflow.Profile,
+            WorkflowName = workflow.Name,
+            WorkflowMode = workflow.Mode,
+        });
+
+        using var executionSignature = new WorkflowSignatureScope(logger);
+        using var logging = logEventMapping.By(executionSignature, to: workflow.Logging.ToLogger());
+
+        logger.LogInformation("Executing workflow...");
+
+        // core: Does not filter out disabled steps because we want them logged.
+        var stepResults = ImmutableList<StepResult>.Empty;
+        foreach (var step in workflow.Steps)
+        {
+            var stepResult = await ExecuteStep(step, stepResults);
+            stepResults = stepResults.Add(stepResult);
+        }
+
+        activity.SetStatus(ActivityStatusCode.Ok).Stop();
+        logger.LogInformation("Workflow completed in {Duration}.", activity.Duration);
+
+        return stepResults;
     }
 
     private async Task<StepResult> ExecuteStep(Workflow.Step step, IImmutableList<StepResult> results)
@@ -66,7 +97,7 @@ public class WorkflowExecution
         {
             //activity.Start();
             logger.LogInformation("Executing step...");
-            var exitCode = await process.Now
+            var exitCode = await process.Start
             (
                 step.FileName,
                 step.Timeout,
@@ -134,3 +165,5 @@ public record StepResult
     public Exception? Exception { get; init; }
     public TimeSpan? Duration { get; init; }
 }
+
+public class WorkflowNotExecutableException(string message) : Exception(message);

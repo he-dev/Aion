@@ -7,6 +7,8 @@ using Aion.Core.Workflows;
 
 namespace Aion.Core;
 
+public delegate JsonObject? LoggingPresetForWorkflow(WorkflowMode mode);
+
 public class Profile
 {
     public bool Enabled { get; set; }
@@ -15,7 +17,8 @@ public class Profile
 
     // core: The last directory name is the name of the profile.
     // meta: Make sure it does not end with a "/" which would result in a wrong name.
-    public string Name => System.IO.Path.GetFileName(Path.TrimEnd(System.IO.Path.DirectorySeparatorChar));
+    // public string Name => System.IO.Path.GetFileName(Path.TrimEnd(System.IO.Path.DirectorySeparatorChar));
+    public string Name { get; set; } = null!;
 
     public string Sync { get; set; } = null!;
 
@@ -27,9 +30,9 @@ public class Profile
 
     public Dictionary<string, string> Environment { get; set; } = new();
 
-    public LoggingPreset.Info? Logging { get; set; }
+    // public LoggingPreset.Info? Logging { get; set; }
 
-    public Func<WorkflowExecutionMode, JsonObject?> LoggingFor { get; set; } = (_) => null;
+    public Func<WorkflowMode, JsonObject?> LoggingFor { get; set; } = (_) => null;
 
     [JsonIgnore]
     public WorkflowRepository Workflows => new(this);

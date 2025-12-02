@@ -4,7 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Aion.Core.Quartz;
+using Aion.Core.Quartz.Jobs;
 using Aion.Util.Logging;
 using Aion.Util.Quartz;
 using Microsoft.Extensions.Logging;
@@ -21,14 +21,12 @@ public class WorkflowScheduleRegistry
     ISchedulerFactory schedulerFactory
 )
 {
-    public async Task<WorkflowSyncResult> AddOrUpdate(Workflow workflow)
+    public async Task<WorkflowSyncResult.Passed> AddOrUpdate(Workflow workflow)
     {
         var scheduler = await schedulerFactory.GetScheduler();
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
-        var trigger = workflow.CreateTrigger();
-
-        if (trigger is not ICronTrigger)
+        if (workflow.CreateTrigger() is var trigger && trigger is not ICronTrigger)
         {
             return await AddCustom(workflow, trigger);
         }
@@ -43,7 +41,7 @@ public class WorkflowScheduleRegistry
 
         var jobDetail =
             JobBuilder
-                .Create<WorkflowExecutionJob>()
+                .Create<WorkflowJob>()
                 .WithIdentity(trigger.JobKey)
                 .DisallowConcurrentExecution()
                 .Build();
@@ -61,7 +59,13 @@ public class WorkflowScheduleRegistry
             logger.LogInformation("Next execution at '{Next}'.", next);
         }
 
-        return new WorkflowSyncResult(syncAction, deleted, next);
+        return new WorkflowSyncResult.Passed
+        {
+            Path = workflow.Path,
+            Action = syncAction,
+            Deleted = deleted,
+            NextUtc = next
+        };
     }
 
     public async Task<WorkflowSyncAction> WhatToDoAbout(Workflow workflow, ITrigger trigger)
@@ -101,11 +105,11 @@ public class WorkflowScheduleRegistry
         return WorkflowSyncAction.ScheduleBecauseNew;
     }
 
-    private async Task<WorkflowSyncResult> AddCustom(Workflow workflow, ITrigger trigger)
+    private async Task<WorkflowSyncResult.Passed> AddCustom(Workflow workflow, ITrigger trigger)
     {
         var jobDetail =
             JobBuilder
-                .Create<WorkflowExecutionJob>()
+                .Create<WorkflowJob>()
                 .WithIdentity(trigger.JobKey)
                 .Build();
 
@@ -120,7 +124,13 @@ public class WorkflowScheduleRegistry
         logger.LogInformation("Workflow '{WorkflowName}' will be executed once at '{Next}'.", workflow.Name, trigger.GetNextFireTimeUtc());
 
         var next = await scheduler.ScheduleJob(jobDetail, trigger);
-        return new WorkflowSyncResult(WorkflowSyncAction.ScheduleBecauseCustom, false, next);
+        return new WorkflowSyncResult.Passed
+        {
+            Path = workflow.Path,
+            Action = WorkflowSyncAction.ScheduleBecauseCustom,
+            Deleted = false,
+            NextUtc = next
+        };
     }
 
     public async Task<bool> Remove(JobKey jobKey)
@@ -131,7 +141,7 @@ public class WorkflowScheduleRegistry
 
     public async IAsyncEnumerable<ITrigger> EnumerateTriggersFor(string profileName, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals(GroupName.For<WorkflowExecutionJob>(profileName, WorkflowExecutionMode.Cron));
+        var groupMatcher = GroupMatcher<JobKey>.GroupEquals(GroupName.For<WorkflowJob>(profileName, WorkflowMode.Cron));
 
         var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
         var jobKeys = await scheduler.GetJobKeys(groupMatcher, cancellationToken);
@@ -158,10 +168,22 @@ public enum WorkflowSyncAction
 }
 
 public record WorkflowSyncResult
-(
-    WorkflowSyncAction Action,
-    bool? Deleted = null,
-    DateTimeOffset? NextUtc = null
-);
+{
+    public required string Path { get; init; }
+
+
+    public record Passed : WorkflowSyncResult
+    {
+        public required WorkflowSyncAction Action { get; init; }
+        public required bool? Deleted { get; init; }
+        public required DateTimeOffset? NextUtc { get; init; }
+        public DateTimeOffset? NextLocal => NextUtc?.ToLocalTime();
+    }
+
+    public record Failed : WorkflowSyncResult
+    {
+        public required Exception Exception { get; init; }
+    }
+}
 
 public class WorkflowAlreadyScheduledException : Exception;

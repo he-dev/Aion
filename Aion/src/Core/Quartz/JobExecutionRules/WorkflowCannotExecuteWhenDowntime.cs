@@ -14,7 +14,7 @@ namespace Aion.Core.Quartz.JobExecutionRules;
 public class WorkflowCannotExecuteWhenDowntime
 (
     ILogger<WorkflowCannotExecuteWhenDowntime> logger,
-    IOptions<InstanceOptions> engineOptions
+    IOptions<SchedulerOptions> schedulerOptions
 ) : ITriggerListener
 {
     public string Name => nameof(WorkflowCannotExecuteWhenDowntime);
@@ -26,7 +26,7 @@ public class WorkflowCannotExecuteWhenDowntime
 
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName, WorkflowName = workflowName });
 
-        var profile = engineOptions.Value[profileName];
+        var profile = schedulerOptions.Value.Profiles[profileName];
         try
         {
             var workflowMatch = profile.Workflows.Single(workflowName);

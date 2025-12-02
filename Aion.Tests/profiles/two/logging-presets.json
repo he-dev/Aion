@@ -1,8 +1,7 @@
 ﻿{
   "Version": 1,
-  "Presets": [
-    {
-      "Name": "Profile.Simple",
+  "Presets": {
+    "WorkflowFile28Days": {
       "Serilog": {
         "MinimumLevel": {
           "Default": "Debug"
@@ -11,36 +10,16 @@
           {
             "Name": "File",
             "Args": {
-              "path": "{{ Instance.LogsDirectory }}\\{{ Profile.Name }}_{{ Trigger.Mode }}_.log",
+              "path": "{{ Global.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Name }}-{{ Workflow.Frequency }}_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
               "rollingInterval": "Day",
-              "retainedFileCountLimit": 30
+              "retainedFileCountLimit": 28
             }
           }
         ]
       }
     },
-    {
-      "Name": "Workflow.Simple",
-      "Serilog": {
-        "MinimumLevel": {
-          "Default": "Debug"
-        },
-        "WriteTo": [
-          {
-            "Name": "File",
-            "Args": {
-              "path": "{{ Instance.LogsDirectory }}\\{{ Profile.Name }}_{{ Trigger.Mode }}\\{{ Workflow.Name }}\\{{ Workflow.Name }}_.log",
-              "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
-              "rollingInterval": "Day",
-              "retainedFileCountLimit": 30
-            }
-          }
-        ]
-      }
-    },
-    {
-      "Name": "Console.Simple",
+    "StepFile28Days": {
       "Serilog": {
         "MinimumLevel": {
           "Default": "Information"
@@ -49,14 +28,14 @@
           {
             "Name": "File",
             "Args": {
-              "path": "{{ Instance.LogsDirectory }}\\{{ Profile.Name }}.{{ Execution.Mode }}\\{{ Workflow.Name }}\\{{ Workflow.Name }}-s{{ step.index }}_.log",
+              "path": "{{ Global.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Name }}-{{ Workflow.Frequency }}-step-{{ Step.Index }}-std_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ConsoleStreamType} » {Message:lj}{NewLine}",
               "rollingInterval": "Day",
-              "retainedFileCountLimit": 30
+              "retainedFileCountLimit": 28
             }
           }
         ]
       }
     }
-  ]
+  }
 }

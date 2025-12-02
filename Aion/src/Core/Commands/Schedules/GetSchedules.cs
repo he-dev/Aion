@@ -1,35 +1,29 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Mvc;
 using Aion.Core.Options;
 using Aion.Core.Workflows;
 using Aion.Util;
 using Aion.Util.Quartz;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
 
-namespace Aion.Home.Controllers;
+namespace Aion.Core.Commands.Schedules;
 
-[ApiController]
-[Route("api/profiles/{profileName}/schedules")]
-public class SchedulesController
+public class GetSchedules
 (
-    ILogger<SchedulesController> logger,
-    IOptionsSnapshot<InstanceOptions> engineOptions,
+    ILogger<GetSchedules> logger,
+    IOptionsSnapshot<SchedulerOptions> engineOptions,
     WorkflowScheduleRegistry workflowScheduleRegistry
-) : ControllerBase
+)
 {
-    [HttpGet]
-    [ProfileExistenceValidation]
-    public async Task<IActionResult> Get
+    public async Task<object> Invoke
     (
         string profileName,
-        [FromQuery(Name = "q")] string? filter = null,
-        [FromQuery] OrderBy orderBy = OrderBy.Next,
-        [FromQuery] Status status = Status.Pending
+        string? filter = null,
+        OrderBy orderBy = OrderBy.Next,
+        Status status = Status.Pending
     )
     {
         // var profile = engineOptions.Value[profileName];
@@ -58,7 +52,7 @@ public class SchedulesController
 
         var result = await query.ToListAsync(); // ?? For easier debugging.
         logger.LogDebug("Found {count} jobs.", result.Count);
-        return Ok(result);
+        return result;
     }
 
     public enum OrderBy

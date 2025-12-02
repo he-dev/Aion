@@ -1,7 +1,7 @@
 ﻿namespace Aion.Core.Workflows;
 
-public enum WorkflowExecutionMode
+public enum WorkflowMode
 {
-    Once,
     Cron,
+    User,
 }

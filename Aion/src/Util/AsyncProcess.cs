@@ -11,7 +11,7 @@ namespace Aion.Util;
 public class AsyncProcess(ILogger<AsyncProcess> logger)
 {
     // note: Not using external cancellation as this app does not support such a scenario.
-    public async Task<int> Now
+    public async Task<int> Start
     (
         string file,
         TimeSpan timeout,
@@ -152,6 +152,11 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
                     break;
             }
         }
+    }
+
+    public void Kill()
+    {
+
     }
 }
 

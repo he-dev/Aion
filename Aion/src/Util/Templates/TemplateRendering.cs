@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text.Json.Nodes;
 using Aion.Util.Json;
 using Scriban;
@@ -31,11 +32,14 @@ public static class TemplateRendering
             TryGetMember = ((TemplateContext context, SourceSpan span, object target, string member, out object value) =>
             {
                 // hack: This is a fake comment, so that ReSharper does not put everything in a single line.
-                throw new ScriptRuntimeException(span, $"Variable '{member}' not found.");
+                throw new ScriptRuntimeException(span, $"Variable '{member}' not found while rendering '{context.CurrentGlobal}'.");
             })
         };
         customContext.PushGlobal(customFunctions);
-        foreach (var variableGroup in variableGroups)
+
+        // meta: Create a composite variable group for each name because they otherwise got replaced.
+        var compositeGroups =  variableGroups.GroupBy(g => g.Name).Select(g => new CompositeVariableGroup(g));
+        foreach (var variableGroup in compositeGroups)
         {
             customContext.PushGlobal(variableGroup.ToScriptObject());
         }

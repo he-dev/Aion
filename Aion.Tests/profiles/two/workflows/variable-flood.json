@@ -1,17 +1,16 @@
 {
-  "IsOn": true,
+  "Enabled": true,
   "Cron": "0/30 * * * * ?",
-  "Args": {
-    "exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
-    "presetFile": "logging-presets.json",
-    "presetName": "Console.Simple"
+  "Variables": {
+    "NpcExe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
+    "LoggingPreset": "Console.Simple"
   },
   "Steps": [
     {
-      "IsOn": true,
+      "Enabled": true,
       "Name": "TheFirst",
-      "File": "{{ arg.exe }}",
-      "ArgsOrString": [
+      "FileName": "{{ Workflow.NpcExe }}",
+      "Arguments": [
         "--sleep", "1",
         "--message", "Hallo variables!",
         "--aion-instance", "{{ aion.instance }}",
@@ -23,14 +22,12 @@
         "--step-span-id", "{{ step.spanId }}",
         "--step-parent-id", "{{ step.parentId }}"
       ],
-      "SerilogOrPreset": {
-        "File": "{{ arg.presetFile }}",
-        "Name": "{{ arg.presetName }}"
+      "Logging": {
+        "Preset": "{{ Workflow.LoggingPreset }}"
       }
     }
   ],
-  "SerilogOrPreset": {
-    "File": "logging-presets.json",
-    "Name": "Workflow.Simple"
+  "Logging": {
+    "Preset": "Workflow.Simple"
   }
 }

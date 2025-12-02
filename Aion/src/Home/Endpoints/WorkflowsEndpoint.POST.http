@@ -1,0 +1,13 @@
+
+### Starts workflow at the specified time.
+POST {{host}}{{profiles.two}}/workflows/fast-trio:start-now
+
+### Starts workflow at the specified time.
+POST {{host}}{{profiles.two}}/workflows/fast-trio:start-now
+Content-Type: application/json
+
+{
+  "steps": [1, "foo"]
+}
+
+

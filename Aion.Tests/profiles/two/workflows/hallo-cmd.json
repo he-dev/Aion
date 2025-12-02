@@ -7,9 +7,7 @@
       "FileName": "cmd.exe",
       "Arguments": "/c echo Hallo cmd!",
       "Logging": {
-        "Preset": {
-          "Name": "Console.Simple"
-        }
+        "Preset": "Console.Simple"
       }
     },
     {
@@ -20,15 +18,11 @@
         "CMD_MSG": "Hallo CMD!"
       },
       "Logging": {
-        "Preset": {
-          "Name": "Console.Simple"
-        }
+        "Preset": "Console.Simple"
       }
     }
   ],
   "Logging": {
-    "Preset": {
-      "Name": "Workflow.Simple"
-    }
+    "Preset": "Workflow.Simple"
   }
 }

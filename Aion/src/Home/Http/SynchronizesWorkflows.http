@@ -1,3 +1,0 @@
-
-### Synchronize workflows with the scheduler.
-POST {{host}}{{profiles.two}}/workflows:sync

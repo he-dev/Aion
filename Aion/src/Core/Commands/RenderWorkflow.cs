@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using Aion.Core.Logging;
 using Aion.Core.Options;
 using Aion.Core.Quartz;
+using Aion.Core.Quartz.Jobs;
+using Aion.Core.Workflows;
+using Aion.Home.Endpoints;
 using Aion.Util;
 using Aion.Util.Logging;
 using Aion.Util.Quartz;
@@ -14,39 +17,47 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
 
-namespace Aion.Core.Workflows;
+namespace Aion.Core.Commands;
 
-public class WorkflowRendering
+public class RenderWorkflow
 (
-    ILogger<WorkflowRendering> logger,
-    IOptions<InstanceOptions> instanceOptions
+    ILogger<RenderWorkflow> logger,
+    IOptions<SchedulerOptions> schedulerOptions
 )
 {
-    public async Task<Workflow> RenderFrom
+    public async Task<Workflow> For
     (
         WorkflowMatch workflowMatch,
         DateTimeOffset? startOnceAtUtc = null,
+        IImmutableList<StepIdentifier>? stepOrder = null,
         Func<string, Task<WorkflowTemplate>>? loadTemplate = null
     )
     {
-        var executionMode = startOnceAtUtc is null ? WorkflowExecutionMode.Cron : WorkflowExecutionMode.Once;
+        var workflowMode = startOnceAtUtc is null ? WorkflowMode.Cron : WorkflowMode.User;
 
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflowMatch.Name });
-        logger.LogTrace("Rendering workflow for '{ExecutionMode}' mode.", executionMode);
+        logger.LogTrace("Rendering workflow.");
 
         loadTemplate ??= WorkflowTemplate.FromFile;
         var template = await loadTemplate(workflowMatch.Path);
+        CronExpression.ValidateExpression(template.Cron);
 
         var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
         ([
-            new InstanceVariableGroup(instanceOptions.Value.Variables) { Name = instanceOptions.Value.Name },
-            new ProfileVariableGroup(workflowMatch.Profile.Variables)
+            new GlobalVariableGroup(schedulerOptions.Value.Variables),
+            new GlobalVariableGroup(workflowMatch.Profile.Variables),
+            new GlobalVariableGroup(template.Variables),
+            new SchedulerVariableGroup { Name = schedulerOptions.Value.Name },
+            new ProfileVariableGroup
             {
                 Name = workflowMatch.Profile.Name,
                 Path = workflowMatch.Profile.Path,
             },
-            new ExecutionVariableGroup { Mode = executionMode },
-            new WorkflowVariableGroup(template.Variables) { Name = workflowMatch.Name }
+            new WorkflowVariableGroup
+            {
+                Name = workflowMatch.Name,
+                Mode = workflowMode,
+            }
         ]);
 
         // core: Merge profile and workflow environments with intended precedence: the workflow overrides profile.
@@ -56,45 +67,54 @@ public class WorkflowRendering
         try
         {
             var steps = await Task.WhenAll(stepTasks);
+
+            if (stepOrder is not null)
+            {
+                steps =
+                    stepOrder
+                        .Select(indexOrName => steps.First(s => indexOrName == s.Index || indexOrName == s.Name))
+                        .ToArray();
+            }
+
+            // core: Workflows without any enabled steps are invalid.
+            if(steps.Length == 0) throw new WorkflowNotExecutableException("Workflow has no executable steps.");
+
             logger.LogTrace("Steps rendered: {StepCount}", steps.Length);
 
             return new Workflow
             {
+                Profile = workflowMatch.Profile.Name,
+                Enabled = template.Enabled,
+                Mode = workflowMode,
                 Name = new WorkflowName(workflowMatch.PathWithinProfile),
                 Path = workflowMatch.Path,
-                Enabled = template.Enabled,
                 CreateTrigger = () =>
                 {
-                    var group = GroupName.For<WorkflowExecutionJob>(workflowMatch.Profile.Name, executionMode);
+                    var group = GroupName.For<WorkflowJob>(workflowMatch.Profile.Name, workflowMode);
 
                     var triggerBuilder =
                         TriggerBuilder
                             .Create()
-                            .ForJob(nameof(WorkflowExecutionJob), group)
+                            .ForJob(nameof(WorkflowJob), group)
                             .WithIdentity(workflowMatch.Name, group)
                             .UsingJobData(JobDataKeys.WorkflowName, workflowMatch.Name)
                             .UsingJobData(JobDataKeys.ProfileName, workflowMatch.Profile.Name)
-                            .UsingJobData(executionMode);
+                            .UsingJobData(workflowMode);
 
-                    switch (executionMode)
+                    if (startOnceAtUtc is null)
                     {
-                        case WorkflowExecutionMode.Cron:
-                            CronExpression.ValidateExpression(template.Cron);
-                            triggerBuilder.WithCronSchedule(template.Cron);
-                            break;
-                        case WorkflowExecutionMode.Once:
-                            triggerBuilder.StartAt(startOnceAtUtc!.Value);
-                            triggerBuilder.WithSimpleSchedule(x => x.WithRepeatCount(0));
-                            break;
-                        default:
-                            // meta: This will never happen, but makes the compiler happy.
-                            throw new ArgumentOutOfRangeException();
+                        triggerBuilder.WithCronSchedule(template.Cron);
+                    }
+                    else
+                    {
+                        triggerBuilder.StartAt(startOnceAtUtc!.Value);
+                        triggerBuilder.WithSimpleSchedule(x => x.WithRepeatCount(0));
                     }
 
                     return triggerBuilder.Build();
                 },
                 Variables = template.Variables.ToImmutableDictionary(),
-                Logging = await template.Logging.OrPreset(workflowMatch.Profile.LoggingPresets).Let(jsonObject => TemplateRendering.RenderFilePaths(jsonObject, variables)),
+                Logging = await template.Logging.Get(workflowMatch.Profile.LoggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
                 Steps = steps.ToImmutableList(),
             };
         }
@@ -130,7 +150,7 @@ public class WorkflowRendering
                 WorkingDirectory = (template.WorkingDirectory ?? string.Empty).Render(variables),
                 Timeout = template.Timeout ?? System.Threading.Timeout.InfiniteTimeSpan,
                 DependsOn = template.DependsOn,
-                Logging = await template.Logging.OrPreset(loggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
+                Logging = await template.Logging.Get(loggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
             }.Also(step =>
             {
                 // meta: Rendering arguments requires an activity in scope.
@@ -146,6 +166,8 @@ public class WorkflowRendering
         }
     }
 }
+
+public class WorkflowNotExecutableException(string message) : Exception(message);
 
 public class WorkflowTemplateException(string path, Exception innerException) : Exception
 (
