@@ -9,6 +9,8 @@ namespace Aion.Core;
 
 public class Profile
 {
+    public bool Enabled { get; set; }
+
     public string Path { get; set; } = null!;
 
     // core: The last directory name is the name of the profile.
@@ -16,8 +18,6 @@ public class Profile
     public string Name => System.IO.Path.GetFileName(Path.TrimEnd(System.IO.Path.DirectorySeparatorChar));
 
     public string Sync { get; set; } = null!;
-
-    public bool SyncOn { get; set; }
 
     public string[] Includes { get; set; } = [];
 
@@ -29,7 +29,7 @@ public class Profile
 
     public LoggingPreset.Info? Logging { get; set; }
 
-    public Func<WorkflowExecutionMode, JsonObject?> RenderLogging { get; set; } = (_) => null;
+    public Func<WorkflowExecutionMode, JsonObject?> LoggingFor { get; set; } = (_) => null;
 
     [JsonIgnore]
     public WorkflowRepository Workflows => new(this);

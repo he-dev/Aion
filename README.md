@@ -87,3 +87,9 @@ Steps:
 - Step.Parentid
 
 ```
+
+## Default logging folder structure
+
+: `{{ Engine.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Name }}\\{{ Trigger.Mode }}\\{{ Workflow.Name }}-s{{ step.index }}_.log`
+
+

@@ -121,7 +121,7 @@ public class Program
 
                     foreach (var profile in instanceOptions.Profiles)
                     {
-                        if (!profile.SyncOn)
+                        if (!profile.Enabled)
                         {
                             //logger.LogWarning("Skipping profile '{ProfileName}' because it is not configured to sync.", profile.Name);
                             //continue;

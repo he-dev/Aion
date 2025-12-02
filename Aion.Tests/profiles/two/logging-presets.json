@@ -11,7 +11,7 @@
           {
             "Name": "File",
             "Args": {
-              "path": "{{ Instance.LogsDirectory }}\\{{ Profile.Name }}.{{ Execution.Mode }}_.log",
+              "path": "{{ Instance.LogsDirectory }}\\{{ Profile.Name }}_{{ Trigger.Mode }}_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 30
@@ -30,7 +30,7 @@
           {
             "Name": "File",
             "Args": {
-              "path": "{{ Instance.LogsDirectory }}\\{{ Profile.Name }}.{{ Execution.Mode }}\\{{ Workflow.Name }}\\{{ Workflow.Name }}_.log",
+              "path": "{{ Instance.LogsDirectory }}\\{{ Profile.Name }}_{{ Trigger.Mode }}\\{{ Workflow.Name }}\\{{ Workflow.Name }}_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 30

@@ -39,7 +39,7 @@ public class WorkflowExecutionJob
             ExecutionMode = executionMode,
         });
 
-        var logging = profile.RenderLogging(executionMode);
+        var logging = profile.LoggingFor(executionMode);
         using var profileLogging = logEventMapping.By(ProfileLogEventSignature.FromScope(), to: logging.ToLogger());
 
         try

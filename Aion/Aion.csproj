@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.17" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.21" />
         <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="9.0.6" />
         <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="9.0.6" />
         <PackageReference Include="Quartz.AspNetCore" Version="3.14.0" />

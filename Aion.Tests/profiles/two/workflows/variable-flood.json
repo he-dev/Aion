@@ -19,9 +19,9 @@
         "--workflow-name", "{{ workflow.name }}",
         "--step-index", "{{ step.index }}",
         "--step-name", "{{ step.name }}",
-        "--execution-trace-id", "{{ execution.traceId }}",
-        "--execution-span-id", "{{ execution.spanId }}",
-        "--execution-parent-id", "{{ execution.parentId }}"
+        "--step-trace-id", "{{ step.traceId }}",
+        "--step-span-id", "{{ step.spanId }}",
+        "--step-parent-id", "{{ step.parentId }}"
       ],
       "SerilogOrPreset": {
         "File": "{{ arg.presetFile }}",

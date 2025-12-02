@@ -56,8 +56,7 @@ public class DowntimesController
                     s.Duration,
                     s.Remaining,
                     Status = s.Status.ToString()
-                }
-            ;
+                };
 
         return Ok(new
         {

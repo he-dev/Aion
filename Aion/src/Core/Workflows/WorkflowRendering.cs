@@ -49,6 +49,7 @@ public class WorkflowRendering
             new WorkflowVariableGroup(template.Variables) { Name = workflowMatch.Name }
         ]);
 
+        // core: Merge profile and workflow environments with intended precedence: the workflow overrides profile.
         var environment = workflowMatch.Profile.Environment.ToImmutableDictionary().SetItems(template.Environment);
         var stepTasks = template.Steps.Select((step, index) => RenderStep(step, index, workflowMatch.Profile.LoggingPresets, environment, variables));
 

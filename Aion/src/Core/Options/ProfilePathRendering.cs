@@ -24,8 +24,7 @@ public class ProfilePathRendering : IPostConfigureOptions<InstanceOptions>
             ]);
 
             profile.Path = profile.Path.Render(variables);
-
-            profile.RenderLogging = (mode) =>
+            profile.LoggingFor = (mode) =>
             {
                 variables = variables.Add(new ExecutionVariableGroup { Mode = mode });
                 return profile.Logging?.ToJsonObject().RenderFilePaths(variables);
