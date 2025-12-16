@@ -20,7 +20,7 @@ public class WorkflowSynchronizationMustBeEnabled
     {
         var profileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
         var profile = schedulerOptions.Value.Profiles[profileName];
-        if (!profile.Enabled)
+        if (!profile.Sync.Enabled)
         {
             using var scope = logger.BeginScopeFrom(new { TriggerName = trigger.Key.Name, ProfileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName) });
             logger.LogWarning("Profile synchronization for '{ProfileName}' is off - pausing it.", profileName);

@@ -10,7 +10,7 @@
           {
             "Name": "File",
             "Args": {
-              "path": "{{ Global.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Name }}-{{ Workflow.Frequency }}_.log",
+              "path": "{{ Variables.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Name }}-{{ Workflow.Mode }}_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj} | {Properties}{NewLine}{Exception}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 28
@@ -28,8 +28,26 @@
           {
             "Name": "File",
             "Args": {
-              "path": "{{ Global.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Name }}-{{ Workflow.Frequency }}-step-{{ Step.Index }}-std_.log",
+              "path": "{{ Variables.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Name }}-{{ Workflow.Mode }}-step-{{ Step.Index }}-std_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {ConsoleStreamType} » {Message:lj}{NewLine}",
+              "rollingInterval": "Day",
+              "retainedFileCountLimit": 28
+            }
+          }
+        ]
+      }
+    },
+    "StepFile28DaysCompact": {
+      "Serilog": {
+        "MinimumLevel": {
+          "Default": "Information"
+        },
+        "WriteTo": [
+          {
+            "Name": "File",
+            "Args": {
+              "path": "{{ Variables.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Name }}-{{ Workflow.Mode }}-step-{{ Step.Index }}-std_.log",
+              "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 28
             }

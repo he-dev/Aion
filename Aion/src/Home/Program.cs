@@ -4,10 +4,10 @@ using Aion.Core.Commands.Workflows;
 using Aion.Core.Options;
 using Aion.Core.Quartz;
 using Aion.Core.Quartz.JobExecutionRules;
-using Aion.Core.Quartz.Jobs;
 using Aion.Core.Workflows;
 using Aion.Core.Workflows.StepExecutionRules;
 using Aion.Home.Endpoints;
+using Aion.Home.Jobs;
 using Aion.Meta;
 using Aion.Util;
 using Aion.Util.Quartz;
@@ -68,7 +68,7 @@ builder.Services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().Cont
 
 builder.Services.AddScoped<WorkflowScheduleRegistry>();
 builder.Services.AddScoped<WorkflowJob>();
-builder.Services.AddScoped<SynchronizationJob>();
+builder.Services.AddScoped<ProfileJob>();
 
 builder.Services.AddScoped<RenderWorkflow>();
 builder.Services.AddScoped<ExecuteWorkflow>();
@@ -80,7 +80,7 @@ builder.Services.AddScoped<WorkflowCannotExecuteWhenDowntime>();
 
 builder.Services.AddQuartz(configure =>
 {
-    configure.AddTriggerListener<WorkflowSynchronizationMustBeEnabled>(GroupMatcher<TriggerKey>.GroupStartsWith(GroupName.For<SynchronizationJob>()));
+    configure.AddTriggerListener<WorkflowSynchronizationMustBeEnabled>(GroupMatcher<TriggerKey>.GroupStartsWith(GroupName.For<ProfileJob>()));
     configure.AddTriggerListener<WorkflowCannotExecuteWhenDowntime>(GroupMatcher<TriggerKey>.GroupStartsWith(GroupName.For<WorkflowJob>()));
 
     // note: The docs say that the default is 1 minute.

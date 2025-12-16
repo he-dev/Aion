@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using Aion.Util.Templates;
 
 namespace Aion.Core.Workflows;
 
-public class GlobalVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Global")
+public class GlobalVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Variables")
 {
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
@@ -21,9 +22,12 @@ public class SchedulerVariableGroup() : TemplateVariableGroup("Scheduler")
 {
     public required string Name { get; init; } = null!;
 
+    public string? Directory => Path.GetDirectoryName(Environment.ProcessPath);
+
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
+        yield return new KeyValuePair<string, object?>(nameof(Directory), Directory);
     }
 }
 
@@ -37,16 +41,6 @@ public class ProfileVariableGroup() : TemplateVariableGroup("Profile")
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
         yield return new KeyValuePair<string, object?>(nameof(Path), Path);
-    }
-}
-
-public class ExecutionVariableGroup() : TemplateVariableGroup("Execution")
-{
-    public required WorkflowMode Mode { get; init; }
-
-    public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
-    {
-        yield return new KeyValuePair<string, object?>(nameof(Mode), Mode);
     }
 }
 

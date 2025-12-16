@@ -27,13 +27,13 @@ public class StartDowntime
             {
                 try
                 {
-                    var workflowLock = await downtime.ToFile(workflowMatch.Path);
+                    var workflowLock = await downtime.ToFile(workflowMatch.WorkflowPath);
                     workflowMatches = workflowMatches.Add(workflowMatch);
-                    logger.LogInformation("Workflow '{WorkflowName}' has been locked.", workflowMatch.Name);
+                    logger.LogInformation("Workflow '{WorkflowName}' has been locked.", workflowMatch.WorkflowName);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Unable to schedule maintenance for '{WorkflowName}'.", workflowMatch.Name);
+                    logger.LogError(ex, "Unable to schedule maintenance for '{WorkflowName}'.", workflowMatch.WorkflowName);
                 }
             }
 
@@ -41,7 +41,7 @@ public class StartDowntime
             {
                 profile = profile.Path,
                 downtime = downtime,
-                workflows = workflowMatches.Select(m => m.PathWithinProfile)
+                workflows = workflowMatches.Select(m => m.WorkflowPathWithinProfile)
             };
         }
         catch (Exception ex)

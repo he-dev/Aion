@@ -27,7 +27,7 @@ public class EndDowntime
         {
             try
             {
-                if (await WorkflowDowntime.FromFile(workflowMatch.Path) is { } lockFile)
+                if (await WorkflowDowntime.FromFile(workflowMatch.WorkflowPath) is { } lockFile)
                 {
                     await lockFile.EndsNow();
                     workflowMatches = workflowMatches.Add(workflowMatch);
@@ -35,14 +35,14 @@ public class EndDowntime
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to end downtime for '{WorkflowName}'.", workflowMatch.Name);
+                logger.LogError(ex, "Unable to end downtime for '{WorkflowName}'.", workflowMatch.WorkflowName);
             }
         }
 
         return new
         {
             profile = profile.Path,
-            workflows = workflowMatches.Select(m => m.PathWithinProfile),
+            workflows = workflowMatches.Select(m => m.WorkflowPathWithinProfile),
         };
     }
 }

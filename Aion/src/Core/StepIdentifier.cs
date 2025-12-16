@@ -2,7 +2,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Aion.Home.Endpoints;
+namespace Aion.Core;
 
 [JsonConverter(typeof(StepIdentifierConverter))]
 public record StepIdentifier(string Value) : IEquatable<int>, IEquatable<string>

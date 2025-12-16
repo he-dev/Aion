@@ -27,14 +27,14 @@ public class GetDowntimes
         {
             try
             {
-                if (await WorkflowDowntime.FromFile(workflowMatch.Path) is { } lockFile)
+                if (await WorkflowDowntime.FromFile(workflowMatch.WorkflowPath) is { } lockFile)
                 {
                     workflowDowntimes = workflowDowntimes.Add(lockFile);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to load lock file '{LockFileName}'.", workflowMatch.Path);
+                logger.LogError(ex, "Unable to load lock file '{LockFileName}'.", workflowMatch.WorkflowPath);
             }
         }
 

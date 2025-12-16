@@ -5,6 +5,8 @@ namespace Aion.Core.Workflows;
 
 public record WorkflowName(string PathWithinProfile)
 {
+    // note: C:\path\to\workflows\group\workflow.json --> group.workflow
+
     // note:
     // Regex for characters that are "unreserved" in a URI (per RFC 3986) and don't need escaping.
     // This includes alphanumeric characters, hyphen, period, underscore, and tilde.

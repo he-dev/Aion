@@ -8,17 +8,27 @@ using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 
 namespace Aion.Core.Workflows;
 
-public class WorkflowRepository(Profile profile)
+public class WorkflowDirectory
 {
+    public const string Name = "Workflows";
+
+    internal Profile Profile { get; set; } = null!;
+
+    public string Path => System.IO.Path.Join(Profile.Path, Name);
+
+    public string[] Includes { get; set; } = [];
+
+    public string[] Excludes { get; set; } = [];
+
     public IEnumerable<WorkflowMatch> Find(WorkflowFilter workflowFilter)
     {
         // core: Pass-1 - Use profile patterns to pre-filter its files.
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
-        matcher.AddIncludePatterns(profile.Includes);
-        matcher.AddExcludePatterns(profile.Excludes);
+        matcher.AddIncludePatterns(Includes);
+        matcher.AddExcludePatterns(Excludes);
 
         var candidates =
-            from match in matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(profile.Path))).Files
+            from match in matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(Path))).Files
             select match.Path;
 
         // core: Pass-2 - Search only the candidates for workflow-filter matches.
@@ -28,9 +38,8 @@ public class WorkflowRepository(Profile profile)
 
         return
             from filePatternMatch in results
-            let pathWithinProfile = filePatternMatch.Path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
-            let workflowMatch = new WorkflowMatch(profile, workflowFilter, pathWithinProfile)
-            // where workflowMatch.Name.IsUrlSafe
+            let pathWithinProfile = filePatternMatch.Path.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar)
+            let workflowMatch = new WorkflowMatch(Profile, workflowFilter, pathWithinProfile)
             select workflowMatch;
     }
 
@@ -38,9 +47,16 @@ public class WorkflowRepository(Profile profile)
 
     public WorkflowMatch Single(string workflowName) => Find(workflowName).SingleOrThrows
     (
-        onEmpty: () => new NoWorkflowMatch(profile.Name, workflowName),
-        onExtra: () => new AmbiguousWorkflowMatch(profile.Name, workflowName)
+        onEmpty: () => new NoWorkflowMatch(Profile.Name, workflowName),
+        onExtra: () => new AmbiguousWorkflowMatch(Profile.Name, workflowName)
     );
+}
+
+public record WorkflowMatch(Profile Profile, WorkflowFilter WorkflowFilter, string WorkflowPathWithinProfile)
+{
+    public string WorkflowPath => Path.Join(Profile.Workflows.Path, WorkflowPathWithinProfile);
+
+    public WorkflowName WorkflowName => new(WorkflowPathWithinProfile);
 }
 
 public class NoWorkflowMatch(string profileName, string workflowNameOrFilter)

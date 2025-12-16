@@ -17,10 +17,10 @@ public static class DowntimesEndpoint
             .MapGroup("api/profiles/{profileName}")
             .AddEndpointFilter<ProfileExistenceFilter>();
         downtimes.MapPost("downtimes", GetDowntimes);
-        downtimes.MapPost("downtimes:start-now", StartDowntimeNow);
-        downtimes.MapPost("downtimes:start-in", StartDowntimeIn);
-        downtimes.MapPost("downtimes:start-at", StartDowntimeAt);
-        downtimes.MapPost("downtimes:end", EndDowntimes);
+        downtimes.MapPost("downtimes:start-now", StartNow);
+        downtimes.MapPost("downtimes:start-in", StartIn);
+        downtimes.MapPost("downtimes:start-at", StartAt);
+        downtimes.MapPost("downtimes:end-now", EndNow);
     }
 
     private static async Task<IResult> GetDowntimes(GetDowntimes command, string profileName)
@@ -29,31 +29,31 @@ public static class DowntimesEndpoint
         return Results.Ok(workflows);
     }
 
-    private static async Task<IResult> StartDowntimeNow(StartDowntime command, string profileName, [FromBody] StartDowntimeInBody body)
+    private static async Task<IResult> StartNow(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartInBody body)
     {
-        var workflows = await command.Invoke(profileName, body.Filter, WorkflowDowntime.StartsIn(TimeSpan.Zero, body.Duration));
+        var workflows = await startDowntime.Invoke(profileName, body.Filter, WorkflowDowntime.StartsIn(TimeSpan.Zero, body.Duration));
         return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });
 
     }
 
-    private static async Task<IResult> StartDowntimeIn(StartDowntime command, string profileName, [FromBody] StartDowntimeInBody body)
+    private static async Task<IResult> StartIn(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartInBody body)
     {
-        var workflows = await command.Invoke(profileName, body.Filter, WorkflowDowntime.StartsIn(body.Wait, body.Duration));
+        var workflows = await startDowntime.Invoke(profileName, body.Filter, WorkflowDowntime.StartsIn(body.Wait, body.Duration));
         return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });    }
 
-    private static async Task<IResult> StartDowntimeAt(StartDowntime command, string profileName, [FromBody] StartDowntimeAtBody body)
+    private static async Task<IResult> StartAt(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartAtBody body)
     {
-        var workflows = await command.Invoke(profileName, body.Filter, WorkflowDowntime.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
+        var workflows = await startDowntime.Invoke(profileName, body.Filter, WorkflowDowntime.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
         return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });    }
 
-    private static async Task<IResult> EndDowntimes(EndDowntime command, string profileName, [FromBody] EndDowntimeBody body)
+    private static async Task<IResult> EndNow(EndDowntime endDowntime, string profileName, [FromBody] DowntimeEndNowBody body)
     {
-        var workflows = await command.Invoke(profileName, body.Filter);
+        var workflows = await endDowntime.Invoke(profileName, body.Filter);
         return Results.Ok(workflows);
     }
 }
 
-public record StartDowntimeInBody
+public record DowntimeStartInBody
 {
     public string Filter { get; init; } = null!;
 
@@ -61,7 +61,7 @@ public record StartDowntimeInBody
     public TimeSpan Duration { get; init; }
 }
 
-public record StartDowntimeAtBody
+public record DowntimeStartAtBody
 {
     public string Filter { get; init; } = null!;
 
@@ -72,7 +72,7 @@ public record StartDowntimeAtBody
     public DateTimeOffset EndsAtUtc => EndsAt.ToUniversalTime();
 }
 
-public record EndDowntimeBody
+public record DowntimeEndNowBody
 {
     public string Filter { get; init; } = null!;
 }

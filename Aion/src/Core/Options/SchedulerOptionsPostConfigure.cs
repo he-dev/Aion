@@ -20,7 +20,10 @@ public class SchedulerOptionsPostConfigure : IPostConfigureOptions<SchedulerOpti
             ([
                 new GlobalVariableGroup(scheduler.Variables),
                 new GlobalVariableGroup(profile.Variables),
-                new SchedulerVariableGroup { Name = scheduler.Name },
+                new SchedulerVariableGroup
+                {
+                    Name = scheduler.Name,
+                },
                 new ProfileVariableGroup
                 {
                     Name = profile.Name,

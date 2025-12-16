@@ -2,13 +2,14 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Commands.Workflows;
+using Aion.Core.Quartz;
 using Aion.Core.Workflows;
 using Aion.Util.Logging;
 using Aion.Util.Quartz;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Quartz.Jobs;
+namespace Aion.Home.Jobs;
 
 public class WorkflowJob
 (
@@ -30,9 +31,11 @@ public class WorkflowJob
             WorkflowMode = workflowMode,
         });
 
+        logger.LogDebug("Executing '{JobName}'.", nameof(WorkflowJob));
+
         try
         {
-            var stepResults = await executeWorkflow.Now(profileName, workflowName, workflowMode);
+            var stepResults = await executeWorkflow.Now(profileName, workflowName);
             if (workflowMode == WorkflowMode.Cron && !stepResults.Any())
             {
                 logger.LogWarning("Unscheduling workflow because it does not do anything.");

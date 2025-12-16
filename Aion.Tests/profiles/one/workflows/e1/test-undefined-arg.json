@@ -1,6 +1,6 @@
 {
   "Enabled": true,
-  "Cron": "0/15 * * * * ?",
+  "Sync": "0/15 * * * * ?",
   "Variables": {
     "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe"
   },

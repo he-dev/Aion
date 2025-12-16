@@ -30,7 +30,7 @@ public class WorkflowCannotExecuteWhenDowntime
         try
         {
             var workflowMatch = profile.Workflows.Single(workflowName);
-            if (await WorkflowDowntime.FromFile(workflowMatch.Path) is { } workflowDowntime)
+            if (await WorkflowDowntime.FromFile(workflowMatch.WorkflowPath) is { } workflowDowntime)
             {
                 if (workflowDowntime.Status == WorkflowDowntimeStatus.Expired)
                 {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Aion.Core.Quartz.Jobs;
+using Aion.Home.Jobs;
 using Aion.Util.Logging;
 using Aion.Util.Quartz;
 using Microsoft.Extensions.Logging;
@@ -21,35 +21,37 @@ public class WorkflowScheduleRegistry
     ISchedulerFactory schedulerFactory
 )
 {
+    // note: This can only succeed, otherwise it throws an exception.
     public async Task<WorkflowSyncResult.Passed> AddOrUpdate(Workflow workflow)
     {
         var scheduler = await schedulerFactory.GetScheduler();
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
-        if (workflow.CreateTrigger() is var trigger && trigger is not ICronTrigger)
+        if (workflow.Trigger is not ICronTrigger)
         {
-            return await AddCustom(workflow, trigger);
+            return await AddCustom(workflow, workflow.Trigger);
         }
 
-        var syncAction = await WhatToDoAbout(workflow, trigger);
+
+        var syncAction = await WhatToDoAbout(workflow, workflow.Trigger);
         var deleted = syncAction switch
         {
-            WorkflowSyncAction.UnscheduleBecauseDisabled => await scheduler.DeleteJob(trigger.JobKey),
-            WorkflowSyncAction.UnscheduleBecauseEmpty => await scheduler.DeleteJob(trigger.JobKey),
+            WorkflowSyncAction.UnscheduleBecauseDisabled => await scheduler.DeleteJob(workflow.Trigger.JobKey),
+            WorkflowSyncAction.UnscheduleBecauseEmpty => await scheduler.DeleteJob(workflow.Trigger.JobKey),
             _ => default(bool?)
         };
 
         var jobDetail =
             JobBuilder
                 .Create<WorkflowJob>()
-                .WithIdentity(trigger.JobKey)
+                .WithIdentity(workflow.Trigger.JobKey)
                 .DisallowConcurrentExecution()
                 .Build();
 
         var next = syncAction switch
         {
-            WorkflowSyncAction.UpdateBecauseChanged => await scheduler.RescheduleJob(trigger.Key, trigger),
-            WorkflowSyncAction.ScheduleBecauseNew => await scheduler.ScheduleJob(jobDetail, trigger),
+            WorkflowSyncAction.UpdateBecauseChanged => await scheduler.RescheduleJob(workflow.Trigger.Key, workflow.Trigger),
+            WorkflowSyncAction.ScheduleBecauseNew => await scheduler.ScheduleJob(jobDetail, workflow.Trigger),
             _ => null
         };
 

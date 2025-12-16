@@ -29,6 +29,12 @@ public class CompositeVariableGroup(IGrouping<string, TemplateVariableGroup> gro
 {
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
-        return grouping.SelectMany(group => group).GetEnumerator();
+        return
+            grouping
+                // meta: Flatten the nested groups.
+                .SelectMany(group => group)
+                // meta: Last variable wins.
+                .GroupBy(x => x.Key, (_, items) => items.Last())
+                .GetEnumerator();
     }
 }

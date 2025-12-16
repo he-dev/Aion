@@ -3,6 +3,21 @@
 POST {{host}}{{profiles.two}}/workflows/fast-trio:start-now
 
 ### Starts workflow at the specified time.
+POST {{host}}{{profiles.two}}/workflows/hallo-npc:start-now
+
+### Starts workflow at the specified time.
+POST {{host}}{{profiles.two}}/workflows/hallo-1-of-3:start-now
+
+
+### Starts workflow at the specified time.
+POST {{host}}{{profiles.two}}/workflows/hallo-npc:start-now
+Content-Type: application/json
+
+{
+  "steps": []
+}
+
+### Starts workflow at the specified time.
 POST {{host}}{{profiles.two}}/workflows/fast-trio:start-now
 Content-Type: application/json
 

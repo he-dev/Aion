@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Aion.Core.Options;
 using Aion.Core.Workflows;
+using Aion.Home.Endpoints;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Quartz;
 
 namespace Aion.Core.Commands.Workflows;
 
@@ -16,13 +19,20 @@ public class ScheduleWorkflow
     WorkflowScheduleRegistry workflowScheduleRegistry
 )
 {
-    public async Task<DateTimeOffset> Invoke(string profileName, string workflowName, DateTimeOffset? startAtUtc, IEnumerable<int>? stepsToExecute = null)
+    public async Task<DateTimeOffset> Invoke
+    (
+        string profileName,
+        string workflowName,
+        DateTimeOffset? startAtUtc,
+        IImmutableList<StepIdentifier>? stepOrder = null
+    )
     {
         try
         {
             var profile = schedulerOptions.Value.Profiles[profileName];
             var workflowMatch = profile.Workflows.Single(workflowName);
-            var workflow = await renderWorkflow.For(workflowMatch, startAtUtc);
+            var trigger = WorkflowTrigger.Create(profileName, workflowMatch.WorkflowName, startAtUtc!.Value);
+            var workflow = await renderWorkflow.For(workflowMatch, trigger, stepOrder);
             var result = await workflowScheduleRegistry.AddOrUpdate(workflow);
             return result.NextUtc!.Value.ToLocalTime();
         }

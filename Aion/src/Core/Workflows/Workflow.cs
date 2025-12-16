@@ -1,11 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using Quartz;
 
 namespace Aion.Core.Workflows;
-
-public delegate ITrigger WorkflowTriggerFactory(DateTimeOffset? scheduledTime = null);
 
 public record Workflow
 {
@@ -14,13 +13,13 @@ public record Workflow
     // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
     public bool Enabled { get; init; }
 
-    public WorkflowMode Mode { get; set; }
+    public WorkflowMode Mode => Trigger is ICronTrigger ? WorkflowMode.Cron : WorkflowMode.User;
 
     public string Name { get; init; } = null!;
 
     public string Path { get; init; } = null!;
 
-    public Func<ITrigger> CreateTrigger { get; init; } = null!;
+    public ITrigger Trigger { get; init; } = null!;
 
     public IImmutableDictionary<string, string> Variables { get; init; } = null!;
 
@@ -39,7 +38,7 @@ public record Workflow
         public string FileName { get; init; } = null!;
 
         // note: Arguments can pass runtime values such as activity ids, so this property must be lazy.
-        public Func<string> Arguments { get; init; } = null!;
+        public Func<IEnumerable<CommandLineArgument>> Arguments { get; init; } = null!;
 
         public IImmutableDictionary<string, string> Environment { get; init; } = null!;
 
@@ -47,7 +46,9 @@ public record Workflow
 
         public TimeSpan Timeout { get; init; }
 
-        public JsonObject? Logging { get; init; } = null!;
+        public JsonObject? Logging { get; init; }
+
+        public string? OnFailure { get; init; }
 
         public string? DependsOn { get; init; }
     }

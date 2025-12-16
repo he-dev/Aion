@@ -13,7 +13,7 @@ public static class ServiceCollectionExtensions
             services
                 .AddScoped<GetWorkflows>()
                 .AddScoped<ScheduleWorkflow>()
-                .AddScoped<SynchronizeWorkflows>()
+                .AddScoped<SynchronizeProfile>()
                 .AddScoped<ExecuteWorkflow>();
     }
 

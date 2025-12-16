@@ -1,0 +1,47 @@
+{
+  "Enabled": true,
+  "Cron": "0/5 * * * * ?",
+  "Variables": {
+    "NpcMsg": "This is step {{ Step.Index }} from {{ Workflow.Name }}."
+  },
+  "Steps": [
+    {
+      "Enabled": true,
+      "FileName": "{{ Variables.NpcExe }}",
+      "Arguments": {
+        "--sleep-seconds": 2,
+        "--message": "\"{{ Variables.NpcMsg }}\""
+      },
+      "Logging": {
+        "Preset": "StepFile28DaysCompact"
+      }
+    },
+    {
+      "Enabled": false,
+      "FileName": "{{ Variables.NpcExe }}",
+      "Arguments": {
+        "--sleep-seconds": 1,
+        "--message": "\"{{ Variables.NpcMsg }}\""
+      },
+      "Logging": {
+        "Preset": "StepFile28DaysCompact"
+      }
+    },
+    {
+      "Enabled": true,
+      "FileName": "{{ Variables.NpcExe }}",
+      "Arguments": {
+        "--sleep-seconds": 2,
+        "--message": "\"{{ Variables.NpcMsg }}\"",
+        "--exit-code": 1
+      },
+      "OnFailure": "break",
+      "Logging": {
+        "Preset": "StepFile28DaysCompact"
+      }
+    }
+  ],
+  "Logging": {
+    "Preset": "WorkflowFile28Days"
+  }
+}

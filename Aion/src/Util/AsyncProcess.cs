@@ -61,7 +61,7 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
         try
         {
             logger.LogInformation("Executing: '{File}'.", file);
-            logger.LogInformation("Arguments: [{Args}].", process.StartInfo.ArgumentList.Any() ? string.Join(", ", process.StartInfo.ArgumentList) : process.StartInfo.Arguments);
+            logger.LogInformation("Arguments: '{Args}'.", process.StartInfo.Arguments);
 
             if (process.Start())
             {

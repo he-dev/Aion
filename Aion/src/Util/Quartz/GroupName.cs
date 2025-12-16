@@ -5,6 +5,7 @@ namespace Aion.Util.Quartz;
 
 public static class GroupName
 {
+    // Job.Profile.WorkflowMode
     public static string For<T>(params string[] names) => new[] { typeof(T).Name }.Concat(names).Join(".");
 
     public static string For<T>(string profileName, WorkflowMode mode)

@@ -1,0 +1,29 @@
+{
+  "Enabled": true,
+  "Cron": "0/5 * * * * ?",
+  "Variables": {
+    "Message": "This is step {{ Step.Index }} from {{ Workflow.Name }}."
+  },
+  "Environment": {
+    "Foo": "Foo"
+  },
+  "Steps": [
+    {
+      "Enabled": true,
+      "FileName": "{{ Variables.NpcExe }}",
+      "Arguments": {
+        "--sleep-seconds": 1,
+        "--message": "\"{{ Variables.Message }}\""
+      },
+      "Environment": {
+        "Bar": "Bar"
+      },
+      "Logging": {
+        "Preset": "StepFile28Days"
+      }
+    }
+  ],
+  "Logging": {
+    "Preset": "WorkflowFile28Days"
+  }
+}

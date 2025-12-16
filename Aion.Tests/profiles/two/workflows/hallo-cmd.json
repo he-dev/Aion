@@ -23,6 +23,6 @@
     }
   ],
   "Logging": {
-    "Preset": "Workflow.Simple"
+    "Preset": "WorkflowFile28Days"
   }
 }

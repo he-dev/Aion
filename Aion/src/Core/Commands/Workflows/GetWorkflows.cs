@@ -33,38 +33,37 @@ public class GetWorkflows
         {
             try
             {
-                if (workflowMatch.Name.IsUrlSafe)
+                if (workflowMatch.WorkflowName.IsUrlSafe)
                 {
                     workflows = workflows.Add(await renderWorkflow.For(workflowMatch));
-                    logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowMatch.Path);
+                    logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowMatch.WorkflowPath);
                 }
                 else
                 {
-                    workflowFailure = workflowFailure.Add(new { path = workflowMatch.PathWithinProfile, issue = "Workflow name is not url-safe." });
+                    workflowFailure = workflowFailure.Add(new { path = workflowMatch.WorkflowPathWithinProfile, issue = "Workflow name is not url-safe." });
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to load workflow from '{WorkflowPath}'.", workflowMatch.Path);
-                workflowFailure = workflowFailure.Add(new { path = workflowMatch.PathWithinProfile, issue = ex.ToString() });
+                logger.LogError(ex, "Unable to load workflow from '{WorkflowPath}'.", workflowMatch.WorkflowPath);
+                workflowFailure = workflowFailure.Add(new { path = workflowMatch.WorkflowPathWithinProfile, issue = ex.ToString() });
             }
         }
 
         var utcNow = DateTimeOffset.UtcNow; // note: Keeps the timestamp stable for all items.
         var result =
-            from match in workflows
-            let trigger = match.CreateTrigger()
-            let next = trigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
+            from workflow in workflows
+            let next = workflow.Trigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
             //orderby next.FirstOrDefault(), match.Name
-            orderby match.Name.ToString()
+            orderby workflow.Name.ToString()
             select new
             {
-                path = match.Path,
-                name = match.Name,
-                isOn = match.Enabled,
-                cron = ((ICronTrigger)trigger).CronExpressionString,
+                path = workflow.Path,
+                name = workflow.Name,
+                isOn = workflow.Enabled,
+                cron = ((ICronTrigger)workflow.Trigger).CronExpressionString,
                 next = next,
-                jobs = match.Steps.Count(s => s.Enabled),
+                jobs = workflow.Steps.Count(s => s.Enabled),
             };
 
         return new
@@ -103,4 +102,3 @@ public class WorkflowNotExecutableExceptionHandler : CommandExceptionHandler<Wor
     protected override (int StatusCode, string Message) Evaluate(Exception exception) => (StatusCodes.Status422UnprocessableEntity, exception.Message);
 }
 
-public class CommandException<TCommand>(string message, Exception? inner = null) : Exception(message, inner);

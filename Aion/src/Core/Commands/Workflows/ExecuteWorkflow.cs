@@ -1,15 +1,12 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Logging;
 using Aion.Core.Options;
-using Aion.Core.Quartz.Jobs;
 using Aion.Core.Workflows;
-using Aion.Core.Workflows.StepExecutionRules;
-using Aion.Home.Endpoints;
+using Aion.Home.Jobs;
 using Aion.Util;
 using Aion.Util.Logging;
 using Aion.Util.Serilog;
@@ -23,7 +20,6 @@ public class ExecuteWorkflow
     ILogger<WorkflowJob> logger,
     IOptions<SchedulerOptions> schedulerOptions,
     LogEventMapping logEventMapping,
-    IEnumerable<IStepExecutionRule> stepExecutionRules,
     RenderWorkflow renderWorkflow,
     AsyncProcess process
 )
@@ -32,13 +28,12 @@ public class ExecuteWorkflow
     (
         string profileName,
         string workflowName,
-        WorkflowMode mode,
         IImmutableList<StepIdentifier>? stepOrder = null
     )
     {
         var profile = schedulerOptions.Value.Profiles[profileName];
         var workflowMatch = profile.Workflows.Single(workflowName);
-        var workflow = await renderWorkflow.For(workflowMatch, stepOrder: stepOrder);
+        var workflow = await renderWorkflow.For(workflowMatch, WorkflowTrigger.Create(profileName, workflowName, DateTimeOffset.UtcNow), stepOrder: stepOrder);
         return await Now(workflow);
     }
 
@@ -66,32 +61,56 @@ public class ExecuteWorkflow
         var stepResults = ImmutableList<StepResult>.Empty;
         foreach (var step in workflow.Steps)
         {
-            var stepResult = await ExecuteStep(step, stepResults);
+            var stepResult = await ExecuteStep(step);
             stepResults = stepResults.Add(stepResult);
+
+            if (stepResult.ExitCode is not null and not 0 && step.OnFailure is { } onFailure)
+            {
+                if (onFailure.Trim().Equals("continue", StringComparison.OrdinalIgnoreCase))
+                {
+                    // core: Just continue with the next step.
+                }
+
+                if (onFailure.Trim().Equals("break", StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning("Workflow execution stopped due to a failed step.");
+                    break;
+                }
+            }
         }
 
         activity.SetStatus(ActivityStatusCode.Ok).Stop();
+
         logger.LogInformation("Workflow completed in {Duration}.", activity.Duration);
+        logger.LogInformation("Executed {StepCount} step(s) of which {StepCountPassed} was/were successful.", stepResults.Count, stepResults.Count(result => result.ExitCode == 0));
 
         return stepResults;
     }
 
-    private async Task<StepResult> ExecuteStep(Workflow.Step step, IImmutableList<StepResult> results)
+    private async Task<StepResult> ExecuteStep(Workflow.Step step)
     {
-        // meta: Setup logging contexts.
-        using var activity = new Activity("ExecutingStep").Start();
-        using var executionSignature = new StepSignatureScope(logger);
-        using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name });
-        using var logging = logEventMapping.By(executionSignature, to: step.Logging.ToLogger());
-
-        var exitCodes = results.Select(r => r.ExitCode).ToImmutableList();
-        if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(step, exitCodes)))
+        if (!step.Enabled)
         {
             return new StepResult
             {
                 Step = step,
             };
         }
+
+        // meta: Setup logging contexts.
+        using var activity = new Activity("ExecutingStep").Start();
+        using var executionSignature = new StepSignatureScope(logger);
+        using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name });
+        using var logging = logEventMapping.By(executionSignature, to: step.Logging.ToLogger());
+
+        //var exitCodes = results.Select(r => r.ExitCode).ToImmutableList();
+        // if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(step, exitCodes)))
+        // {
+        //     return new StepResult
+        //     {
+        //         Step = step,
+        //     };
+        // }
 
         try
         {
@@ -108,7 +127,8 @@ public class ExecuteWorkflow
                     //     psi.ArgumentList.Add(arg);
                     // }
 
-                    psi.Arguments = step.Arguments();
+                    psi.Arguments = step.Arguments().RenderArguments();
+                    //psi.AddArguments(step.Arguments());
                     psi.WorkingDirectory = step.WorkingDirectory;
 
                     foreach (var (name, value) in step.Environment)
@@ -122,7 +142,7 @@ public class ExecuteWorkflow
             switch (exitCode)
             {
                 case 0: logger.LogInformation("Step completed in {Duration}.", activity.Duration); break;
-                default: logger.LogError("Step failed in {Duration} with exit code {ExitCode}.", activity.Duration, exitCode); break;
+                default: logger.LogError("Step failed in {Duration} with exit code {ExitCode}. Next: '{OnFailure}'.", activity.Duration, exitCode, step.OnFailure); break;
             }
 
             return new StepResult
@@ -162,8 +182,7 @@ public record StepResult
 {
     public required Workflow.Step Step { get; init; }
     public int? ExitCode { get; init; }
+    public string Status => ExitCode switch { 0 => "OK", null => "Skipped", _ => "Error" };
     public Exception? Exception { get; init; }
     public TimeSpan? Duration { get; init; }
 }
-
-public class WorkflowNotExecutableException(string message) : Exception(message);

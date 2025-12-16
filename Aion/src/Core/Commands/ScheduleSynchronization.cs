@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Aion.Core.Options;
 using Aion.Core.Quartz;
-using Aion.Core.Quartz.Jobs;
+using Aion.Home.Jobs;
 using Aion.Util.Quartz;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -22,15 +22,16 @@ public class ScheduleSynchronization
 
         foreach (var (profileName, profile) in options.Value.Profiles)
         {
-            if (!profile.Enabled)
+            if (!profile.Sync.Enabled)
             {
                 logger.LogWarning("Skipping profile '{ProfileName}' because it is not configured to sync.", profileName);
                 continue;
             }
 
             var jobDetail = JobBuilder
-                .Create<SynchronizationJob>()
-                .WithIdentity("sync-workflows", GroupName.For<SynchronizationJob>(profileName))
+                .Create<ProfileJob>()
+                .WithIdentity("sync-profile", GroupName.For<ProfileJob>(profileName))
+                .StoreDurably()
                 .Build();
 
             await scheduler.AddJob(jobDetail, true);
@@ -39,9 +40,9 @@ public class ScheduleSynchronization
             await scheduler.ScheduleJob(
                 TriggerBuilder.Create()
                     .ForJob(jobDetail)
-                    .WithIdentity("sync-workflows-cron", GroupName.For<SynchronizationJob>(profileName))
+                    .WithIdentity("sync-profile-cron", GroupName.For<ProfileJob>(profileName))
                     .UsingJobData(JobDataKeys.ProfileName, profileName)
-                    .WithCronSchedule(profile.Sync)
+                    .WithCronSchedule(profile.Sync.Cron)
                     .Build()
             );
 
@@ -49,7 +50,7 @@ public class ScheduleSynchronization
             await scheduler.ScheduleJob(
                 TriggerBuilder.Create()
                     .ForJob(jobDetail)
-                    .WithIdentity("sync-workflows-once", GroupName.For<SynchronizationJob>(profileName))
+                    .WithIdentity("sync-profile-once", GroupName.For<ProfileJob>(profileName))
                     .UsingJobData(JobDataKeys.ProfileName, profileName)
                     .WithSimpleSchedule(x => x.WithRepeatCount(0))
                     .StartNow()

@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading.Tasks;
+using Aion.Core;
 using Aion.Core.Commands.Workflows;
+using Aion.Core.Mvc;
 using Aion.Core.Workflows;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -13,7 +16,7 @@ public static class WorkflowsEndpoint
 {
     public static void MapWorkflows(this WebApplication app)
     {
-        var workflows = app.MapGroup("api/profiles/{profileName}");
+        var workflows = app.MapGroup("api/profiles/{profileName}").AddEndpointFilter<ProfileExistenceFilter>();
         workflows.MapGet("workflows", GetWorkflows);
         workflows.MapPost("workflows/{workflowName}:start-now", StartNow);
         workflows.MapPost("workflows/{workflowName}:start-in", StartIn);
@@ -27,43 +30,54 @@ public static class WorkflowsEndpoint
         return Results.Ok(workflows);
     }
 
-    private static async Task<IResult> StartNow(ExecuteWorkflow executeWorkflow, string profileName, string workflowName, [FromBody] StartWorkflowBody body)
+    private static async Task<IResult> StartNow(ExecuteWorkflow executeWorkflow, string profileName, string workflowName, [FromBody] WorkflowStartNowBody? body)
     {
-        var stepResults = await executeWorkflow.Now(profileName, workflowName, WorkflowMode.User, body.Steps.ToImmutableList());
-        return Results.Accepted($"/api/profiles/{profileName}/workflows/{workflowName}", new { stepResults });
+        var stepResults = await executeWorkflow.Now(profileName, workflowName, body?.Steps.ToImmutableList());
+        var results =
+            from stepResult in stepResults
+            select new
+            {
+                stepResult.Step.Index,
+                stepResult.Step.Name,
+                stepResult.ExitCode,
+                stepResult.Status,
+                stepResult.Duration,
+                stepResult.Exception?.Message
+            };
+        return Results.Ok(new { stepResults = results });
     }
 
-    private static async Task<IResult> StartIn(ScheduleWorkflow command, string profileName, string workflowName, [FromBody] StartWorkflowInBody body)
+    private static async Task<IResult> StartIn(ScheduleWorkflow command, string profileName, string workflowName, [FromBody] WorkflowStartInBody body)
     {
         var scheduledFor = await command.Invoke(profileName, workflowName, DateTimeOffset.UtcNow + body.Wait);
         return Results.Accepted($"/api/profiles/{profileName}/workflows/{workflowName}", new { scheduledFor });
     }
 
-    private static async Task<IResult> StartAt(ScheduleWorkflow command, string profileName, string workflowName, [FromBody] StartWorkflowAtBody body)
+    private static async Task<IResult> StartAt(ScheduleWorkflow command, string profileName, string workflowName, [FromBody] WorkflowStartAtBody body)
     {
         var scheduledFor = await command.Invoke(profileName, workflowName, body.WhenUtc);
         return Results.Accepted($"/api/profiles/{profileName}/workflows/{workflowName}", new { scheduledFor });
     }
 
-    private static async Task<IResult> Synchronize(SynchronizeWorkflows command, string profileName)
+    private static async Task<IResult> Synchronize(SynchronizeProfile synchronizeProfile, string profileName)
     {
-        var workflows = await command.Invoke(profileName);
-        return Results.Ok(workflows);
+        var syncResults = await synchronizeProfile.Invoke(profileName);
+        return Results.Ok(syncResults);
     }
 }
 
-public record StartWorkflowBody
+public record WorkflowStartNowBody
 {
-    public StepIdentifier[] Steps { get; init; } = null!;
+    public StepIdentifier[] Steps { get; init; } = [];
 }
 
-public record StartWorkflowInBody
+public record WorkflowStartInBody
 {
     public TimeSpan Wait { get; init; }
 }
 
 // note: Does not validate the input because the scheduler does that already.
-public record StartWorkflowAtBody
+public record WorkflowStartAtBody
 {
     public DateTime When { get; init; }
 
