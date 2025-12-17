@@ -7,12 +7,15 @@ The name comes from the _(Greek: Αἰών)_ `Aion` who is a Hellenistic deity a
 ## Configuration
 
 
+https://github.com/serilog/serilog-expressions
+https://github.com/scriban/scriban/blob/master/doc/builtins.md
+
 
 ### `appsettings.json` schema
 
 This file contains two custom sections.
 
-- `Instance`
+- `Scheduler`
 
 ```yaml
 Name: string # Required name of the instance.
@@ -65,25 +68,39 @@ Logging: json # Logging preset or Serilog configuration.
 Steps:
   - Enabled: boolean # Required if this step should be executed. Defaults to false.
     FileName: string | template # Required file-name to execute.
-    Arguments: string | array # Arguments to use.
+    Arguments: # Arguments to use.
+      string: string | array # --arg item1 --arg item2
+      string[]: string | array # --arg item1 item2
+      string[,]: string | array # --arg item1,item2
+      string=[,]: string | array # --arg=item1,item2
+      _: string | array # positional args
+      $: string | array # raw vaues (no processing)      
     Environment: # Environment variables to apply to each step.
       string: string # Name/value pairs.
     DependsOn: $previous | array<int> # Whether this step depends on the result of the previous one.
-    Logging: json # Logging preset or Serilog configuration.
+    OnFaiure: string | null # break, continue (default)
+    Logging: # Std logging settings.    
+      source: string | null # None, Auto, Preset, Custom
+      preset: string | null # Preset name.
+      custom: object | null # Serilog configuration.
+      global: bool # Whether to inlcude the output in the global log.
+      target: string # Self (default), Main - Where to inlcude the output.
 ```
 
 ## Variables
 
 ```yaml
 
-- Instance.Name
+- Scheduler.Name
+- Scheduler.Directory
 - Profile.Name
-- Execution.Mode
+- Profile.Path
 - Workflow.Name
+- Workflow.Mode
 - Step.Name
 - Step.Index
-- Step.Iraceid
-- Step.Spanid
+- Step.TraceId
+- Step.SpanId
 - Step.Parentid
 
 ```

@@ -46,12 +46,22 @@ public class WorkflowSignatureScope : ILogEventSignature, IDisposable
     public bool Matches(LogEvent logEvent)
     {
         // core: The workflow logger is allowed to log only console-engine events, no std.
-        if (!logEvent.TryGetScalar<ConsoleStreamType>(nameof(ConsoleStreamType), out var source)) return false;
-        if (!(source == ConsoleStreamType.Engine)) return false;
-        if (!logEvent.TryGetScalar<string>(nameof(WorkflowExecutionId), out var workflowExecutionId)) return false;
-        if (!(ActivitySpanId.CreateFromString(workflowExecutionId) == WorkflowExecutionId)) return false;
+        if (logEvent.TryGetScalar<ConsoleStreamType>(nameof(ConsoleStreamType), out var source))
+        {
+            // core: The workflow logger is not allowed to log std.out and std.err events.
+            if (source is ConsoleStreamType.StdOut or ConsoleStreamType.StdErr)
+            {
+                return false;
+            }
+        }
 
-        return true;
+        // core: The workflow logger is allowed to log only events with the workflow-execution-ID that is the same as this one.
+        if (logEvent.TryGetScalar<string>(nameof(WorkflowExecutionId), out var workflowExecutionId))
+        {
+            return ActivitySpanId.CreateFromString(workflowExecutionId) == WorkflowExecutionId;
+        }
+
+        return false;
     }
 
     public void Dispose() => Scope?.Dispose();

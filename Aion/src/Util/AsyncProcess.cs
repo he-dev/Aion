@@ -60,14 +60,14 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
 
         try
         {
-            logger.LogInformation("Executing: '{File}'.", file);
-            logger.LogInformation("Arguments: '{Args}'.", process.StartInfo.Arguments);
+            logger.LogInformation("Executing file: '{File}'.", file);
+            logger.LogInformation("With arguments: '{Args}'.", process.StartInfo.Arguments);
 
             if (process.Start())
             {
                 // ReSharper disable once StringLiteralTypo - becasue it's nagging about the command.
                 // util: This is a convenience ready-to-use command for killing the process.
-                logger.LogInformation
+                logger.LogDebug
                 (
                     "taskkill /F /FI \"PID eq {PID}\" /FI \"SESSION eq {SID}\" /FI \"IMAGENAME eq {ImageName}\" /FI \"SERVICES eq false\"",
                     process.Id,
@@ -88,8 +88,8 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
 
                 switch (process.ExitCode)
                 {
-                    case 0: logger.LogInformation("Process completed in {Elapsed}.", stopwatch.Elapsed); break;
-                    default: logger.LogError("Process failed after {Elapsed} with code {ExitCode}.", stopwatch.Elapsed, process.ExitCode); break;
+                    case 0: logger.LogInformation("Process completed in {Elapsed:N0} ms.", stopwatch.Elapsed.TotalMilliseconds); break;
+                    default: logger.LogError("Process failed after {Elapsed:N0} ms with code {ExitCode}.", stopwatch.Elapsed.TotalMilliseconds, process.ExitCode); break;
                 }
 
                 return process.ExitCode;
@@ -100,7 +100,7 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
         catch (OperationCanceledException)
         {
             // core: This exception is thrown when the timeout is reached.
-            logger.LogWarning("Process timed out after {Elapsed} ms.", stopwatch.Elapsed);
+            logger.LogWarning("Process timed out after {Elapsed:N0} ms.", stopwatch.Elapsed.TotalMilliseconds);
             try
             {
                 if (!process.HasExited)
@@ -138,7 +138,7 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
             stdStreamCompletion.TrySetResult(true);
 
             // core: Allow the user to use this property in the message template.
-            logger.LogDebug("EOF after {Elapsed}", stopwatch.Elapsed);
+            logger.LogDebug("EOF after {Elapsed} ms.", stopwatch.Elapsed.TotalMilliseconds);
         }
         else
         {

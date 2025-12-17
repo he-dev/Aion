@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -55,14 +56,14 @@ public class ExecuteWorkflow
         using var executionSignature = new WorkflowSignatureScope(logger);
         using var logging = logEventMapping.By(executionSignature, to: workflow.Logging.ToLogger());
 
-        logger.LogInformation("Executing workflow...");
+        logger.LogInformation("Executing workflow: '{WorkflowName}'", workflow.Name);
 
         // core: Does not filter out disabled steps because we want them logged.
-        var stepResults = ImmutableList<StepResult>.Empty;
+        var stats = new WorkflowStats();
         foreach (var step in workflow.Steps)
         {
             var stepResult = await ExecuteStep(step);
-            stepResults = stepResults.Add(stepResult);
+            stats.Add(stepResult);
 
             if (stepResult.ExitCode is not null and not 0 && step.OnFailure is { } onFailure)
             {
@@ -81,10 +82,17 @@ public class ExecuteWorkflow
 
         activity.SetStatus(ActivityStatusCode.Ok).Stop();
 
-        logger.LogInformation("Workflow completed in {Duration}.", activity.Duration);
-        logger.LogInformation("Executed {StepCount} step(s) of which {StepCountPassed} was/were successful.", stepResults.Count, stepResults.Count(result => result.ExitCode == 0));
+        logger.LogInformation("Workflow '{WorkflowName}' completed in {Duration:N0} ms.", workflow.Name, activity.Duration);
+        logger.LogInformation
+        (
+            "Steps={TotalStepCount}, Executed={ExecutedStepCount}, Passed={PassedStepCount}, Failed={FailedStepCount}.",
+            stats.TotalStepCount,
+            stats.ExecutedStepCount,
+            stats.PassedStepCount,
+            stats.FailedStepCount
+        );
 
-        return stepResults;
+        return stats.ToImmutableList();
     }
 
     private async Task<StepResult> ExecuteStep(Workflow.Step step)
@@ -100,7 +108,7 @@ public class ExecuteWorkflow
         // meta: Setup logging contexts.
         using var activity = new Activity("ExecutingStep").Start();
         using var executionSignature = new StepSignatureScope(logger);
-        using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name });
+        using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name, step.LoggingTarget });
         using var logging = logEventMapping.By(executionSignature, to: step.Logging.ToLogger());
 
         //var exitCodes = results.Select(r => r.ExitCode).ToImmutableList();
@@ -115,22 +123,15 @@ public class ExecuteWorkflow
         try
         {
             //activity.Start();
-            logger.LogInformation("Executing step...");
+            logger.LogInformation("Executing step: {StepIndex}", step.Index);
             var exitCode = await process.Start
             (
                 step.FileName,
                 step.Timeout,
                 psi =>
                 {
-                    // foreach (var arg in context.Step.Arguments.RenderArgList(variables))
-                    // {
-                    //     psi.ArgumentList.Add(arg);
-                    // }
-
-                    psi.Arguments = step.Arguments().RenderArguments();
-                    //psi.AddArguments(step.Arguments());
+                    psi.Arguments = step.Arguments().Join();
                     psi.WorkingDirectory = step.WorkingDirectory;
-
                     foreach (var (name, value) in step.Environment)
                     {
                         psi.EnvironmentVariables[name] = value;
@@ -141,8 +142,8 @@ public class ExecuteWorkflow
 
             switch (exitCode)
             {
-                case 0: logger.LogInformation("Step completed in {Duration}.", activity.Duration); break;
-                default: logger.LogError("Step failed in {Duration} with exit code {ExitCode}. Next: '{OnFailure}'.", activity.Duration, exitCode, step.OnFailure); break;
+                case 0: logger.LogInformation("Step {StepIndex} completed in {Duration:N0} ms.", step.Index, activity.Duration); break;
+                default: logger.LogError("Step {StepIndex} failed after {Duration:N0} ms with exit code {ExitCode}. Next: '{OnFailure}'.", step.Index, activity.Duration, exitCode, step.OnFailure); break;
             }
 
             return new StepResult
@@ -155,7 +156,7 @@ public class ExecuteWorkflow
         catch (ProcessTimeout ex)
         {
             activity.SetStatus(ActivityStatusCode.Error).Stop();
-            logger.LogWarning("Step was cancelled in {Duration} by timeout.", activity.Duration);
+            logger.LogWarning("Step {StepIndex} was cancelled in {Duration:N0} ms by timeout.", step.Index, activity.Duration);
             return new StepResult
             {
                 Step = step,
@@ -166,7 +167,7 @@ public class ExecuteWorkflow
         catch (Exception ex)
         {
             activity.SetStatus(ActivityStatusCode.Error).Stop();
-            logger.LogError(ex, "Step failed in {Duration} with an exception.", activity.Duration);
+            logger.LogError(ex, "Step {StepIndex} failed after {Duration:N0} ms with an exception.", step.Index, activity.Duration);
             return new StepResult
             {
                 Step = step,
@@ -185,4 +186,12 @@ public record StepResult
     public string Status => ExitCode switch { 0 => "OK", null => "Skipped", _ => "Error" };
     public Exception? Exception { get; init; }
     public TimeSpan? Duration { get; init; }
+}
+
+public class WorkflowStats : Collection<StepResult>
+{
+    public int TotalStepCount => Count;
+    public int ExecutedStepCount => this.Count(result => result.ExitCode is not null);
+    public int PassedStepCount => this.Count(result => result.ExitCode == 0);
+    public int FailedStepCount => this.Count(result => result.ExitCode is not null && result.ExitCode != 0);
 }

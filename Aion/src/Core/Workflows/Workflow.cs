@@ -38,7 +38,7 @@ public record Workflow
         public string FileName { get; init; } = null!;
 
         // note: Arguments can pass runtime values such as activity ids, so this property must be lazy.
-        public Func<IEnumerable<CommandLineArgument>> Arguments { get; init; } = null!;
+        public Func<IEnumerable<StepArgument>> Arguments { get; init; } = null!;
 
         public IImmutableDictionary<string, string> Environment { get; init; } = null!;
 
@@ -51,5 +51,7 @@ public record Workflow
         public string? OnFailure { get; init; }
 
         public string? DependsOn { get; init; }
+
+        public LoggingTarget LoggingTarget { get; init; }
     }
 }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using Aion.Util.Json;
 using Scriban;
+using Scriban.Functions;
 using Scriban.Parsing;
 using Scriban.Runtime;
 using Scriban.Syntax;
@@ -23,7 +24,7 @@ public static class TemplateRendering
         var customFunctions = new ScriptObject(StringComparer.OrdinalIgnoreCase);
         customFunctions.Import("env", TemplateFunctions.GetEnvironmentVariable);
 
-        var customContext = new TemplateContext
+        var context = new TemplateContext
         {
             // core: Make sure no missing variable goes unnoticed.
             StrictVariables = true,
@@ -35,13 +36,15 @@ public static class TemplateRendering
                 throw new ScriptRuntimeException(span, $"Variable '{member}' not found while rendering '{context.CurrentGlobal}'.");
             })
         };
-        customContext.PushGlobal(customFunctions);
+        context.PushGlobal(ScriptObject.From(typeof(BuiltinFunctions)));
+        context.PushGlobal(ScriptObject.From(typeof(StringFunctions)));
+        context.PushGlobal(customFunctions);
 
         // meta: Create a composite variable group for each name because they otherwise got replaced.
         var compositeGroups =  variableGroups.GroupBy(g => g.Name).Select(g => new CompositeVariableGroup(g));
         foreach (var variableGroup in compositeGroups)
         {
-            customContext.PushGlobal(variableGroup.ToScriptObject());
+            context.PushGlobal(variableGroup.ToScriptObject());
         }
 
         var current = template;
@@ -57,7 +60,7 @@ public static class TemplateRendering
         while (current != previous && passes < maxPasses)
         {
             previous = current;
-            current = Template.Parse(current, parserOptions: parserOptions).Render(customContext);
+            current = Template.Parse(current, parserOptions: parserOptions).Render(context);
             passes++;
         }
 

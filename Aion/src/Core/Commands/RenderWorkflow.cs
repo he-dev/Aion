@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Logging;
@@ -8,7 +7,6 @@ using Aion.Core.Options;
 using Aion.Core.Workflows;
 using Aion.Util;
 using Aion.Util.Logging;
-using Aion.Util.Quartz;
 using Aion.Util.Templates;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -127,19 +125,20 @@ public class RenderWorkflow
                 Name = template.Name,
                 Enabled = template.Enabled,
                 FileName = template.FileName.Render(variables),
-                Arguments = () => template.Arguments.Select(cla => cla with { Values = cla.Values?.Select(v => v.Render(variables)).ToArray() }),
+                Arguments = () => template.Arguments.Select(argument => argument.RenderValues(variables)),
                 // core: Merge environment with intended precedence: the step overrides workflow.
                 Environment = environment.SetItems(template.Environment),
                 WorkingDirectory = (template.WorkingDirectory ?? string.Empty).Render(variables),
                 Timeout = template.Timeout ?? System.Threading.Timeout.InfiniteTimeSpan,
                 DependsOn = template.DependsOn,
                 Logging = await template.Logging.Get(loggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
+                LoggingTarget = template.Logging.Target,
             }.Also(step =>
             {
                 // meta: Rendering arguments requires an activity in scope.
-                using var activity = new Activity("RenderingStepArguments").Start();
+                // using var activity = new Activity("RenderingStepArguments").Start();
                 // meta: Make sure that arguments are renderable before they are used.
-                //step.Arguments();
+                // step.Arguments();
             });
         }
         catch (Exception ex)
