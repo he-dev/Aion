@@ -11,13 +11,13 @@ using Quartz;
 
 namespace Aion.Core.Quartz.JobExecutionRules;
 
-public class WorkflowCannotExecuteWhenDowntime
+public class WorkflowCannotExecuteDuringDowntime
 (
-    ILogger<WorkflowCannotExecuteWhenDowntime> logger,
+    ILogger<WorkflowCannotExecuteDuringDowntime> logger,
     IOptions<SchedulerOptions> schedulerOptions
 ) : ITriggerListener
 {
-    public string Name => nameof(WorkflowCannotExecuteWhenDowntime);
+    public string Name => nameof(WorkflowCannotExecuteDuringDowntime);
 
     public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
@@ -66,15 +66,21 @@ public class WorkflowCannotExecuteWhenDowntime
 
     public Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
+        var profileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
+        var workflowName = trigger.JobDataMap.GetString(JobDataKeys.WorkflowName)!;
+
         using var scope = logger.BeginScopeFrom(new { ProfileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName) });
-        logger.LogDebug("Workflow execution trigger '{TriggerName}' has fired.", trigger.Key.Name);
+        logger.LogDebug("Workflow trigger '{TriggerName}' has fired.", trigger.Key.Name);
         return Task.CompletedTask;
     }
 
     public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        using var scope = logger.BeginScopeFrom(new { ProfileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName) });
-        logger.LogWarning("Workflow execution trigger '{TriggerName}' has misfired.", trigger.Key.Name);
+        var profileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
+        var workflowName = trigger.JobDataMap.GetString(JobDataKeys.WorkflowName)!;
+
+        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
+        logger.LogWarning("Workflow trigger '{TriggerName}' has misfired.", trigger.Key.Name);
         return Task.CompletedTask;
     }
 

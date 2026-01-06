@@ -8,6 +8,15 @@ POST {{host}}{{profiles.two}}/workflows/hallo-npc:start-now
 ### Starts workflow at the specified time.
 POST {{host}}{{profiles.two}}/workflows/hallo-1-of-3:start-now
 
+### Starts workflow at the specified time.
+POST {{host}}{{profiles.two}}/workflows/hallo-cmd:start-now
+
+### Starts workflow at the specified time.
+POST {{host}}{{profiles.two}}/workflows/hallo-pwsh:start-now
+
+### Starts workflow at the specified time.
+POST {{host}}{{profiles.two}}/workflows/hallo-variables:start-now
+
 
 ### Starts workflow at the specified time.
 POST {{host}}{{profiles.two}}/workflows/hallo-npc:start-now
@@ -25,4 +34,6 @@ Content-Type: application/json
   "steps": [1, "foo"]
 }
 
+### Starts workflow at the specified time.
+POST {{host}}{{profiles.two}}/workflows:sync
 

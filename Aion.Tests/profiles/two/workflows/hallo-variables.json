@@ -2,32 +2,34 @@
   "Enabled": true,
   "Cron": "0/30 * * * * ?",
   "Variables": {
-    "NpcExe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe",
-    "LoggingPreset": "Console.Simple"
+    "LoggingPreset": "ConsoleFile28Days"
   },
   "Steps": [
     {
       "Enabled": true,
       "Name": "TheFirst",
-      "FileName": "{{ Workflow.NpcExe }}",
-      "Arguments": [
-        "--sleep", "1",
-        "--message", "Hallo variables!",
-        "--aion-instance", "{{ aion.instance }}",
-        "--profile-name", "{{ profile.name }}",
-        "--workflow-name", "{{ workflow.name }}",
-        "--step-index", "{{ step.index }}",
-        "--step-name", "{{ step.name }}",
-        "--step-trace-id", "{{ step.traceId }}",
-        "--step-span-id", "{{ step.spanId }}",
-        "--step-parent-id", "{{ step.parentId }}"
-      ],
+      "FileName": "{{ Variables.NpcExe }}",
+      "Arguments": {
+        "--sleep-seconds": 0,
+        "--message": "Hallo variables!",
+        "--scheduler": "{{ Scheduler.Name }}",
+        "--profile[]": [
+          "foo",
+          "{{ Profile.Name }}"
+        ],
+        "--workflow": "{{ Workflow.Name }}",
+        "--step-index": "{{ Step.Index }}",
+        "--step-name": "{{ Step.Name }}",
+        "--step-trace-id": "{{ Step.TraceId }}",
+        "--step-span-id": "{{ Step.SpanId }}",
+        "--step-parent-id": "{{ Step.ParentId }}"
+      },
       "Logging": {
-        "Preset": "{{ Workflow.LoggingPreset }}"
+        "Preset": "StepFile28Days"
       }
     }
   ],
   "Logging": {
-    "Preset": "Workflow.Simple"
+    "Preset": "WorkflowFile28Days"
   }
 }

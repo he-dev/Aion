@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
-using System.Text.Json.Serialization;
+﻿using System;
+using System.Collections.Generic;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 using Aion.Core.Logging;
 using Aion.Core.Workflows;
 using Aion.Util;
@@ -19,16 +21,26 @@ public class Profile
 
     public WorkflowDirectory Workflows
     {
-        get;
-        set { field = value.Also(x => x.Profile = this); }
+        get => field; //?? throw new InvalidOperationException("Workflows are not configured.");
+        set { field = value.Also(x => x.Profile = this); } // note: Is set implicitly by the json-serializer.
     }
 
     public Dictionary<string, string> Variables { get; set; } = new();
 
     public Dictionary<string, string> Environment { get; set; } = new();
 
-    [JsonIgnore]
-    public LoggingPresetRepository LoggingPresets => new(Path);
+    private LoggingPresetRepository LoggingPresets => new(Path);
+
+    public async Task<JsonObject?> GetLoggingOrDefault(LoggingConfiguration loggingConfiguration)
+    {
+        return loggingConfiguration.Source switch
+        {
+            LoggingSource.Auto => loggingConfiguration.Custom ?? await LoggingPresets.Find(loggingConfiguration.Preset),
+            LoggingSource.Preset => await LoggingPresets.Find(loggingConfiguration.Preset) ?? throw new InvalidOperationException("Preset logging is missing."),
+            LoggingSource.Custom => loggingConfiguration.Custom ?? throw new InvalidOperationException("Custom logging is missing."),
+            _ => null
+        };
+    }
 }
 
 public class ProfileSync

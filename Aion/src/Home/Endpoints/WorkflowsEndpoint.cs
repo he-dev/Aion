@@ -3,9 +3,9 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core;
+using Aion.Core.Commands.Profiles;
 using Aion.Core.Commands.Workflows;
 using Aion.Core.Mvc;
-using Aion.Core.Workflows;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,9 +24,9 @@ public static class WorkflowsEndpoint
         workflows.MapPost("workflows:sync", Synchronize);
     }
 
-    private static async Task<IResult> GetWorkflows(GetWorkflows command, string profileName, [FromQuery(Name = "q")] string? workflowFilter)
+    private static async Task<IResult> GetWorkflows(GetWorkflows getWorkflows, string profileName, [FromQuery(Name = "q")] string? workflowFilter)
     {
-        var workflows = await command.Invoke(profileName, workflowFilter);
+        var workflows = await getWorkflows.Invoke(profileName, workflowFilter);
         return Results.Ok(workflows);
     }
 
@@ -40,7 +40,7 @@ public static class WorkflowsEndpoint
                 stepResult.Step.Index,
                 stepResult.Step.Name,
                 stepResult.ExitCode,
-                stepResult.Status,
+                Status = stepResult.Status.ToString(),
                 stepResult.Duration,
                 stepResult.Exception?.Message
             };

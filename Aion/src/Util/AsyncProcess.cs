@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Aion.Util.Logging;
@@ -15,7 +14,7 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
     (
         string file,
         TimeSpan timeout,
-        Action<ProcessStartInfo>? customizesProcessStartInfo = null,
+        Action<ProcessStartInfo>? customizeProcessStartInfo = null,
         Action<string>? logStdErr = null,
         Action<string>? logStdOut = null
     )
@@ -36,7 +35,7 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
             }
         };
 
-        customizesProcessStartInfo?.Invoke(process.StartInfo);
+        customizeProcessStartInfo?.Invoke(process.StartInfo);
 
         // util: Let's measure the execution time.
         var stopwatch = Stopwatch.StartNew();
@@ -138,7 +137,7 @@ public class AsyncProcess(ILogger<AsyncProcess> logger)
             stdStreamCompletion.TrySetResult(true);
 
             // core: Allow the user to use this property in the message template.
-            logger.LogDebug("EOF after {Elapsed} ms.", stopwatch.Elapsed.TotalMilliseconds);
+            logger.LogTrace("EOF after {Duration} ms.", stopwatch.Elapsed.TotalMilliseconds);
         }
         else
         {

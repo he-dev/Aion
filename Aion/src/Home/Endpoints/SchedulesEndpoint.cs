@@ -12,12 +12,12 @@ public static class SchedulesEndpoint
     public static void MapSchedules(this WebApplication app)
     {
         var workflows = app.MapGroup("api/profiles/{profileName}/schedules").AddEndpointFilter<ProfileExistenceFilter>();
-        workflows.MapPost("", GetSchedules);
+        workflows.MapGet("", GetSchedules);
     }
 
-    private static async Task<IResult> GetSchedules(GetSchedules getSchedules, string profileName, [FromQuery(Name = "q")] string? workflowFilter)
+    private static async Task<IResult> GetSchedules(GetWorkflowSchedules getWorkflowSchedules, string profileName, [FromQuery(Name = "q")] string? workflowFilter)
     {
-        var workflows = await getSchedules.Invoke(profileName, workflowFilter);
+        var workflows = await getWorkflowSchedules.Invoke(profileName, workflowFilter);
         return Results.Ok(workflows);
     }
 }

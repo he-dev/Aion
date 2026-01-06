@@ -35,7 +35,8 @@ public class GetWorkflows
             {
                 if (workflowMatch.WorkflowName.IsUrlSafe)
                 {
-                    workflows = workflows.Add(await renderWorkflow.For(workflowMatch));
+                    var workflow = await renderWorkflow.For(workflowMatch);
+                    workflows = workflows.Add(workflow);
                     logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowMatch.WorkflowPath);
                 }
                 else
@@ -51,19 +52,22 @@ public class GetWorkflows
         }
 
         var utcNow = DateTimeOffset.UtcNow; // note: Keeps the timestamp stable for all items.
-        var result =
+        var results =
             from workflow in workflows
             let next = workflow.Trigger.FiresAt(utcNow).Take(3).Select(x => x.ToLocalTime())
-            //orderby next.FirstOrDefault(), match.Name
-            orderby workflow.Name.ToString()
+            orderby next.FirstOrDefault(), workflow.Name
             select new
             {
-                path = workflow.Path,
                 name = workflow.Name,
+                path = workflow.Path,
                 isOn = workflow.Enabled,
                 cron = ((ICronTrigger)workflow.Trigger).CronExpressionString,
                 next = next,
-                jobs = workflow.Steps.Count(s => s.Enabled),
+                steps = new
+                {
+                    workflow.Steps.Count,
+                    enabled = workflow.Steps.Where(s => s.Enabled).Select(s => s.Index)
+                }
             };
 
         return new
@@ -73,7 +77,7 @@ public class GetWorkflows
                 schedulerOptions.Value.Profiles[profileName].Name,
                 schedulerOptions.Value.Profiles[profileName].Path,
             },
-            result,
+            result = results,
             issues = workflowFailure
         };
     }

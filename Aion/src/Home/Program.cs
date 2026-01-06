@@ -1,6 +1,7 @@
 ﻿using System;
-using Aion.Core.Commands;
+using Aion.Core.Commands.Schedules;
 using Aion.Core.Commands.Workflows;
+using Aion.Core.Extensions;
 using Aion.Core.Options;
 using Aion.Core.Quartz;
 using Aion.Core.Quartz.JobExecutionRules;
@@ -10,7 +11,6 @@ using Aion.Home.Endpoints;
 using Aion.Home.Jobs;
 using Aion.Meta;
 using Aion.Util;
-using Aion.Util.Quartz;
 using Aion.Util.Serilog;
 using Aion.Util.Serilog.Enriching;
 using Microsoft.AspNetCore.Builder;
@@ -49,7 +49,7 @@ builder
     .ConfigureLogging(b => { b.ClearProviders(); })
     .UseSerilog((context, services, configuration) =>
     {
-        var engineOptions = services.GetRequiredService<IOptions<SchedulerOptions>>().Value;
+        var schedulerOptions = services.GetRequiredService<IOptions<SchedulerOptions>>().Value;
 
         // note: Main loggers are filtered in the appsettings.Serilog.json as there is no way to set up these filters here.
         // See https://github.com/serilog/serilog-expressions for all filter expressions.
@@ -59,7 +59,7 @@ builder
             .Enrich.With<EnrichesLogEventWithActivity>()
             //.Enrich.WithProperty("Application", Program.Name)
             //.Enrich.WithProperty("Version", Program.Version)
-            .Enrich.WithProperty("Instance", engineOptions.Name)
+            .Enrich.WithProperty("Instance", schedulerOptions.Name)
             .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
             .WriteTo.Sink(services.GetRequiredService<LogEventMapping>());
     });
@@ -76,12 +76,12 @@ builder.Services.AddScoped<IStepExecutionRule, StepMustBeEnabled>();
 builder.Services.AddScoped<IStepExecutionRule, StepDependsOnPrevious>();
 builder.Services.AddScoped<AsyncProcess>();
 builder.Services.AddScoped<WorkflowSynchronizationMustBeEnabled>();
-builder.Services.AddScoped<WorkflowCannotExecuteWhenDowntime>();
+builder.Services.AddScoped<WorkflowCannotExecuteDuringDowntime>();
 
 builder.Services.AddQuartz(configure =>
 {
-    configure.AddTriggerListener<WorkflowSynchronizationMustBeEnabled>(GroupMatcher<TriggerKey>.GroupStartsWith(GroupName.For<ProfileJob>()));
-    configure.AddTriggerListener<WorkflowCannotExecuteWhenDowntime>(GroupMatcher<TriggerKey>.GroupStartsWith(GroupName.For<WorkflowJob>()));
+    configure.AddTriggerListener<WorkflowSynchronizationMustBeEnabled>(GroupMatcher<TriggerKey>.GroupStartsWith(nameof(ProfileJob)));
+    configure.AddTriggerListener<WorkflowCannotExecuteDuringDowntime>(GroupMatcher<TriggerKey>.GroupStartsWith(nameof(WorkflowJob)));
 
     // note: The docs say that the default is 1 minute.
     configure.MisfireThreshold = TimeSpan.FromMinutes(2);
@@ -102,11 +102,11 @@ builder.Services.AddScheduleCommands();
 builder.Services.AddDowntimeCommands();
 
 builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<WorkflowNotExecutableExceptionHandler>();
+//builder.Services.AddExceptionHandler<WorkflowNotExecutableExceptionHandler>();
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
+//app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
 
 // Configure the HTTP request pipeline.
@@ -124,8 +124,9 @@ app.MapDowntimes();
 
 using (var scope = app.Services.CreateScope())
 {
-    var scheduleSynchronization = ActivatorUtilities.CreateInstance<ScheduleSynchronization>(scope.ServiceProvider);
-    await scheduleSynchronization.Execute();
+    await ActivatorUtilities
+        .CreateInstance<ScheduleProfileSynchronization>(scope.ServiceProvider)
+        .Invoke();
 }
 
 app.Run();

@@ -17,12 +17,12 @@ public static class WorkflowTrigger
     )
     {
         var options = createOptions();
-        var group = GroupName.For<WorkflowJob>(profileName, options.WorkflowMode);
+        var group = new JobGroup<WorkflowJob>(profileName);
 
         var builder =
             TriggerBuilder
                 .Create()
-                .ForJob(nameof(WorkflowJob), group)
+                .ForJob(workflowName, group)
                 .WithIdentity(workflowName, group)
                 .UsingJobData(JobDataKeys.WorkflowName, workflowName)
                 .UsingJobData(JobDataKeys.ProfileName, profileName)

@@ -23,7 +23,7 @@ public record WorkflowTemplate
 
     public Dictionary<string, string> Environment { get; init; } = new();
 
-    public LoggingInfo Logging { get; init; } = new();
+    public LoggingConfiguration Logging { get; init; } = new();
 
     public StepTemplate[] Steps { get; init; } = null!;
 
@@ -45,7 +45,7 @@ public record WorkflowTemplate
 
         public TimeSpan? Timeout { get; init; }
 
-        public LoggingInfo Logging { get; init; } = new();
+        public LoggingConfiguration Logging { get; init; } = new();
 
         public string? DependsOn { get; init; }
     }
@@ -88,25 +88,17 @@ public enum LoggingTarget
     Main = 0x2
 }
 
-public record LoggingInfo
+public record LoggingConfiguration
 {
     public LoggingSource Source { get; init; } = LoggingSource.Auto;
-    public string? Preset { get; init; }
+
+    [JsonConverter(typeof(LoggingPresetExpressionConverter))]
+    public LoggingPresetExpression? Preset { get; init; }
+
     public JsonObject? Custom { get; init; }
 
     [JsonConverter(typeof(FlagsEnumConverter<LoggingTarget>))]
     public LoggingTarget Target { get; init; } = LoggingTarget.Self;
-
-    public async Task<JsonObject?> Get(LoggingPresetRepository loggingPresets)
-    {
-        return Source switch
-        {
-            LoggingSource.Auto => Custom ?? await loggingPresets.Find(Preset),
-            LoggingSource.Preset when Preset is not null => await loggingPresets.Find(Preset),
-            LoggingSource.Custom when Custom is not null => Custom,
-            _ => null
-        };
-    }
 }
 
 public class FlagsEnumConverter<T> : JsonConverter<T> where T : struct, Enum

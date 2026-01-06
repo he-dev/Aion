@@ -11,25 +11,6 @@ using Serilog.Events;
 
 namespace Aion.Core.Logging;
 
-public class ProfileLogEventSignature : ILogEventSignature
-{
-    private ProfileLogEventSignature() { }
-
-    public ActivitySpanId SpanId { get; } = Activity.Current?.SpanId ?? throw new InvalidOperationException("Activity.Current is null.");
-
-    public bool Matches(LogEvent logEvent)
-    {
-        // core: The profile logger is allowed to log only console-engine events, no std.
-        if (!logEvent.TryGetScalar<ConsoleStreamType>(nameof(ConsoleStreamType), out var source)) return false;
-        if (!(source == ConsoleStreamType.Engine)) return false;
-        if (!logEvent.TryGetScalar<ActivitySpanId>(nameof(SpanId), out var spanId)) return false;
-        if (!(spanId == SpanId)) return false;
-
-        return true;
-    }
-
-    public static ILogEventSignature FromScope() => new ProfileLogEventSignature();
-}
 
 public class WorkflowSignatureScope : ILogEventSignature, IDisposable
 {

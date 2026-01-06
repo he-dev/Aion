@@ -1,0 +1,7 @@
+
+### Lists workflows in one.
+GET {{host}}{{profiles.two}}/schedules
+
+
+
+###

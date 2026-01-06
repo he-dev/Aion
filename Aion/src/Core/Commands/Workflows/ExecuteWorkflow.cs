@@ -183,10 +183,12 @@ public record StepResult
 {
     public required Workflow.Step Step { get; init; }
     public int? ExitCode { get; init; }
-    public string Status => ExitCode switch { 0 => "OK", null => "Skipped", _ => "Error" };
+    public StepStatus Status => ExitCode switch { 0 => StepStatus.Ok, null => StepStatus.Skipped, _ => StepStatus.Error };
     public Exception? Exception { get; init; }
     public TimeSpan? Duration { get; init; }
 }
+
+public enum StepStatus { Ok, Skipped, Error }
 
 public class WorkflowStats : Collection<StepResult>
 {

@@ -7,16 +7,16 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
 
-namespace Aion.Core.Commands;
+namespace Aion.Core.Commands.Schedules;
 
-public class ScheduleSynchronization
+public class ScheduleProfileSynchronization
 (
-    ILogger<ScheduleSynchronization> logger,
+    ILogger<ScheduleProfileSynchronization> logger,
     IOptions<SchedulerOptions> options,
     ISchedulerFactory schedulerFactory
 )
 {
-    public async Task Execute()
+    public async Task Invoke()
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -30,7 +30,7 @@ public class ScheduleSynchronization
 
             var jobDetail = JobBuilder
                 .Create<ProfileJob>()
-                .WithIdentity("sync-profile", GroupName.For<ProfileJob>(profileName))
+                .WithIdentity("sync-profile", new JobGroup<ProfileJob>(profileName))
                 .StoreDurably()
                 .Build();
 
@@ -38,21 +38,12 @@ public class ScheduleSynchronization
 
             // core: Schedule cron sync.
             await scheduler.ScheduleJob(
-                TriggerBuilder.Create()
+                TriggerBuilder
+                    .Create()
                     .ForJob(jobDetail)
-                    .WithIdentity("sync-profile-cron", GroupName.For<ProfileJob>(profileName))
+                    .WithIdentity("sync-profile-cron", new JobGroup<ProfileJob>(profileName))
                     .UsingJobData(JobDataKeys.ProfileName, profileName)
                     .WithCronSchedule(profile.Sync.Cron)
-                    .Build()
-            );
-
-            // core: Schedule once sync.
-            await scheduler.ScheduleJob(
-                TriggerBuilder.Create()
-                    .ForJob(jobDetail)
-                    .WithIdentity("sync-profile-once", GroupName.For<ProfileJob>(profileName))
-                    .UsingJobData(JobDataKeys.ProfileName, profileName)
-                    .WithSimpleSchedule(x => x.WithRepeatCount(0))
                     .StartNow()
                     .Build()
             );

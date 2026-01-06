@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Options;
+using Aion.Core.Quartz;
 using Aion.Core.Workflows;
 using Aion.Util;
 using Aion.Util.Quartz;
@@ -11,9 +12,9 @@ using Quartz;
 
 namespace Aion.Core.Commands.Schedules;
 
-public class GetSchedules
+public class GetWorkflowSchedules
 (
-    ILogger<GetSchedules> logger,
+    ILogger<GetWorkflowSchedules> logger,
     IOptionsSnapshot<SchedulerOptions> engineOptions,
     WorkflowScheduleRegistry workflowScheduleRegistry
 )
@@ -26,7 +27,6 @@ public class GetSchedules
         Status status = Status.Pending
     )
     {
-        // var profile = engineOptions.Value[profileName];
         var utcNow = DateTimeOffset.UtcNow;
 
         var query =
@@ -35,15 +35,14 @@ public class GetSchedules
                 .Where(trigger => trigger.JobKey.Name.IsLike(filter))
                 .Select(trigger => new
                 {
-                    name = trigger.JobKey.Name,
-                    group = trigger.JobKey.Group,
+                    workflow = trigger.JobDataMap.GetString(JobDataKeys.WorkflowName),
                     cron = ((ICronTrigger)trigger).CronExpressionString,
                     next = ((ICronTrigger)trigger).FiresAt(utcNow).Take(3)
                 });
 
         query = orderBy switch
         {
-            OrderBy.Name => query.OrderBy(item => item.name),
+            OrderBy.Name => query.OrderBy(item => item.workflow),
             //OrderBy.Path => query.OrderBy(item => item.path),
             OrderBy.Cron => query.OrderBy(item => item.cron),
             OrderBy.Next => query.OrderBy(item => item.next.FirstOrDefault()),

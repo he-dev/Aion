@@ -76,7 +76,7 @@ public class StepVariableGroup() : TemplateVariableGroup("Step")
         }
         else
         {
-            throw new InvalidOperationException("There is no current activity.");
+            //throw new InvalidOperationException("There is no current activity.");
         }
     }
 }

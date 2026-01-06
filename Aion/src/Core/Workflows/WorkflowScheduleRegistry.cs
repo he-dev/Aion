@@ -143,7 +143,7 @@ public class WorkflowScheduleRegistry
 
     public async IAsyncEnumerable<ITrigger> EnumerateTriggersFor(string profileName, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals(GroupName.For<WorkflowJob>(profileName, WorkflowMode.Cron));
+        var groupMatcher = GroupMatcher<JobKey>.GroupEquals(new JobGroup<WorkflowJob>(profileName));
 
         var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
         var jobKeys = await scheduler.GetJobKeys(groupMatcher, cancellationToken);
@@ -172,7 +172,6 @@ public enum WorkflowSyncAction
 public record WorkflowSyncResult
 {
     public required string Path { get; init; }
-
 
     public record Passed : WorkflowSyncResult
     {

@@ -95,8 +95,21 @@ public class StepArgumentConverter : JsonConverter<IImmutableList<StepArgument>>
 {
     public override IImmutableList<StepArgument> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException($"Expected object but found {reader.TokenType}.");
+        return reader.TokenType switch
+        {
+            JsonTokenType.String => ImmutableList.Create<StepArgument>().Add(new StepArgument("_", [reader.GetString()!])),
+            JsonTokenType.StartObject => ParseArguments(ref reader, typeToConvert, options),
+            _ => throw new JsonException($"Expected string or object but found {reader.TokenType}.")
+        };
+    }
 
+    public override void Write(Utf8JsonWriter writer, IImmutableList<StepArgument> value, JsonSerializerOptions options)
+    {
+        throw new NotSupportedException();
+    }
+
+    private static IImmutableList<StepArgument> ParseArguments(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
         using var jsonDocument = JsonDocument.ParseValue(ref reader);
 
         return
@@ -104,11 +117,6 @@ public class StepArgumentConverter : JsonConverter<IImmutableList<StepArgument>>
                 .RootElement
                 .ReadStepArguments()
                 .ToImmutableList();
-    }
-
-    public override void Write(Utf8JsonWriter writer, IImmutableList<StepArgument> value, JsonSerializerOptions options)
-    {
-        throw new NotSupportedException();
     }
 }
 

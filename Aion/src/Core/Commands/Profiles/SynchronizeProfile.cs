@@ -2,13 +2,14 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Aion.Core.Commands.Workflows;
 using Aion.Core.Options;
 using Aion.Core.Workflows;
 using Aion.Util.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aion.Core.Commands.Workflows;
+namespace Aion.Core.Commands.Profiles;
 
 public class SynchronizeProfile
 (
@@ -34,7 +35,8 @@ public class SynchronizeProfile
             try
             {
                 var workflow = await renderWorkflow.For(workflowMatch);
-                results = results.Add(await workflowScheduleRegistry.AddOrUpdate(workflow));
+                var workflowSyncResult = await workflowScheduleRegistry.AddOrUpdate(workflow);
+                results = results.Add(workflowSyncResult);
             }
             catch (Exception ex)
             {

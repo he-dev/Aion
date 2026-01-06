@@ -5,20 +5,24 @@
     {
       "Enabled": true,
       "FileName": "cmd.exe",
-      "Arguments": "/c echo Hallo cmd!",
+      "Arguments": {
+        "/c": "echo Hallo cmd!"
+      },
       "Logging": {
-        "Preset": "Console.Simple"
+        "Preset": "StepFile28Days"
       }
     },
     {
       "Enabled": true,
       "FileName": "cmd.exe",
-      "Arguments": "/c \"{{ Profile.Path }}\\workflows\\hallo-cmd.bat\"",
+      "Arguments": {
+        "/c": "\"{{ Profile.Path }}\\workflows\\hallo-cmd.bat\""
+      },
       "Environment": {
         "CMD_MSG": "Hallo CMD!"
       },
       "Logging": {
-        "Preset": "Console.Simple"
+        "Preset": "stepFile28Days"
       }
     }
   ],

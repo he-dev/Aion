@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Aion.Core;
 using Aion.Core.Commands;
+using Aion.Core.Commands.Workflows;
 using Aion.Core.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;

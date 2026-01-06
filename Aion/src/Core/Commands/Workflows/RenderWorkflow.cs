@@ -2,7 +2,6 @@
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Logging;
 using Aion.Core.Options;
 using Aion.Core.Workflows;
 using Aion.Util;
@@ -12,7 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
 
-namespace Aion.Core.Commands;
+namespace Aion.Core.Commands.Workflows;
 
 public class RenderWorkflow
 (
@@ -44,8 +43,6 @@ public class RenderWorkflow
             Path = workflowMatch.WorkflowPath,
             Trigger = trigger ?? WorkflowTrigger.Create(workflowMatch.Profile.Name, workflowMatch.WorkflowName, template.Cron),
             Variables = template.Variables.ToImmutableDictionary(),
-            //Logging = await template.Logging.Get(workflowMatch.Profile.LoggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
-            //Steps = steps.ToImmutableList(),
         };
 
         var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
@@ -74,7 +71,7 @@ public class RenderWorkflow
                 .ToImmutableDictionary()
                 .SetItems(template.Environment)
                 .ToImmutableDictionary(x => x.Key, x => x.Value.Render(variables));
-        var stepTasks = template.Steps.Select((step, index) => RenderStep(step, index, workflowMatch.Profile.LoggingPresets, environment, variables));
+        var stepTasks = template.Steps.Select((step, index) => RenderStep(workflowMatch.Profile, variables, environment, step, index));
 
         try
         {
@@ -95,24 +92,23 @@ public class RenderWorkflow
 
             return workflow with
             {
-                Logging = await template.Logging.Get(workflowMatch.Profile.LoggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
+                Logging = await workflowMatch.Profile.GetLoggingOrDefault(template.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
                 Steps = steps.ToImmutableList(),
             };
         }
         catch (Exception ex)
         {
-            // logger.LogError(ex, "Failed to render workflow template from '{WorkflowPath}'.", workflowMatch.Path);
-            throw new WorkflowTemplateException(workflowMatch.WorkflowPath, ex);
+            throw new RenderWorkflowException(workflowMatch.WorkflowPath, ex);
         }
     }
 
     private async Task<Workflow.Step> RenderStep
     (
-        WorkflowTemplate.StepTemplate template,
-        int index,
-        LoggingPresetRepository loggingPresets,
+        Profile profile,
+        IImmutableList<TemplateVariableGroup> variables,
         IImmutableDictionary<string, string> environment,
-        IImmutableList<TemplateVariableGroup> variables
+        WorkflowTemplate.StepTemplate template,
+        int index
     )
     {
         using var scope = logger.BeginScopeFrom(new { StepIndex = index });
@@ -131,33 +127,26 @@ public class RenderWorkflow
                 WorkingDirectory = (template.WorkingDirectory ?? string.Empty).Render(variables),
                 Timeout = template.Timeout ?? System.Threading.Timeout.InfiniteTimeSpan,
                 DependsOn = template.DependsOn,
-                Logging = await template.Logging.Get(loggingPresets).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
+                Logging = await profile.GetLoggingOrDefault(template.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
                 LoggingTarget = template.Logging.Target,
-            }.Also(step =>
-            {
-                // meta: Rendering arguments requires an activity in scope.
-                // using var activity = new Activity("RenderingStepArguments").Start();
-                // meta: Make sure that arguments are renderable before they are used.
-                // step.Arguments();
-            });
+            };
         }
         catch (Exception ex)
         {
-            // logger.LogError(ex, "Failed to render step template at {StepIndex}.", index);
-            throw new StepTemplateException(index, ex);
+            throw new RenderStepException(index, ex);
         }
     }
 }
 
 public class WorkflowNotExecutableException(string message) : Exception(message);
 
-public class WorkflowTemplateException(string path, Exception innerException) : Exception
+public class RenderWorkflowException(string path, Exception innerException) : Exception
 (
     message: $"Failed to render workflow template from '{path}'.",
     innerException: innerException
 );
 
-public class StepTemplateException(int index, Exception innerException) : Exception
+public class RenderStepException(int index, Exception innerException) : Exception
 (
     message: $"Failed to render step template at {index}.",
     innerException: innerException

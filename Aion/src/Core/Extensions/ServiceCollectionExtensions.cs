@@ -1,9 +1,10 @@
 ﻿using Aion.Core.Commands.Downtimes;
+using Aion.Core.Commands.Profiles;
 using Aion.Core.Commands.Schedules;
 using Aion.Core.Commands.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Aion.Core.Commands;
+namespace Aion.Core.Extensions;
 
 public static class ServiceCollectionExtensions
 {
@@ -21,7 +22,7 @@ public static class ServiceCollectionExtensions
     {
         return
             services
-                .AddScoped<GetSchedules>();
+                .AddScoped<GetWorkflowSchedules>();
     }
 
     public static IServiceCollection AddDowntimeCommands(this IServiceCollection services)

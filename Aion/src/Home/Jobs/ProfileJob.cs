@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Aion.Core.Commands.Workflows;
+using Aion.Core.Commands.Profiles;
 using Aion.Core.Quartz;
 using Aion.Util.Logging;
 using Microsoft.Extensions.Logging;
