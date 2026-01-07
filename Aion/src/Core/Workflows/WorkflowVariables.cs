@@ -35,12 +35,12 @@ public class ProfileVariableGroup() : TemplateVariableGroup("Profile")
 {
     public required string Name { get; init; } = null!;
 
-    public required string Path { get; init; } = null!;
+    //public required string Root { get; init; } = null!;
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         yield return new KeyValuePair<string, object?>(nameof(Name), Name);
-        yield return new KeyValuePair<string, object?>(nameof(Path), Path);
+        //yield return new KeyValuePair<string, object?>(nameof(Root), Root);
     }
 }
 

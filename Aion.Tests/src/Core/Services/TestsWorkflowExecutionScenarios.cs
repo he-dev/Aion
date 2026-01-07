@@ -22,12 +22,12 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
         using var activity = new Activity("TestingWorkflowExecution").Start();
         using var scope = testWebApplication.Services.CreateScope();
 
-        var engineOptions = scope.ServiceProvider.GetRequiredService<IOptions<SchedulerOptions>>();
+        var schedulerOptions = scope.ServiceProvider.GetRequiredService<IOptions<SchedulerOptions>>().Value;
         var executeWorkflow = scope.ServiceProvider.GetRequiredService<ExecuteWorkflow>();
         var workflowRendering = scope.ServiceProvider.GetRequiredService<RenderWorkflow>();
-        var workflowMatch = engineOptions.Value[profileName].Workflows.Single(workflowName);
+        var workflowMatch = schedulerOptions.Profiles[profileName].Workflows.Single(workflowName);
         var workflow = await workflowRendering.For(workflowMatch);
-        return await executeWorkflow.Start(workflow);
+        return await executeWorkflow.Now(workflow);
     }
 
     [Theory]

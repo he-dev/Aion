@@ -27,11 +27,11 @@ public class SchedulerOptionsPostConfigure : IPostConfigureOptions<SchedulerOpti
                 new ProfileVariableGroup
                 {
                     Name = profile.Name,
-                    Path = profile.Path,
+                    //Root = profile.Root,
                 },
             ]);
 
-            profile.Path = profile.Path.Render(variables);
+            profile.Root = profile.Root.Render(variables);
             // profile.LoggingFor = (mode) =>
             // {
             //     variables = variables.Add(new ExecutionVariableGroup { Mode = mode });

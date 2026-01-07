@@ -23,18 +23,18 @@ public class GetDowntimes
 
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
 
-        foreach (var workflowMatch in profile.Workflows.All())
+        foreach (var workflowPath in profile.Workflows.All())
         {
             try
             {
-                if (await WorkflowDowntime.FromFile(workflowMatch.WorkflowPath) is { } lockFile)
+                if (await WorkflowDowntime.FromFile(workflowPath) is { } lockFile)
                 {
                     workflowDowntimes = workflowDowntimes.Add(lockFile);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to load lock file '{LockFileName}'.", workflowMatch.WorkflowPath);
+                logger.LogError(ex, "Unable to load lock file '{LockFileName}'.", workflowPath);
             }
         }
 

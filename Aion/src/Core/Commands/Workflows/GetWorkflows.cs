@@ -28,26 +28,26 @@ public class GetWorkflows
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflows = ImmutableList<Workflow>.Empty;
         var workflowFailure = ImmutableList<object>.Empty;
-        var matchesWorkflows = workflowFilter is not null ? profile.Workflows.Find(workflowFilter) : profile.Workflows.All();
-        foreach (var workflowMatch in matchesWorkflows)
+        var workflowPaths = workflowFilter is not null ? profile.Workflows.Find(workflowFilter) : profile.Workflows.All();
+        foreach (var workflowPath in workflowPaths)
         {
             try
             {
-                if (workflowMatch.WorkflowName.IsUrlSafe)
+                if (workflowPath.WorkflowName.IsUrlSafe)
                 {
-                    var workflow = await renderWorkflow.For(workflowMatch);
+                    var workflow = await renderWorkflow.For(workflowPath);
                     workflows = workflows.Add(workflow);
-                    logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowMatch.WorkflowPath);
+                    logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowPath);
                 }
                 else
                 {
-                    workflowFailure = workflowFailure.Add(new { path = workflowMatch.WorkflowPathWithinProfile, issue = "Workflow name is not url-safe." });
+                    workflowFailure = workflowFailure.Add(new { path = workflowPath.WorkflowName.RelativePath, issue = "Workflow name is not url-safe." });
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to load workflow from '{WorkflowPath}'.", workflowMatch.WorkflowPath);
-                workflowFailure = workflowFailure.Add(new { path = workflowMatch.WorkflowPathWithinProfile, issue = ex.ToString() });
+                logger.LogError(ex, "Unable to load workflow from '{WorkflowPath}'.", workflowPath);
+                workflowFailure = workflowFailure.Add(new { path = workflowPath.WorkflowName.RelativePath, issue = ex.ToString() });
             }
         }
 

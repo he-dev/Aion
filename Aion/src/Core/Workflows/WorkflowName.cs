@@ -3,9 +3,9 @@ using System.Text.RegularExpressions;
 
 namespace Aion.Core.Workflows;
 
-public record WorkflowName(string PathWithinProfile)
+public record WorkflowName(string RelativePath)
 {
-    // note: C:\path\to\workflows\group\workflow.json --> group.workflow
+    // note: group\workflow.json --> group.workflow
 
     // note:
     // Regex for characters that are "unreserved" in a URI (per RFC 3986) and don't need escaping.
@@ -15,7 +15,7 @@ public record WorkflowName(string PathWithinProfile)
 
     public bool IsUrlSafe => MatchesUrlSafeChars.IsMatch(Render());
 
-    private string Render() => Path.ChangeExtension(PathWithinProfile, null).Replace(Path.DirectorySeparatorChar, '.');
+    private string Render() => Path.ChangeExtension(RelativePath, null).Replace(Path.DirectorySeparatorChar, '.');
 
     public override string ToString() => Render();
 

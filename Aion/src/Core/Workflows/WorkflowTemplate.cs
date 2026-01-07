@@ -11,6 +11,7 @@ using Aion.Core.Logging;
 
 namespace Aion.Core.Workflows;
 
+// note: This class is deserialized from workflow JSON.
 public record WorkflowTemplate
 {
     // core: Make the user specify this value explicitly, so they don't activate workflows by accident.
@@ -25,30 +26,7 @@ public record WorkflowTemplate
 
     public LoggingConfiguration Logging { get; init; } = new();
 
-    public StepTemplate[] Steps { get; init; } = null!;
-
-    public record StepTemplate
-    {
-        public string? Name { get; init; }
-
-        public bool Enabled { get; init; } = true;
-
-        [NotNullOrWhiteSpace]
-        public string FileName { get; init; } = null!;
-
-        [JsonConverter(typeof(StepArgumentConverter))]
-        public IImmutableList<StepArgument> Arguments { get; init; } = [];
-
-        public Dictionary<string, string> Environment { get; init; } = new();
-
-        public string? WorkingDirectory { get; init; }
-
-        public TimeSpan? Timeout { get; init; }
-
-        public LoggingConfiguration Logging { get; init; } = new();
-
-        public string? DependsOn { get; init; }
-    }
+    public WorkflowStepTemplate[] Steps { get; init; } = null!;
 
     public static async Task<WorkflowTemplate> FromFile(string path)
     {
@@ -69,6 +47,30 @@ public record WorkflowTemplate
         return WorkflowTemplateValidation.Validate(template);
     }
 }
+
+public record WorkflowStepTemplate
+{
+    public string? Name { get; init; }
+
+    public bool Enabled { get; init; } = true;
+
+    [NotNullOrWhiteSpace]
+    public string FileName { get; init; } = null!;
+
+    [JsonConverter(typeof(StepArgumentConverter))]
+    public IImmutableList<StepArgument> Arguments { get; init; } = [];
+
+    public Dictionary<string, string> Environment { get; init; } = new();
+
+    public string? WorkingDirectory { get; init; }
+
+    public TimeSpan? Timeout { get; init; }
+
+    public LoggingConfiguration Logging { get; init; } = new();
+
+    public string? DependsOn { get; init; }
+}
+
 
 public class InvalidWorkflowTemplate(string path) : Exception($"File '{path}' is not a valid workflow template.");
 

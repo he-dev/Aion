@@ -8,14 +8,17 @@ using Aion.Util;
 
 namespace Aion.Core;
 
+// note: This class is deserialized from appsettings.Profiles.json.
 public class Profile
 {
-    public string Path { get; set; } = null!;
+    public string Root { get; set; } = null!;
 
     // core: The last directory name is the name of the profile.
     // meta: Make sure it does not end with a "/" which would result in a wrong name.
     // public string Name => System.IO.Path.GetFileName(Path.TrimEnd(System.IO.Path.DirectorySeparatorChar));
     public string Name { get; set; } = null!;
+
+    public string Path => System.IO.Path.Join(Root, Name);
 
     public ProfileSync Sync { get; set; } = null!;
 

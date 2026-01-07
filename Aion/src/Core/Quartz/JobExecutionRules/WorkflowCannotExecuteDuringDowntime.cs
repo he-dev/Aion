@@ -29,8 +29,8 @@ public class WorkflowCannotExecuteDuringDowntime
         var profile = schedulerOptions.Value.Profiles[profileName];
         try
         {
-            var workflowMatch = profile.Workflows.Single(workflowName);
-            if (await WorkflowDowntime.FromFile(workflowMatch.WorkflowPath) is { } workflowDowntime)
+            var workflowPath = profile.Workflows.Single(workflowName);
+            if (await WorkflowDowntime.FromFile(workflowPath) is { } workflowDowntime)
             {
                 if (workflowDowntime.Status == WorkflowDowntimeStatus.Expired)
                 {

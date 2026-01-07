@@ -19,30 +19,30 @@ public class EndDowntime
     public async Task<object> Invoke(string profileName, string? filter = null)
     {
         var profile = schedulerOptions.Value.Profiles[profileName];
-        var workflowMatches = ImmutableList<WorkflowMatch>.Empty;
+        var workflowPaths = ImmutableList<WorkflowPath>.Empty;
 
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
 
-        foreach (var workflowMatch in profile.Workflows.Find(filter))
+        foreach (var workflowPath in profile.Workflows.Find(filter))
         {
             try
             {
-                if (await WorkflowDowntime.FromFile(workflowMatch.WorkflowPath) is { } lockFile)
+                if (await WorkflowDowntime.FromFile(workflowPath) is { } lockFile)
                 {
                     await lockFile.EndsNow();
-                    workflowMatches = workflowMatches.Add(workflowMatch);
+                    workflowPaths = workflowPaths.Add(workflowPath);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to end downtime for '{WorkflowName}'.", workflowMatch.WorkflowName);
+                logger.LogError(ex, "Unable to end downtime for '{WorkflowName}'.", workflowPath.WorkflowName);
             }
         }
 
         return new
         {
             profile = profile.Path,
-            workflows = workflowMatches.Select(m => m.WorkflowPathWithinProfile),
+            workflows = workflowPaths.Select(m => m.WorkflowName.RelativePath),
         };
     }
 }

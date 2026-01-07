@@ -12,7 +12,7 @@ namespace Aion.Tests.Core.Services.Scheduling;
 
 public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication) : IClassFixture<TestWebApplication>
 {
-    private async Task<WorkflowSyncResult> Synchronize
+    private async Task<WorkflowSyncResult.Passed> Synchronize
     (
         WorkflowTemplate? initialWorkflow,
         WorkflowTemplate changedWorkflow
@@ -24,21 +24,19 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         var schedulesWorkflowCron = scope.ServiceProvider.GetRequiredService<WorkflowScheduleRegistry>();
         var workflowRendering = scope.ServiceProvider.GetRequiredService<RenderWorkflow>();
 
-        var fakeProfile = new Profile { Path = @"C:\fake\path\to\profiles\one" };
-
-        var fakeRelativePath = @"workflows\fake-workflow.json";
+        var fakeProfile = new Profile { Root = @"C:\fake\path\to\profiles", Name = "fake-profile" };
+        var fakeWorkflowName = new WorkflowName("fake-workflow.json");
+        var fakeWorkflowPath = new WorkflowPath(fakeProfile.Root, fakeProfile.Name, fakeWorkflowName);
 
         if (initialWorkflow is not null)
         {
-            var workflowMatch = new WorkflowMatch(fakeProfile, WorkflowFilter.Any, fakeRelativePath);
-            var workflow = await workflowRendering.For(workflowMatch, loadTemplate: _ => Task.FromResult(initialWorkflow));
+            var workflow = await workflowRendering.For(fakeWorkflowPath, loadTemplate: _ => Task.FromResult(initialWorkflow));
             await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
 
         try
         {
-            var workflowMatch = new WorkflowMatch(fakeProfile, WorkflowFilter.Any, fakeRelativePath);
-            var workflow = await workflowRendering.For(workflowMatch, loadTemplate: _ => Task.FromResult(changedWorkflow));
+            var workflow = await workflowRendering.For(fakeWorkflowPath, loadTemplate: _ => Task.FromResult(changedWorkflow));
             return await schedulesWorkflowCron.AddOrUpdate(workflow);
         }
         finally
@@ -56,7 +54,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         {
             Enabled = false,
             Cron = "0/5 * * * * ?",
-            Steps = [new WorkflowTemplate.StepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
+            Steps = [new WorkflowStepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
         };
         var result = await Synchronize(null, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.IgnoreBecauseDisabled, result.Action);
@@ -84,13 +82,13 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         {
             Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = [new WorkflowTemplate.StepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
+            Steps = [new WorkflowStepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
         };
         var changedWorkflow = new WorkflowTemplate
         {
             Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = [new WorkflowTemplate.StepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
+            Steps = [new WorkflowStepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.IgnoreBecauseUnchanged, result.Action);
@@ -104,13 +102,13 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         {
             Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = [new WorkflowTemplate.StepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
+            Steps = [new WorkflowStepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
         };
         var changedWorkflow = new WorkflowTemplate
         {
             Enabled = false,
             Cron = "0/5 * * * * ?",
-            Steps = [new WorkflowTemplate.StepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
+            Steps = [new WorkflowStepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.UnscheduleBecauseDisabled, result.Action);
@@ -124,7 +122,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         {
             Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = [new WorkflowTemplate.StepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
+            Steps = [new WorkflowStepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
         };
         var changedWorkflow = new WorkflowTemplate
         {
@@ -144,13 +142,13 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         {
             Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = [new WorkflowTemplate.StepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
+            Steps = [new WorkflowStepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
         };
         var changedWorkflow = new WorkflowTemplate
         {
             Enabled = true,
             Cron = "0/10 * * * * ?",
-            Steps = [new WorkflowTemplate.StepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
+            Steps = [new WorkflowStepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
         };
         var result = await Synchronize(initialWorkflow, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.UpdateBecauseChanged, result.Action);
@@ -164,7 +162,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         {
             Enabled = true,
             Cron = "0/5 * * * * ?",
-            Steps = [new WorkflowTemplate.StepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
+            Steps = [new WorkflowStepTemplate { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }]
         };
         var result = await Synchronize(null, changedWorkflow);
         Assert.Equal(WorkflowSyncAction.ScheduleBecauseNew, result.Action);

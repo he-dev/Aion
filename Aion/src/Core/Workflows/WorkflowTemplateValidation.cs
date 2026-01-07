@@ -22,7 +22,7 @@ public static class WorkflowTemplateValidation
                 {
                     var items = new Dictionary<object, object?>
                     {
-                        ["Parent"] = $"{nameof(WorkflowTemplate.StepTemplate)}[{item.index}]"
+                        ["Parent"] = $"{nameof(WorkflowStepTemplate)}[{item.index}]"
                     };
                     return current.AddRange(Validation.Evaluate(item.step, items));
                 });

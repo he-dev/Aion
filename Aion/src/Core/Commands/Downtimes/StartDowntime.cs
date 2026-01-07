@@ -22,12 +22,12 @@ public class StartDowntime
         try
         {
             var profile = schedulerOptions.Value.Profiles[profileName];
-            var workflowMatches = ImmutableList<WorkflowMatch>.Empty;
+            var workflowMatches = ImmutableList<WorkflowPath>.Empty;
             foreach (var workflowMatch in profile.Workflows.Find(workflowNameOrFilter))
             {
                 try
                 {
-                    var workflowLock = await downtime.ToFile(workflowMatch.WorkflowPath);
+                    var workflowLock = await downtime.ToFile(workflowMatch);
                     workflowMatches = workflowMatches.Add(workflowMatch);
                     logger.LogInformation("Workflow '{WorkflowName}' has been locked.", workflowMatch.WorkflowName);
                 }
@@ -41,7 +41,7 @@ public class StartDowntime
             {
                 profile = profile.Path,
                 downtime = downtime,
-                workflows = workflowMatches.Select(m => m.WorkflowPathWithinProfile)
+                workflows = workflowMatches.Select(m => m.WorkflowName.RelativePath)
             };
         }
         catch (Exception ex)

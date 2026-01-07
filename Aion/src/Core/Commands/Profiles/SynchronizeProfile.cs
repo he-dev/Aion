@@ -30,20 +30,20 @@ public class SynchronizeProfile
         var results = ImmutableList<WorkflowSyncResult>.Empty;
 
         var workflowMatches = profile.Workflows.All();
-        foreach (var workflowMatch in workflowMatches)
+        foreach (var workflowPath in workflowMatches)
         {
             try
             {
-                var workflow = await renderWorkflow.For(workflowMatch);
+                var workflow = await renderWorkflow.For(workflowPath);
                 var workflowSyncResult = await workflowScheduleRegistry.AddOrUpdate(workflow);
                 results = results.Add(workflowSyncResult);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unable to schedule workflow '{WorkflowPath}'.", workflowMatch.WorkflowPath);
+                logger.LogError(ex, "Unable to schedule workflow '{WorkflowPath}'.", workflowPath);
                 results = results.Add(new WorkflowSyncResult.Failed
                 {
-                    Path = workflowMatch.WorkflowPath,
+                    Path = workflowPath,
                     Exception = ex
                 });
             }

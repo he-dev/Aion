@@ -21,57 +21,58 @@ public class RenderWorkflow
 {
     public async Task<Workflow> For
     (
-        WorkflowMatch workflowMatch,
+        WorkflowPath workflowPath,
         ITrigger? trigger = null,
         IImmutableList<StepIdentifier>? stepOrder = null,
         Func<string, Task<WorkflowTemplate>>? loadTemplate = null
     )
     {
-        using var scope = logger.BeginScopeFrom(new { workflowMatch.WorkflowName });
+        using var scope = logger.BeginScopeFrom(new { workflowPath.WorkflowName });
         logger.LogTrace("Rendering workflow.");
 
         loadTemplate ??= WorkflowTemplate.FromFile;
-        var template = await loadTemplate(workflowMatch.WorkflowPath);
+        var template = await loadTemplate(workflowPath);
         CronExpression.ValidateExpression(template.Cron);
+
+        var profile = schedulerOptions.Value.Profiles[workflowPath.ProfileName];
 
         // meta: Create a partial workflow first so that we can use the Mode property for variables.
         var workflow = new Workflow
         {
-            Profile = workflowMatch.Profile.Name,
+            Profile = workflowPath.ProfileName,
             Enabled = template.Enabled,
-            Name = workflowMatch.WorkflowName,
-            Path = workflowMatch.WorkflowPath,
-            Trigger = trigger ?? WorkflowTrigger.Create(workflowMatch.Profile.Name, workflowMatch.WorkflowName, template.Cron),
+            Name = workflowPath.WorkflowName,
+            Path = workflowPath.ToString(),
+            Trigger = trigger ?? WorkflowTrigger.Create(workflowPath.ProfileName, workflowPath.WorkflowName, template.Cron),
             Variables = template.Variables.ToImmutableDictionary(),
         };
 
         var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
         ([
             new GlobalVariableGroup(schedulerOptions.Value.Variables),
-            new GlobalVariableGroup(workflowMatch.Profile.Variables),
+            new GlobalVariableGroup(profile.Variables),
             new GlobalVariableGroup(template.Variables),
             new SchedulerVariableGroup { Name = schedulerOptions.Value.Name },
             new ProfileVariableGroup
             {
-                Name = workflowMatch.Profile.Name,
-                Path = workflowMatch.Profile.Path,
+                //Root = workflowPath.ProfileRoot,
+                Name = workflowPath.ProfileName,
             },
             new WorkflowVariableGroup
             {
-                Name = workflowMatch.WorkflowName,
+                Name = workflowPath.WorkflowName,
                 Mode = workflow.Mode,
             }
         ]);
 
         // core: Merge profile and workflow environments with intended precedence: the workflow overrides profile.
         var environment =
-            workflowMatch
-                .Profile
+            profile
                 .Environment
                 .ToImmutableDictionary()
                 .SetItems(template.Environment)
                 .ToImmutableDictionary(x => x.Key, x => x.Value.Render(variables));
-        var stepTasks = template.Steps.Select((step, index) => RenderStep(workflowMatch.Profile, variables, environment, step, index));
+        var stepTasks = template.Steps.Select((step, index) => RenderStep(profile, variables, environment, step, index));
 
         try
         {
@@ -92,13 +93,13 @@ public class RenderWorkflow
 
             return workflow with
             {
-                Logging = await workflowMatch.Profile.GetLoggingOrDefault(template.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
+                Logging = await profile.GetLoggingOrDefault(template.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
                 Steps = steps.ToImmutableList(),
             };
         }
         catch (Exception ex)
         {
-            throw new RenderWorkflowException(workflowMatch.WorkflowPath, ex);
+            throw new RenderWorkflowException(workflowPath, ex);
         }
     }
 
@@ -107,7 +108,7 @@ public class RenderWorkflow
         Profile profile,
         IImmutableList<TemplateVariableGroup> variables,
         IImmutableDictionary<string, string> environment,
-        WorkflowTemplate.StepTemplate template,
+        WorkflowStepTemplate template,
         int index
     )
     {

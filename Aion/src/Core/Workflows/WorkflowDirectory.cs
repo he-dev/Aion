@@ -8,6 +8,7 @@ using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 
 namespace Aion.Core.Workflows;
 
+// note: This class is deserialized from appsettings.Profiles.json.
 public class WorkflowDirectory
 {
     public const string Name = "Workflows";
@@ -20,7 +21,7 @@ public class WorkflowDirectory
 
     public string[] Excludes { get; set; } = [];
 
-    public IEnumerable<WorkflowMatch> Find(WorkflowFilter workflowFilter)
+    public IEnumerable<WorkflowPath> Find(WorkflowFilter workflowFilter)
     {
         // core: Pass-1 - Use profile patterns to pre-filter its files.
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
@@ -39,24 +40,24 @@ public class WorkflowDirectory
         return
             from filePatternMatch in results
             let pathWithinProfile = filePatternMatch.Path.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar)
-            let workflowMatch = new WorkflowMatch(Profile, workflowFilter, pathWithinProfile)
+            let workflowMatch = new WorkflowPath(Profile.Root, Profile.Name, new WorkflowName(pathWithinProfile))
             select workflowMatch;
     }
 
-    public IEnumerable<WorkflowMatch> All() => Find("*");
+    public IEnumerable<WorkflowPath> All() => Find("*");
 
-    public WorkflowMatch Single(string workflowName) => Find(workflowName).SingleOrThrows
+    public WorkflowPath Single(string workflowName) => Find(workflowName).SingleOrThrows
     (
         onEmpty: () => new NoWorkflowMatch(Profile.Name, workflowName),
         onExtra: () => new AmbiguousWorkflowMatch(Profile.Name, workflowName)
     );
 }
 
-public record WorkflowMatch(Profile Profile, WorkflowFilter WorkflowFilter, string WorkflowPathWithinProfile)
+public record WorkflowPath(string ProfileRoot, string ProfileName, WorkflowName WorkflowName)
 {
-    public string WorkflowPath => Path.Join(Profile.Workflows.Path, WorkflowPathWithinProfile);
+    public override string ToString()=> Path.Join(ProfileRoot, ProfileName, WorkflowDirectory.Name, WorkflowName.RelativePath);
 
-    public WorkflowName WorkflowName => new(WorkflowPathWithinProfile);
+    public static implicit operator string(WorkflowPath workflowPath)  => workflowPath.ToString();
 }
 
 public class NoWorkflowMatch(string profileName, string workflowNameOrFilter)

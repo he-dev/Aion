@@ -29,11 +29,10 @@ public class WorkflowScheduleRegistry
 
         if (workflow.Trigger is not ICronTrigger)
         {
-            return await AddCustom(workflow, workflow.Trigger);
+            return await AddCustom(workflow);
         }
 
-
-        var syncAction = await WhatToDoAbout(workflow, workflow.Trigger);
+        var syncAction = await WhatToDoAbout(workflow);
         var deleted = syncAction switch
         {
             WorkflowSyncAction.UnscheduleBecauseDisabled => await scheduler.DeleteJob(workflow.Trigger.JobKey),
@@ -70,13 +69,13 @@ public class WorkflowScheduleRegistry
         };
     }
 
-    public async Task<WorkflowSyncAction> WhatToDoAbout(Workflow workflow, ITrigger trigger)
+    public async Task<WorkflowSyncAction> WhatToDoAbout(Workflow workflow)
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
         if (!workflow.Enabled)
         {
-            if (await scheduler.CheckExists(trigger.JobKey))
+            if (await scheduler.CheckExists(workflow.Trigger.JobKey))
             {
                 return WorkflowSyncAction.UnscheduleBecauseDisabled;
             }
@@ -86,7 +85,7 @@ public class WorkflowScheduleRegistry
 
         if (!workflow.Steps.Any(s => s.Enabled))
         {
-            if (await scheduler.CheckExists(trigger.JobKey))
+            if (await scheduler.CheckExists(workflow.Trigger.JobKey))
             {
                 return WorkflowSyncAction.UnscheduleBecauseEmpty;
             }
@@ -94,9 +93,9 @@ public class WorkflowScheduleRegistry
             return WorkflowSyncAction.IgnoreBecauseEmpty;
         }
 
-        if (await scheduler.GetTrigger(trigger.Key) is ICronTrigger { CronExpressionString: { } currentCron })
+        if (await scheduler.GetTrigger(workflow.Trigger.Key) is ICronTrigger { CronExpressionString: { } currentCron })
         {
-            if (trigger is ICronTrigger { CronExpressionString: { } otherCron } && currentCron.Equals(otherCron))
+            if (workflow.Trigger is ICronTrigger { CronExpressionString: { } otherCron } && currentCron.Equals(otherCron))
             {
                 return WorkflowSyncAction.IgnoreBecauseUnchanged;
             }
@@ -107,12 +106,12 @@ public class WorkflowScheduleRegistry
         return WorkflowSyncAction.ScheduleBecauseNew;
     }
 
-    private async Task<WorkflowSyncResult.Passed> AddCustom(Workflow workflow, ITrigger trigger)
+    private async Task<WorkflowSyncResult.Passed> AddCustom(Workflow workflow)
     {
         var jobDetail =
             JobBuilder
                 .Create<WorkflowJob>()
-                .WithIdentity(trigger.JobKey)
+                .WithIdentity(workflow.Trigger.JobKey)
                 .Build();
 
         var scheduler = await schedulerFactory.GetScheduler();
@@ -123,9 +122,9 @@ public class WorkflowScheduleRegistry
             throw new WorkflowAlreadyScheduledException();
         }
 
-        logger.LogInformation("Workflow '{WorkflowName}' will be executed once at '{Next}'.", workflow.Name, trigger.GetNextFireTimeUtc());
+        logger.LogInformation("Workflow '{WorkflowName}' will be executed once at '{Next}'.", workflow.Name, workflow.Trigger.GetNextFireTimeUtc());
 
-        var next = await scheduler.ScheduleJob(jobDetail, trigger);
+        var next = await scheduler.ScheduleJob(jobDetail, workflow.Trigger);
         return new WorkflowSyncResult.Passed
         {
             Path = workflow.Path,
