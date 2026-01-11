@@ -1,18 +1,16 @@
 ﻿using System;
-using Aion.Core.Commands.Schedules;
-using Aion.Core.Commands.Workflows;
-using Aion.Core.Extensions;
-using Aion.Core.Options;
-using Aion.Core.Quartz;
-using Aion.Core.Quartz.JobExecutionRules;
-using Aion.Core.Workflows;
-using Aion.Core.Workflows.StepExecutionRules;
 using Aion.Home.Endpoints;
 using Aion.Home.Jobs;
-using Aion.Meta;
-using Aion.Util;
-using Aion.Util.Serilog;
-using Aion.Util.Serilog.Enriching;
+using Aion.Util.Core;
+using Aion.Util.Core.Commands;
+using Aion.Util.Core.Commands.Schedules;
+using Aion.Util.Core.Commands.Workflows;
+using Aion.Util.Core.Scheduler;
+using Aion.Util.Core.Scheduler.JobExecutionRules;
+using Aion.Util.Core.StepExecutionRules;
+using Aion.Util.Tech;
+using Aion.Util.Tech.Serilog;
+using Aion.Util.Tech.Serilog.Enriching;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,7 +31,7 @@ builder.Services.AddSwaggerGen();
 
 //builder.Services.AddOptions<>();
 builder.Services.ConfigureFromSection<SchedulerOptions>(builder.Configuration);
-builder.Services.AddSingleton<IValidateOptions<SchedulerOptions>, ProfilePathValidation>();
+builder.Services.AddSingleton<IValidateOptions<SchedulerOptions>, SchedulerOptionsValidation>();
 builder.Services.AddSingleton<IPostConfigureOptions<SchedulerOptions>, SchedulerOptionsPostConfigure>();
 builder.Services.AddSingleton<LogEventMapping>();
 
@@ -66,7 +64,6 @@ builder
 
 builder.Services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
 
-builder.Services.AddScoped<WorkflowScheduleRegistry>();
 builder.Services.AddScoped<WorkflowJob>();
 builder.Services.AddScoped<ProfileJob>();
 
@@ -90,11 +87,11 @@ builder.Services.AddQuartz(configure =>
 
 builder.Services.AddQuartzServer(options =>
 {
-    var quartzServerOptions = builder.Configuration.GetRequiredSection("QuartzServer").Get<QuartzServerOptions>()!;
+    var schedulerOptions = builder.Configuration.GetRequiredSection("Scheduler").Get<SchedulerOptions>()!;
 
     options.AwaitApplicationStarted = true;
     options.WaitForJobsToComplete = true;
-    options.StartDelay = TimeSpan.FromSeconds(quartzServerOptions.StartDelaySeconds);
+    options.StartDelay = schedulerOptions.StartDelay;
 });
 
 builder.Services.AddWorkflowCommands();
@@ -125,7 +122,7 @@ app.MapDowntimes();
 using (var scope = app.Services.CreateScope())
 {
     await ActivatorUtilities
-        .CreateInstance<ScheduleProfileSynchronization>(scope.ServiceProvider)
+        .CreateInstance<ScheduleProfile>(scope.ServiceProvider)
         .Invoke();
 }
 

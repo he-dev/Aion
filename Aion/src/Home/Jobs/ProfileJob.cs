@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Aion.Core.Commands.Profiles;
-using Aion.Core.Quartz;
-using Aion.Util.Logging;
+using Aion.Util.Core.Commands.Profiles;
+using Aion.Util.Core.Scheduler;
+using Aion.Util.Tech.Logging;
 using Microsoft.Extensions.Logging;
 using Quartz;
 

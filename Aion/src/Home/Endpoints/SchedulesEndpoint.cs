@@ -1,6 +1,7 @@
-﻿using System.Threading.Tasks;
-using Aion.Core.Commands.Schedules;
-using Aion.Core.Mvc;
+﻿using System.Linq;
+using System.Threading.Tasks;
+using Aion.Home.Endpoints.Filters;
+using Aion.Util.Core.Commands.Schedules;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,9 +16,17 @@ public static class SchedulesEndpoint
         workflows.MapGet("", GetSchedules);
     }
 
-    private static async Task<IResult> GetSchedules(GetWorkflowSchedules getWorkflowSchedules, string profileName, [FromQuery(Name = "q")] string? workflowFilter)
+    private static async Task<IResult> GetSchedules(GetWorkflowsTriggers getWorkflowsTriggers, string profileName, [FromQuery(Name = "q")] string? workflowFilter)
     {
-        var workflows = await getWorkflowSchedules.Invoke(profileName, workflowFilter);
+        var workflows = await getWorkflowsTriggers.Invoke(profileName).ToResponse(workflowFilter).ToListAsync();
         return Results.Ok(workflows);
     }
+}
+
+public enum OrderBy
+{
+    Name,
+    Path,
+    Cron,
+    Next
 }

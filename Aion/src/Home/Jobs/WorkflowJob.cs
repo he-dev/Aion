@@ -1,11 +1,11 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Aion.Core.Commands.Workflows;
-using Aion.Core.Quartz;
-using Aion.Core.Workflows;
-using Aion.Util.Logging;
-using Aion.Util.Quartz;
+using Aion.Util.Core;
+using Aion.Util.Core.Commands.Workflows;
+using Aion.Util.Core.Scheduler;
+using Aion.Util.Tech.Logging;
+using Aion.Util.Tech.Quartz;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
@@ -14,8 +14,7 @@ namespace Aion.Home.Jobs;
 public class WorkflowJob
 (
     ILogger<WorkflowJob> logger,
-    ExecuteWorkflow executeWorkflow,
-    WorkflowScheduleRegistry workflowScheduleRegistry
+    ExecuteWorkflow executeWorkflow
 ) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
@@ -39,7 +38,7 @@ public class WorkflowJob
             if (workflowMode == WorkflowMode.Cron && !stepResults.Any())
             {
                 logger.LogWarning("Unscheduling workflow because it does not do anything.");
-                await workflowScheduleRegistry.Remove(context.JobDetail.Key);
+                await context.Scheduler.DeleteJob(context.JobDetail.Key);
             }
         }
         catch (Exception ex)
