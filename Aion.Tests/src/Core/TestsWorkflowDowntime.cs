@@ -2,7 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Util.Core;
+using Aion.Modules;
 using Microsoft.Extensions.Time.Testing;
 using Xunit;
 

@@ -5,9 +5,10 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Util.Core;
-using Aion.Util.Core.Commands.Workflows;
-using Aion.Util.Core.Scheduler;
+using Aion.Modules;
+using Aion.Modules.Scheduler;
+using Aion.Modules.Services;
+using Aion.Premise.Services.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -23,7 +24,7 @@ public class TestsWorkflowExecutionScenarios(TestWebApplication testWebApplicati
 
         var schedulerOptions = scope.ServiceProvider.GetRequiredService<IOptions<SchedulerOptions>>().Value;
         var executeWorkflow = scope.ServiceProvider.GetRequiredService<ExecuteWorkflow>();
-        var workflowRendering = scope.ServiceProvider.GetRequiredService<RenderWorkflow>();
+        var workflowRendering = scope.ServiceProvider.GetRequiredService<CreateWorkflow>();
         var workflowMatch = schedulerOptions.Profiles[profileName].Workflows.Single(workflowName);
         var workflow = await workflowRendering.For(workflowMatch);
         return await executeWorkflow.Now(workflow);

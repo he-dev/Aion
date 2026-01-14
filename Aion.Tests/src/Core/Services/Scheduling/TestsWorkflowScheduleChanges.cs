@@ -1,8 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Threading.Tasks;
 using Aion.Core;
-using Aion.Util.Core;
-using Aion.Util.Core.Commands.Workflows;
+using Aion.Modules;
+using Aion.Modules.Services;
+using Aion.Premise.Services.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Xunit;
@@ -21,7 +22,7 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         using var scope = testWebApplication.Services.CreateScope();
 
         var scheduleWorkflow = scope.ServiceProvider.GetRequiredService<ScheduleWorkflow>();
-        var workflowRendering = scope.ServiceProvider.GetRequiredService<RenderWorkflow>();
+        var workflowRendering = scope.ServiceProvider.GetRequiredService<CreateWorkflow>();
 
         var fakeProfile = new Profile { Path = @"C:\fake\path\to\profiles\one" };
         var fakeWorkflowName = new WorkflowName("fake-workflow.json");
