@@ -18,10 +18,9 @@ public class Profile
     // public string Name => System.IO.Path.GetFileName(Path.TrimEnd(System.IO.Path.DirectorySeparatorChar));
     public string Name => System.IO.Path.GetFileName(Path);
 
-
     public ProfileSync Sync { get; set; } = null!;
 
-    public FindWorkflows Workflows
+    public FindWorkflow Workflows
     {
         get => field; //?? throw new InvalidOperationException("Workflows are not configured.");
         set { field = value.Also(x => x.Profile = this); } // note: Is set implicitly by the json-serializer.

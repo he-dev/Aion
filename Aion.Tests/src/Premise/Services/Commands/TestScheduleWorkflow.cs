@@ -1,16 +1,14 @@
 ﻿using System.Diagnostics;
 using System.Threading.Tasks;
-using Aion.Core;
 using Aion.Modules;
-using Aion.Modules.Services;
 using Aion.Premise.Services.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Xunit;
 
-namespace Aion.Tests.Core.Services.Scheduling;
+namespace Aion.Tests.Premise.Services.Commands;
 
-public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication) : IClassFixture<TestWebApplication>
+public class TestScheduleWorkflow(TestWebApplication testWebApplication) : IClassFixture<TestWebApplication>
 {
     private async Task<WorkflowSyncResult.Passed> Synchronize
     (
@@ -22,22 +20,19 @@ public class TestsWorkflowScheduleChanges(TestWebApplication testWebApplication)
         using var scope = testWebApplication.Services.CreateScope();
 
         var scheduleWorkflow = scope.ServiceProvider.GetRequiredService<ScheduleWorkflow>();
-        var workflowRendering = scope.ServiceProvider.GetRequiredService<CreateWorkflow>();
 
-        var fakeProfile = new Profile { Path = @"C:\fake\path\to\profiles\one" };
-        var fakeWorkflowName = new WorkflowName("fake-workflow.json");
-        var fakeWorkflowPath = new WorkflowPath(fakeProfile.Path, fakeProfile.Name, fakeWorkflowName);
+        //var fakeProfile = new Profile { Path = @"C:\fake\path\to\profiles\one" };
+        //var fakeWorkflowName = new WorkflowName("fake-workflow.json");
+        //var fakeWorkflowPath = new WorkflowPath(fakeProfile.Path, fakeProfile.Name, fakeWorkflowName);
 
         if (initialWorkflow is not null)
         {
-            var workflow = await workflowRendering.For(fakeWorkflowPath, loadTemplate: _ => Task.FromResult(initialWorkflow));
-            await scheduleWorkflow.Invoke(fakeWorkflowPath, loadTemplate: _ => Task.FromResult(initialWorkflow));
+            await scheduleWorkflow.Invoke(initialWorkflow);
         }
 
         try
         {
-            var workflow = await workflowRendering.For(fakeWorkflowPath, loadTemplate: _ => Task.FromResult(changedWorkflow));
-            return await scheduleWorkflow.AddOrUpdate(workflow);
+            return await scheduleWorkflow.Invoke(changedWorkflow);
         }
         finally
         {

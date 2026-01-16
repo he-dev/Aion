@@ -9,7 +9,7 @@ using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 namespace Aion.Modules.Services;
 
 // note: This class is deserialized from appsettings.Profiles.json.
-public class FindWorkflows
+public class FindWorkflow
 {
     public const string Name = "Workflows";
 
@@ -46,16 +46,16 @@ public class FindWorkflows
 
     public IEnumerable<WorkflowPath> All() => Where("*");
 
-    public WorkflowPath Single(string workflowName) => Where(workflowName).SingleOrThrows
+    public WorkflowPath Single(WorkflowFilter workflowFilter) => Where(workflowFilter).SingleOrThrows
     (
-        onEmpty: () => new NoWorkflowMatch(Profile.Name, workflowName),
-        onExtra: () => new AmbiguousWorkflowMatch(Profile.Name, workflowName)
+        onEmpty: () => new NoWorkflowMatch(Profile.Name, workflowFilter),
+        onExtra: () => new AmbiguousWorkflowMatch(Profile.Name, workflowFilter)
     );
 }
 
 public record WorkflowPath(string ProfilePath, string ProfileName, WorkflowName WorkflowName)
 {
-    public override string ToString()=> Path.Join(ProfilePath, FindWorkflows.Name, WorkflowName.RelativePath);
+    public override string ToString()=> Path.Join(ProfilePath, FindWorkflow.Name, WorkflowName.RelativePath);
 
     public static implicit operator string(WorkflowPath workflowPath)  => workflowPath.ToString();
 }

@@ -27,32 +27,35 @@ public class ScheduleWorkflow
     (
         string profileName,
         string workflowName,
-        DateTimeOffset? startAtUtc,
+        ITrigger trigger,
         IImmutableList<StepIdentifier>? stepOrder = null
     )
     {
         var profile = schedulerOptions.Value.Profiles[profileName];
         var workflowPath = profile.Workflows.Single(workflowName);
-        return await Invoke(workflowPath, startAtUtc, stepOrder);
+        return await Invoke(workflowPath, trigger, stepOrder);
+    }
+
+    public async Task<WorkflowSyncResult.Passed> Invoke
+    (
+        WorkflowPath workflowPath,
+        ITrigger? trigger = null,
+        IImmutableList<StepIdentifier>? stepOrder = null
+    )
+    {
+        var workflowTemplate = await WorkflowTemplate.FromFile(workflowPath);
+        return await Invoke(workflowTemplate, trigger, stepOrder);
     }
 
     // note: This can only succeed, otherwise it throws an exception.
     public async Task<WorkflowSyncResult.Passed> Invoke
     (
-        WorkflowPath workflowPath,
-        DateTimeOffset? startAtUtc = null,
-        IImmutableList<StepIdentifier>? stepOrder = null,
-        Func<string, Task<WorkflowTemplate>>? loadTemplate = null
+        WorkflowTemplate workflowTemplate,
+        ITrigger? trigger = null,
+        IImmutableList<StepIdentifier>? stepOrder = null
     )
     {
-        var trigger =
-            startAtUtc is not null
-                ? CreateTrigger.Simple(workflowPath.ProfileName, workflowPath.WorkflowName, startAtUtc.Value)
-                : null;
-
-        var workflow = await createWorkflow.For(workflowPath, trigger, stepOrder, loadTemplate);
-
-        var scheduler = await schedulerFactory.GetScheduler();
+        var workflow = await createWorkflow.From(workflowTemplate, trigger, stepOrder);
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
         if (workflow.Trigger is not ICronTrigger)
@@ -60,6 +63,7 @@ public class ScheduleWorkflow
             return await AddCustom(workflow);
         }
 
+        var scheduler = await schedulerFactory.GetScheduler();
         var syncAction = await workflow.DetermineSyncAction(scheduler);
         var deleted = syncAction switch
         {

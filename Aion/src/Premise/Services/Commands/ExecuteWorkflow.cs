@@ -20,12 +20,12 @@ public class ExecuteWorkflow
 (
     ILogger<WorkflowJob> logger,
     IOptions<SchedulerOptions> schedulerOptions,
-    LogEventMapping logEventMapping,
+    MapLogEvent mapLogEvent,
     CreateWorkflow createWorkflow,
     StartProcess process
 )
 {
-    public async Task<IImmutableList<StepResult>> Now
+    public async Task<StepResultCollection> Now
     (
         string profileName,
         string workflowName,
@@ -33,16 +33,17 @@ public class ExecuteWorkflow
     )
     {
         var profile = schedulerOptions.Value.Profiles[profileName];
-        var workflowMatch = profile.Workflows.Single(workflowName);
-        var workflow = await createWorkflow.For(workflowMatch, CreateTrigger.Simple(profileName, workflowName, DateTimeOffset.UtcNow), stepOrder: stepOrder);
+        var workflowPath = profile.Workflows.Single(workflowName);
+        var workflowTemplate = await WorkflowTemplate.FromFile(workflowPath);
+        var workflow = await createWorkflow.From(workflowTemplate, CreateTrigger.Simple(profileName, workflowName, DateTimeOffset.UtcNow), stepOrder: stepOrder);
         return await Now(workflow);
     }
 
-    public async Task<IImmutableList<StepResult>> Now(Workflow workflow)
+    public async Task<StepResultCollection> Now(Workflow workflow)
     {
         if (workflow is { Mode: WorkflowMode.Cron, Enabled: false })
         {
-            return ImmutableList<StepResult>.Empty;
+            return new StepResultCollection();
         }
 
         using var activity = new Activity("ExecutingWorkflow").Start();
@@ -54,16 +55,16 @@ public class ExecuteWorkflow
         });
 
         using var executionSignature = new WorkflowSignatureScope(logger);
-        using var logging = logEventMapping.By(executionSignature, to: workflow.Logging.ToLogger());
+        using var logging = mapLogEvent.By(executionSignature, to: workflow.Logging.ToLogger());
 
         logger.LogInformation("Executing workflow: '{WorkflowName}'", workflow.Name);
 
         // core: Does not filter out disabled steps because we want them logged.
-        var stats = new WorkflowStats();
+        var stepResults = new StepResultCollection();
         foreach (var step in workflow.Steps)
         {
             var stepResult = await ExecuteStep(step);
-            stats.Add(stepResult);
+            stepResults.Add(stepResult);
 
             if (stepResult.ExitCode is not null and not 0 && step.OnFailure is { } onFailure)
             {
@@ -86,13 +87,13 @@ public class ExecuteWorkflow
         logger.LogInformation
         (
             "Steps={TotalStepCount}, Executed={ExecutedStepCount}, Passed={PassedStepCount}, Failed={FailedStepCount}.",
-            stats.TotalStepCount,
-            stats.ExecutedStepCount,
-            stats.PassedStepCount,
-            stats.FailedStepCount
+            stepResults.Count,
+            stepResults.ExecutedStepCount,
+            stepResults.PassedStepCount,
+            stepResults.FailedStepCount
         );
 
-        return stats.ToImmutableList();
+        return stepResults;
     }
 
     private async Task<StepResult> ExecuteStep(Workflow.Step step)
@@ -101,7 +102,8 @@ public class ExecuteWorkflow
         {
             return new StepResult
             {
-                Step = step,
+                Index = step.Index,
+                Order = step.Order,
             };
         }
 
@@ -109,7 +111,7 @@ public class ExecuteWorkflow
         using var activity = new Activity("ExecutingStep").Start();
         using var executionSignature = new StepSignatureScope(logger);
         using var scope = logger.BeginScopeFrom(new { StepIndex = step.Index, StepName = step.Name, step.LoggingTarget });
-        using var logging = logEventMapping.By(executionSignature, to: step.Logging.ToLogger());
+        using var logging = mapLogEvent.By(executionSignature, to: step.Logging.ToLogger());
 
         //var exitCodes = results.Select(r => r.ExitCode).ToImmutableList();
         // if (stepExecutionRules.Any(stepExecutionRule => stepExecutionRule.Violated(step, exitCodes)))
@@ -148,7 +150,8 @@ public class ExecuteWorkflow
 
             return new StepResult
             {
-                Step = step,
+                Index = step.Index,
+                Order = step.Order,
                 ExitCode = exitCode,
                 Duration = activity.Duration,
             };
@@ -159,7 +162,8 @@ public class ExecuteWorkflow
             logger.LogWarning("Step {StepIndex} was cancelled in {Duration:N0} ms by timeout.", step.Index, activity.Duration);
             return new StepResult
             {
-                Step = step,
+                Index = step.Index,
+                Order = step.Order,
                 Exception = ex,
                 Duration = activity.Duration,
             };
@@ -170,7 +174,8 @@ public class ExecuteWorkflow
             logger.LogError(ex, "Step {StepIndex} failed after {Duration:N0} ms with an exception.", step.Index, activity.Duration);
             return new StepResult
             {
-                Step = step,
+                Index = step.Index,
+                Order = step.Order,
                 Exception = ex,
                 Duration = activity.Duration,
             };
@@ -181,18 +186,35 @@ public class ExecuteWorkflow
 // meta: The core does not require this result at all, but without it, it's not possible to write tests.
 public record StepResult
 {
-    public required Workflow.Step Step { get; init; }
+    public required int Index { get; init; }
+    public required int Order { get; init; }
     public int? ExitCode { get; init; }
-    public StepStatus Status => ExitCode switch { 0 => StepStatus.Ok, null => StepStatus.Skipped, _ => StepStatus.Error };
+
+    public StepStatus Status => Exception switch
+    {
+        ProcessTimeout => StepStatus.Timeout,
+        _ => ExitCode switch
+        {
+            0 => StepStatus.Ok,
+            null => StepStatus.Skipped,
+            _ => StepStatus.Error
+        }
+    };
+
     public Exception? Exception { get; init; }
-    public TimeSpan? Duration { get; init; }
+    public TimeSpan Duration { get; init; }
 }
 
-public enum StepStatus { Ok, Skipped, Error }
-
-public class WorkflowStats : Collection<StepResult>
+public enum StepStatus
 {
-    public int TotalStepCount => Count;
+    Ok,
+    Error,
+    Timeout,
+    Skipped,
+}
+
+public class StepResultCollection : Collection<StepResult>
+{
     public int ExecutedStepCount => this.Count(result => result.ExitCode is not null);
     public int PassedStepCount => this.Count(result => result.ExitCode == 0);
     public int FailedStepCount => this.Count(result => result.ExitCode is not null && result.ExitCode != 0);

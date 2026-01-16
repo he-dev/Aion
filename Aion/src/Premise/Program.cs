@@ -3,6 +3,7 @@ using Aion.Modules;
 using Aion.Modules.Scheduler;
 using Aion.Modules.Scheduler.JobExecutionRules;
 using Aion.Modules.Services;
+using Aion.Modules.Services.Queries;
 using Aion.Modules.StepExecutionRules;
 using Aion.Premise.Endpoints;
 using Aion.Premise.Jobs;
@@ -33,7 +34,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.ConfigureFromSection<SchedulerOptions>(builder.Configuration);
 builder.Services.AddSingleton<IValidateOptions<SchedulerOptions>, SchedulerOptionsValidation>();
 builder.Services.AddSingleton<IPostConfigureOptions<SchedulerOptions>, SchedulerOptionsPostConfigure>();
-builder.Services.AddSingleton<LogEventMapping>();
+builder.Services.AddSingleton<MapLogEvent>();
 
 builder
     .Host
@@ -59,7 +60,7 @@ builder
             //.Enrich.WithProperty("Version", Program.Version)
             .Enrich.WithProperty("Instance", schedulerOptions.Name)
             .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
-            .WriteTo.Sink(services.GetRequiredService<LogEventMapping>());
+            .WriteTo.Sink(services.GetRequiredService<MapLogEvent>());
     });
 
 builder.Services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().ContentRootFileProvider);
@@ -67,6 +68,7 @@ builder.Services.AddSingleton(x => x.GetRequiredService<IHostEnvironment>().Cont
 builder.Services.AddScoped<WorkflowJob>();
 builder.Services.AddScoped<ProfileJob>();
 
+builder.Services.AddScoped<GetProfile>();
 builder.Services.AddScoped<CreateWorkflow>();
 builder.Services.AddScoped<ExecuteWorkflow>();
 builder.Services.AddScoped<IStepExecutionRule, StepMustBeEnabled>();

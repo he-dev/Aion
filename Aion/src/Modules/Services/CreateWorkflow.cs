@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,48 +20,45 @@ public class CreateWorkflow
     IOptions<SchedulerOptions> schedulerOptions
 )
 {
-    public async Task<Workflow> For
+    public async Task<Workflow> From
     (
-        WorkflowPath workflowPath,
+        WorkflowTemplate template,
         ITrigger? trigger = null,
-        IImmutableList<StepIdentifier>? stepOrder = null,
-        Func<string, Task<WorkflowTemplate>>? loadTemplate = null
+        IImmutableList<StepIdentifier>? stepOrder = null
     )
     {
-        using var scope = logger.BeginScopeFrom(new { workflowPath.WorkflowName });
+        using var scope = logger.BeginScopeFrom(new { template.Path.WorkflowName });
         logger.LogTrace("Rendering workflow.");
 
-        loadTemplate ??= WorkflowTemplate.FromFile;
-        var template = await loadTemplate(workflowPath);
         CronExpression.ValidateExpression(template.Cron);
 
-        var profile = schedulerOptions.Value.Profiles[workflowPath.ProfileName];
+        var profile = schedulerOptions.Value.Profiles[template.Path.ProfileName];
 
         // meta: Create a partial workflow first so that we can use the Mode property for variables.
         var workflow = new Workflow
         {
-            Profile = workflowPath.ProfileName,
+            Profile = template.Path.ProfileName,
             Enabled = template.Enabled,
-            Name = workflowPath.WorkflowName,
-            Path = workflowPath.ToString(),
-            Trigger = trigger ?? CreateTrigger.Cron(workflowPath.ProfileName, workflowPath.WorkflowName, template.Cron),
-            Variables = template.Variables.ToImmutableDictionary(),
+            Name = template.Path.WorkflowName,
+            Path = template.Path.ToString(),
+            Trigger = trigger ?? CreateTrigger.Cron(template.Path.ProfileName, template.Path.WorkflowName, template.Cron),
+            Variables = template.Variables?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
         };
 
         var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
         ([
             new GlobalVariableGroup(schedulerOptions.Value.Variables),
             new GlobalVariableGroup(profile.Variables),
-            new GlobalVariableGroup(template.Variables),
+            new GlobalVariableGroup(template.Variables ?? new Dictionary<string, string>()),
             new SchedulerVariableGroup { Name = schedulerOptions.Value.Name },
             new ProfileVariableGroup
             {
                 //Root = workflowPath.ProfileRoot,
-                Name = workflowPath.ProfileName,
+                Name = template.Path.ProfileName,
             },
             new WorkflowVariableGroup
             {
-                Name = workflowPath.WorkflowName,
+                Name = template.Path.WorkflowName,
                 Mode = workflow.Mode,
             }
         ]);
@@ -72,7 +70,7 @@ public class CreateWorkflow
                 .ToImmutableDictionary()
                 .SetItems(template.Environment)
                 .ToImmutableDictionary(x => x.Key, x => x.Value.Render(variables));
-        var stepTasks = template.Steps.Select((step, index) => RenderStep(profile, variables, environment, step, index));
+        var stepTasks = template.Steps.Select((step, index) => CreateStep(profile, variables, environment, step, index));
 
         try
         {
@@ -83,6 +81,8 @@ public class CreateWorkflow
                 steps =
                     stepOrder
                         .Select(indexOrName => steps.First(s => indexOrName == s.Index || indexOrName == s.Name))
+                        // core: Ensure that the step order matches the specified order.
+                        .Select((step, order) => step with { Order = order })
                         .ToArray();
             }
 
@@ -99,11 +99,11 @@ public class CreateWorkflow
         }
         catch (Exception ex)
         {
-            throw new RenderWorkflowException(workflowPath, ex);
+            throw new CreateWorkflowException(template.Path, ex);
         }
     }
 
-    private async Task<Workflow.Step> RenderStep
+    private async Task<Workflow.Step> CreateStep
     (
         Profile profile,
         IImmutableList<TemplateVariableGroup> variables,
@@ -119,10 +119,11 @@ public class CreateWorkflow
             return new Workflow.Step
             {
                 Index = index,
+                Order = index, // note: By default, steps are ordered by their index.
                 Name = template.Name,
                 Enabled = template.Enabled,
                 FileName = template.FileName.Render(variables),
-                Arguments = () => template.Arguments.Select(argument => argument.RenderValues(variables)),
+                Arguments = () => template.Arguments?.Select(argument => argument.RenderValues(variables)) ?? [],
                 // core: Merge environment with intended precedence: the step overrides workflow.
                 Environment = environment.SetItems(template.Environment),
                 WorkingDirectory = (template.WorkingDirectory ?? string.Empty).Render(variables),
@@ -134,20 +135,20 @@ public class CreateWorkflow
         }
         catch (Exception ex)
         {
-            throw new RenderStepException(index, ex);
+            throw new CreateStepException(index, ex);
         }
     }
 }
 
 public class WorkflowNotExecutableException(string message) : Exception(message);
 
-public class RenderWorkflowException(string path, Exception innerException) : Exception
+public class CreateWorkflowException(string path, Exception innerException) : Exception
 (
     message: $"Failed to render workflow template from '{path}'.",
     innerException: innerException
 );
 
-public class RenderStepException(int index, Exception innerException) : Exception
+public class CreateStepException(int index, Exception innerException) : Exception
 (
     message: $"Failed to render step template at {index}.",
     innerException: innerException

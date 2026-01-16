@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Modules;
+using Aion.Modules.Services;
 using Aion.Premise.Endpoints.Filters;
 using Aion.Premise.Services.Commands;
 using Aion.Premise.Services.Queries;
@@ -37,8 +38,8 @@ public static class WorkflowsEndpoint
             from stepResult in stepResults
             select new
             {
-                stepResult.Step.Index,
-                stepResult.Step.Name,
+                stepResult.Index,
+                stepResult.Order,
                 stepResult.ExitCode,
                 Status = stepResult.Status.ToString(),
                 stepResult.Duration,
@@ -49,13 +50,15 @@ public static class WorkflowsEndpoint
 
     private static async Task<IResult> StartIn(ScheduleWorkflow command, string profileName, string workflowName, [FromBody] WorkflowStartInBody body)
     {
-        var scheduledFor = await command.Invoke(profileName, workflowName, DateTimeOffset.UtcNow + body.Wait);
+        var trigger = CreateTrigger.Simple(profileName, workflowName, DateTimeOffset.UtcNow + body.Wait);
+        var scheduledFor = await command.Invoke(profileName, workflowName, trigger);
         return Results.Accepted($"/api/profiles/{profileName}/workflows/{workflowName}", new { scheduledFor });
     }
 
     private static async Task<IResult> StartAt(ScheduleWorkflow command, string profileName, string workflowName, [FromBody] WorkflowStartAtBody body)
     {
-        var scheduledFor = await command.Invoke(profileName, workflowName, body.WhenUtc);
+        var trigger = CreateTrigger.Simple(profileName, workflowName, body.WhenUtc);
+        var scheduledFor = await command.Invoke(profileName, workflowName, trigger);
         return Results.Accepted($"/api/profiles/{profileName}/workflows/{workflowName}", new { scheduledFor });
     }
 

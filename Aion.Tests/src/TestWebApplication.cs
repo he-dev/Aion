@@ -1,5 +1,4 @@
-﻿using Aion.Home;
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Aion.Tests;

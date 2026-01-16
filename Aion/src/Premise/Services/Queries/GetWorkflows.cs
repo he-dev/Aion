@@ -36,7 +36,8 @@ public class GetWorkflows
             {
                 if (workflowPath.WorkflowName.IsUrlSafe)
                 {
-                    var workflow = await createWorkflow.For(workflowPath);
+                    var workflowTemplate = await WorkflowTemplate.FromFile(workflowPath);
+                    var workflow = await createWorkflow.From(workflowTemplate);
                     workflows = workflows.Add(workflow);
                     logger.LogDebug("Successfully loaded workflow from '{WorkflowPath}'.", workflowPath);
                 }

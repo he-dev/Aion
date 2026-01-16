@@ -21,7 +21,7 @@ public record WorkflowTemplate
     [Cron]
     public string Cron { get; init; } = null!;
 
-    public Dictionary<string, string> Variables { get; init; } = new();
+    public Dictionary<string, string>? Variables { get; init; } = new();
 
     public Dictionary<string, string> Environment { get; init; } = new();
 
@@ -29,7 +29,10 @@ public record WorkflowTemplate
 
     public WorkflowStepTemplate[] Steps { get; init; } = null!;
 
-    public static async Task<WorkflowTemplate> FromFile(string path)
+    [JsonIgnore]
+    public WorkflowPath Path { get; init; } = null!;
+
+    public static async Task<WorkflowTemplate> FromFile(WorkflowPath path)
     {
         if (!File.Exists(path))
         {
@@ -45,6 +48,8 @@ public record WorkflowTemplate
             AllowTrailingCommas = true,
         }) ?? throw new InvalidWorkflowTemplate(path);
 
+        template = template with { Path = path };
+
         return WorkflowTemplateValidation.Validate(template);
     }
 }
@@ -59,7 +64,7 @@ public record WorkflowStepTemplate
     public string FileName { get; init; } = null!;
 
     [JsonConverter(typeof(StepArgumentConverter))]
-    public IImmutableList<StepArgument> Arguments { get; init; } = [];
+    public IImmutableList<StepArgument>? Arguments { get; init; } = [];
 
     public Dictionary<string, string> Environment { get; init; } = new();
 

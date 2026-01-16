@@ -10,7 +10,7 @@ namespace Aion.Premise.Endpoints;
 
 public static class SchedulesEndpointExtensions
 {
-    public static IAsyncEnumerable<object> ToResponse(this IAsyncEnumerable<ITrigger> source, string? filter = null, OrderBy orderBy = OrderBy.Next)
+    public static IAsyncEnumerable<object> FormatResponse(this IAsyncEnumerable<ITrigger> source, string? filter = null, OrderBy orderBy = OrderBy.Next)
     {
         // meta: Keep it stable.
         var utcNow = DateTimeOffset.UtcNow;

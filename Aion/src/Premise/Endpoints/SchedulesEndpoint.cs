@@ -18,7 +18,7 @@ public static class SchedulesEndpoint
 
     private static async Task<IResult> GetSchedules(GetProfileTriggers getProfileTriggers, string profileName, [FromQuery(Name = "q")] string? workflowFilter)
     {
-        var workflows = await getProfileTriggers.Invoke(profileName).ToResponse(workflowFilter).ToListAsync();
+        var workflows = await getProfileTriggers.Invoke(profileName).FormatResponse(workflowFilter).ToListAsync();
         return Results.Ok(workflows);
     }
 }

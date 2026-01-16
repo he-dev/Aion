@@ -1,0 +1,12 @@
+{
+  "Enabled": true,
+  "Cron": "0/15 * * * * ?",
+  "Variables": null,
+  "Steps": [
+    {
+      "Enabled": true,
+      "FileName": "{{ Variables.NpcExe }}",
+      "Arguments": null
+    }
+  ]
+}

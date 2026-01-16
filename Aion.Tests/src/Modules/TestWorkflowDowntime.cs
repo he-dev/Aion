@@ -1,14 +1,13 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
-using Aion.Core;
 using Aion.Modules;
 using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
-namespace Aion.Tests.Core;
+namespace Aion.Tests.Modules;
 
-public class TestsWorkflowDowntime
+public class TestWorkflowDowntime
 {
     [Fact]
     public void IsPendingWhenStartBeforeNow()

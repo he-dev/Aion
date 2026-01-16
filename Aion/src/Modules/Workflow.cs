@@ -28,9 +28,11 @@ public record Workflow
 
     public JsonObject? Logging { get; init; }
 
-    public class Step
+    public record Step
     {
         public int Index { get; init; }
+
+        public int Order { get; set; }
 
         public string? Name { get; init; }
 
