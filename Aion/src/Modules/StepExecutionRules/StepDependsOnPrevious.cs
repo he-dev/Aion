@@ -14,15 +14,15 @@ public class StepDependsOnPrevious(ILogger<StepDependsOnPrevious> logger) : ISte
     {
         // note: Currently, there is only one DependsOn rule: "$previous".
         // core: This check is irrelevant for the first step, so ignore it.
-        if (step.Index > 0 && step is { DependsOn: not null })
+        if (step.Index > 0 && step is { OnError: not null })
         {
-            if (step is { DependsOn: "$previous" } && exitCodes.Last() is not 0)
+            if (step is { OnError: "$previous" } && exitCodes.Last() is not 0)
             {
                 logger.LogWarning("Cannot execute this step because it depends on the previous one and it failed.");
                 return true;
             }
 
-            if (TryParseIntArray(step.DependsOn, out var indices) && indices.Any(i => exitCodes[i] is not 0))
+            if (TryParseIntArray(step.OnError, out var indices) && indices.Any(i => exitCodes[i] is not 0))
             {
                 logger.LogWarning("Cannot execute this step because it depends on [{DependsOn}] and one of them failed.", indices);
                 return true;

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using Aion.Modules.Services;
 using Aion.Modules.Services.Templates;
 using Aion.Modules.Templates;
 using Aion.Toolbox;

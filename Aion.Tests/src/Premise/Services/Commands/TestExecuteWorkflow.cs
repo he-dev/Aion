@@ -5,10 +5,10 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Aion.Context.Services.Commands;
 using Aion.Modules;
 using Aion.Modules.Services;
 using Aion.Modules.Services.Queries;
-using Aion.Premise.Services.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -18,9 +18,9 @@ public class TestExecuteWorkflow(TestWebApplication testWebApplication) : IClass
 {
     [Theory]
     [InlineData("c1.ok")]
-    // [InlineData("c1.offline")]
-    // [InlineData("c1.failure-1")]
-    // [InlineData("c1.timeout-3s")]
+    [InlineData("c1.disabled")]
+    [InlineData("c1.error-3")]
+    [InlineData("c1.timeout-3s")]
     // [InlineData("c2.failure-1_depends")]
     // [InlineData("c3.failure-1_depends_depends")]
     // [InlineData("c3.success_offline_success")]
@@ -28,7 +28,6 @@ public class TestExecuteWorkflow(TestWebApplication testWebApplication) : IClass
     // [InlineData("c3.offline_offline_success")]
     public async Task CanExecuteTypicalWorkflowScenarios(string testCase)
     {
-        using var activity = new Activity("TestingWorkflowExecution").Start();
         using var scope = testWebApplication.Services.CreateScope();
 
         var createWorkflow = scope.ServiceProvider.GetRequiredService<CreateWorkflow>();
@@ -37,7 +36,7 @@ public class TestExecuteWorkflow(TestWebApplication testWebApplication) : IClass
 
         var profile = getProfile.Where("test-cases");
         var workflowPath = profile.Workflows.Single(new WorkflowFilter(testCase));
-        var workflowTemplate = await WorkflowTemplate.FromFile(workflowPath);
+        var workflowTemplate = await WorkflowConfiguration.FromFile(workflowPath);
         var workflow = await createWorkflow.From(workflowTemplate);
         var actual = await executeWorkflow.Now(workflow);
         var expected = WorkflowTestCase.Parse(testCase).ToList();
@@ -46,6 +45,8 @@ public class TestExecuteWorkflow(TestWebApplication testWebApplication) : IClass
         foreach (var (e, a) in expected.Zip(actual, (e, a) => (e, a)))
         {
             Assert.Equal(e.ExitCode, a.ExitCode);
+            Assert.Equal(e.Status, a.Status);
+
         }
     }
 }
@@ -66,10 +67,10 @@ public static class WorkflowTestCase
 
 public record ExpectedStepResult(int? ExitCode, StepStatus Status, TimeSpan Duration)
 {
-    private static readonly Regex StatusOk = new(@"ok(-(?<durationSeconds>\d+))?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex StatusOk = new(@"ok(-(?<durationSeconds>\d+)s)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex StatusError = new(@"error-(?<exitCode>\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex StatusTimeout = new(@"timeout-(?<timeoutSeconds>\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex StatusSkipped = new(@"skipped", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex StatusTimeout = new(@"timeout-(?<timeoutSeconds>\d+)s", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex StatusDisabled = new(@"disabled", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public static ExpectedStepResult Parse(string testCase)
     {
@@ -94,9 +95,9 @@ public record ExpectedStepResult(int? ExitCode, StepStatus Status, TimeSpan Dura
             return new ExpectedStepResult(null, StepStatus.Timeout, TimeSpan.FromSeconds(timeoutSeconds));
         }
 
-        if (StatusSkipped.Match(testCase) is { Success: true })
+        if (StatusDisabled.Match(testCase) is { Success: true })
         {
-            return new ExpectedStepResult(null, StepStatus.Skipped, TimeSpan.Zero);
+            return new ExpectedStepResult(null, StepStatus.Disabled, TimeSpan.Zero);
         }
 
         throw new ArgumentOutOfRangeException(nameof(testCase), testCase, "Invalid test case.");

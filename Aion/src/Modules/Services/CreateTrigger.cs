@@ -1,6 +1,6 @@
 ﻿using System;
+using Aion.Context.Jobs;
 using Aion.Modules.Scheduler;
-using Aion.Premise.Jobs;
 using Aion.Toolbox.Quartz;
 using Quartz;
 

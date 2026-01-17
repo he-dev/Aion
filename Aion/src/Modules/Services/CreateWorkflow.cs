@@ -22,43 +22,43 @@ public class CreateWorkflow
 {
     public async Task<Workflow> From
     (
-        WorkflowTemplate template,
+        WorkflowConfiguration configuration,
         ITrigger? trigger = null,
         IImmutableList<StepIdentifier>? stepOrder = null
     )
     {
-        using var scope = logger.BeginScopeFrom(new { template.Path.WorkflowName });
+        using var scope = logger.BeginScopeFrom(new { configuration.Path.WorkflowName });
         logger.LogTrace("Rendering workflow.");
 
-        CronExpression.ValidateExpression(template.Cron);
+        CronExpression.ValidateExpression(configuration.Cron);
 
-        var profile = schedulerOptions.Value.Profiles[template.Path.ProfileName];
+        var profile = schedulerOptions.Value.Profiles[configuration.Path.ProfileName];
 
         // meta: Create a partial workflow first so that we can use the Mode property for variables.
         var workflow = new Workflow
         {
-            Profile = template.Path.ProfileName,
-            Enabled = template.Enabled,
-            Name = template.Path.WorkflowName,
-            Path = template.Path.ToString(),
-            Trigger = trigger ?? CreateTrigger.Cron(template.Path.ProfileName, template.Path.WorkflowName, template.Cron),
-            Variables = template.Variables?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
+            Profile = configuration.Path.ProfileName,
+            Enabled = configuration.Enabled,
+            Name = configuration.Path.WorkflowName,
+            Path = configuration.Path.ToString(),
+            Trigger = trigger ?? CreateTrigger.Cron(configuration.Path.ProfileName, configuration.Path.WorkflowName, configuration.Cron),
+            Variables = configuration.Variables?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
         };
 
         var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
         ([
             new GlobalVariableGroup(schedulerOptions.Value.Variables),
             new GlobalVariableGroup(profile.Variables),
-            new GlobalVariableGroup(template.Variables ?? new Dictionary<string, string>()),
+            new GlobalVariableGroup(configuration.Variables ?? new Dictionary<string, string>()),
             new SchedulerVariableGroup { Name = schedulerOptions.Value.Name },
             new ProfileVariableGroup
             {
                 //Root = workflowPath.ProfileRoot,
-                Name = template.Path.ProfileName,
+                Name = configuration.Path.ProfileName,
             },
             new WorkflowVariableGroup
             {
-                Name = template.Path.WorkflowName,
+                Name = configuration.Path.WorkflowName,
                 Mode = workflow.Mode,
             }
         ]);
@@ -68,9 +68,9 @@ public class CreateWorkflow
             profile
                 .Environment
                 .ToImmutableDictionary()
-                .SetItems(template.Environment)
+                .SetItems(configuration.Environment)
                 .ToImmutableDictionary(x => x.Key, x => x.Value.Render(variables));
-        var stepTasks = template.Steps.Select((step, index) => CreateStep(profile, variables, environment, step, index));
+        var stepTasks = configuration.Steps.Select((step, index) => CreateStep(profile, variables, environment, step, index));
 
         try
         {
@@ -93,13 +93,13 @@ public class CreateWorkflow
 
             return workflow with
             {
-                Logging = await profile.GetLoggingOrDefault(template.Logging).Let(jsonObject => RenderTemplate.RenderFilePaths(jsonObject, variables)),
+                Logging = await profile.GetLoggingPreset.Where(configuration.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
                 Steps = steps.ToImmutableList(),
             };
         }
         catch (Exception ex)
         {
-            throw new CreateWorkflowException(template.Path, ex);
+            throw new CreateWorkflowException(configuration.Path, ex);
         }
     }
 
@@ -108,29 +108,29 @@ public class CreateWorkflow
         Profile profile,
         IImmutableList<TemplateVariableGroup> variables,
         IImmutableDictionary<string, string> environment,
-        WorkflowStepTemplate template,
+        StepConfiguration configuration,
         int index
     )
     {
         using var scope = logger.BeginScopeFrom(new { StepIndex = index });
-        variables = variables.Add(new StepVariableGroup { Index = index, Name = template.Name });
+        variables = variables.Add(new StepVariableGroup { Index = index, Name = configuration.Name });
         try
         {
             return new Workflow.Step
             {
                 Index = index,
                 Order = index, // note: By default, steps are ordered by their index.
-                Name = template.Name,
-                Enabled = template.Enabled,
-                FileName = template.FileName.Render(variables),
-                Arguments = () => template.Arguments?.Select(argument => argument.RenderValues(variables)) ?? [],
+                Name = configuration.Name,
+                Enabled = configuration.Enabled,
+                FileName = configuration.FileName.Render(variables),
+                Arguments = () => configuration.Arguments?.Select(argument => argument.RenderValues(variables)) ?? [],
                 // core: Merge environment with intended precedence: the step overrides workflow.
-                Environment = environment.SetItems(template.Environment),
-                WorkingDirectory = (template.WorkingDirectory ?? string.Empty).Render(variables),
-                Timeout = template.Timeout ?? System.Threading.Timeout.InfiniteTimeSpan,
-                DependsOn = template.DependsOn,
-                Logging = await profile.GetLoggingOrDefault(template.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
-                LoggingTarget = template.Logging.Target,
+                Environment = environment.SetItems(configuration.Environment),
+                WorkingDirectory = (configuration.WorkingDirectory ?? string.Empty).Render(variables),
+                Timeout = configuration.Timeout ?? System.Threading.Timeout.InfiniteTimeSpan,
+                OnError = configuration.OnError,
+                Logging = await profile.GetLoggingPreset.Where(configuration.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
+                LoggingTarget = configuration.Logging.Target,
             };
         }
         catch (Exception ex)

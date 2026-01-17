@@ -51,9 +51,7 @@ public record Workflow
 
         public JsonObject? Logging { get; init; }
 
-        public string? OnFailure { get; init; }
-
-        public string? DependsOn { get; init; }
+        public string? OnError { get; init; }
 
         public LoggingTarget LoggingTarget { get; init; }
     }

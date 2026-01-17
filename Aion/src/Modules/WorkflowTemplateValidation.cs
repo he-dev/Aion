@@ -11,18 +11,18 @@ namespace Aion.Modules;
 
 public static class WorkflowTemplateValidation
 {
-    public static WorkflowTemplate Validate(WorkflowTemplate template)
+    public static WorkflowConfiguration Validate(WorkflowConfiguration configuration)
     {
         var results =
-            template
+            configuration
                 .Steps
                 .Select((step, index) => (step, index))
                 .Where(x => x.step.Enabled)
-                .Aggregate(Validation.Evaluate(template), (current, item) =>
+                .Aggregate(Validation.Evaluate(configuration), (current, item) =>
                 {
                     var items = new Dictionary<object, object?>
                     {
-                        ["Parent"] = $"{nameof(WorkflowStepTemplate)}[{item.index}]"
+                        ["Parent"] = $"{nameof(StepConfiguration)}[{item.index}]"
                     };
                     return current.AddRange(Validation.Evaluate(item.step, items));
                 });
@@ -30,7 +30,7 @@ public static class WorkflowTemplateValidation
         return
             results.Any()
                 ? throw new ValidationException(string.Join(" | ", results.Select(r => r.ErrorMessage)))
-                : template;
+                : configuration;
     }
 }
 
@@ -76,7 +76,7 @@ public sealed class NotNullOrWhiteSpaceAttribute : StringValidationAttribute
 }
 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
-public sealed class CronAttribute : StringValidationAttribute
+public sealed class MustBeCronAttribute : StringValidationAttribute
 {
     protected override ValidationResult? ValidateString(string? value, string parent, ValidationContext ctx)
     {

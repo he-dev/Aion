@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using Aion.Modules.Services;
 using Aion.Modules.Services.Templates;
 using Aion.Modules.Templates;
 using Microsoft.Extensions.Options;

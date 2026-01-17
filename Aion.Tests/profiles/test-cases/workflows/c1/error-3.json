@@ -7,9 +7,8 @@
       "Enabled": true,
       "FileName": "{{ Variables.NpcExe }}",
       "Arguments": {
-        "--sleep-seconds": 5
-      },
-      "Timeout": "0:00:03"
+        "--exit-code":  3
+      }
     }
   ]
 }
