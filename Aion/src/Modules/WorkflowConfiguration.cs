@@ -20,7 +20,7 @@ public record WorkflowConfiguration
     [MustBeCron]
     public string Cron { get; init; } = null!;
 
-    public Dictionary<string, string>? Variables { get; init; } = new();
+    public Dictionary<string, string>? Parameters { get; init; } = new();
 
     public Dictionary<string, string> Environment { get; init; } = new();
 

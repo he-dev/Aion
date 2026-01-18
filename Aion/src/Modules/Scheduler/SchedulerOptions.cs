@@ -9,7 +9,7 @@ public record SchedulerOptions
 
     public TimeSpan StartDelay { get; init; }
 
-    public Dictionary<string, string> Variables { get; init; } = new();
+    public Dictionary<string, string>? Parameters { get; init; } = new();
 
     public Dictionary<string, Profile> Profiles { get; init; } = null!;
 }

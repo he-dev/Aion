@@ -23,7 +23,7 @@ public static class RenderTemplate
         // note: Scriban's documentation recommends creating everything from scratch each time.
 
         var customFunctions = new ScriptObject(StringComparer.OrdinalIgnoreCase);
-        customFunctions.Import("env", GetEnvironmentVariable.Invoke);
+        //customFunctions.Import("env", GetEnvironmentVariable.Invoke);
 
         var context = new TemplateContext
         {
@@ -39,9 +39,10 @@ public static class RenderTemplate
         };
         context.PushGlobal(ScriptObject.From(typeof(BuiltinFunctions)));
         context.PushGlobal(ScriptObject.From(typeof(StringFunctions)));
+        context.PushGlobal(EnvironmentVariableObject.Default);
         context.PushGlobal(customFunctions);
 
-        // meta: Create a composite variable group for each name because they otherwise got replaced.
+        // core: Create a composite variable group for each name because they otherwise get replaced.
         var compositeGroups =  variableGroups.GroupBy(g => g.Key).Select(g => new CompositeVariableGroup(g));
         foreach (var variableGroup in compositeGroups)
         {
@@ -57,7 +58,8 @@ public static class RenderTemplate
         {
             ExpressionDepthLimit = 10
         };
-        // meta: Ensure we also render nested variables but don't fall into an infinite loop.
+
+        // core: Ensure we also render nested variables but don't fall into an infinite loop.
         while (current != previous && passes < maxPasses)
         {
             previous = current;
@@ -65,7 +67,7 @@ public static class RenderTemplate
             passes++;
         }
 
-        // meta: Apparently it's still not fully rendered.
+        // core: Apparently it's still not fully rendered.
         if (passes >= maxPasses && current != previous)
         {
             throw new Exception($"Variable template did not stabilize after {maxPasses} passes.");
@@ -75,7 +77,7 @@ public static class RenderTemplate
     }
 
     // core: Renders each path property it finds that looks like a template.
-    public static JsonObject? RenderFilePaths(this JsonObject? serilog, IImmutableList<TemplateVariableGroup> variables)
+    public static JsonObject? RenderFilePaths(this JsonObject? serilog, IImmutableList<TemplateVariableGroup> variableGroups)
     {
         if (serilog is null) return null;
 
@@ -91,7 +93,7 @@ public static class RenderTemplate
                 if (sink is not null && sink["Name"]?.GetValue<string>() == "File" && sink["Args"] is JsonObject args && args["path"] is JsonValue path)
                 {
                     var template = path.GetValue<string>();
-                    args["path"] = template.Render(variables);
+                    args["path"] = template.Render(variableGroups);
                 }
             }
         }

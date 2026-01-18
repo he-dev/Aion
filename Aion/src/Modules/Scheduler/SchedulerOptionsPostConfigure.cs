@@ -15,8 +15,8 @@ public class SchedulerOptionsPostConfigure : IPostConfigureOptions<SchedulerOpti
             // note: Other variables are unknown at this stage, so only ENV is supported.
             var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
             ([
-                new GlobalVariableGroup(scheduler.Variables),
-                new GlobalVariableGroup(profile.Variables),
+                new ContextVariableGroup(scheduler.Parameters),
+                new ContextVariableGroup(profile.Parameters),
                 new SchedulerVariableGroup
                 {
                     Name = scheduler.Name,

@@ -1,7 +1,7 @@
 {
   "Enabled": true,
   "Cron": "0/20 * * * * ?",
-  "Variables": {
+  "Parameters": {
     "exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe"
   },
   "Steps": [

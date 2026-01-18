@@ -1,6 +1,7 @@
 ﻿using System;
 using Scriban;
 using Scriban.Parsing;
+using Scriban.Runtime;
 using Scriban.Syntax;
 
 namespace Aion.Modules.Services.Templates;
@@ -20,3 +21,4 @@ public static class GetEnvironmentVariable
 
     }
 }
+

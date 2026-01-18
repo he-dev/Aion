@@ -24,17 +24,3 @@ public abstract class TemplateVariableGroup(string key) : IEnumerable<KeyValuePa
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
-
-public class CompositeVariableGroup(IGrouping<string, TemplateVariableGroup> grouping) : TemplateVariableGroup(grouping.Key)
-{
-    public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
-    {
-        return
-            grouping
-                // meta: Flatten the nested groups.
-                .SelectMany(group => group)
-                // meta: Last variable wins.
-                .GroupBy(x => x.Key, (_, items) => items.Last())
-                .GetEnumerator();
-    }
-}

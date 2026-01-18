@@ -42,14 +42,14 @@ public class CreateWorkflow
             Name = configuration.Path.WorkflowName,
             Path = configuration.Path.ToString(),
             Trigger = trigger ?? CreateTrigger.Cron(configuration.Path.ProfileName, configuration.Path.WorkflowName, configuration.Cron),
-            Variables = configuration.Variables?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
+            Variables = configuration.Parameters?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
         };
 
         var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
         ([
-            new GlobalVariableGroup(schedulerOptions.Value.Variables),
-            new GlobalVariableGroup(profile.Variables),
-            new GlobalVariableGroup(configuration.Variables ?? new Dictionary<string, string>()),
+            new ContextVariableGroup(schedulerOptions.Value.Parameters),
+            new ContextVariableGroup(profile.Parameters),
+            new ContextVariableGroup(configuration.Parameters),
             new SchedulerVariableGroup { Name = schedulerOptions.Value.Name },
             new ProfileVariableGroup
             {

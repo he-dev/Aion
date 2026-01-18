@@ -26,6 +26,11 @@ internal static class Program
             Thread.Sleep(sleep * 1000);
         }
 
+        if (Environment.GetEnvironmentVariable("NPC_MODE") is { } mode)
+        {
+            Console.WriteLine($"NPC mode is: {mode}");
+        }
+
         if (commandLine.GetValue(exitCodeOption) is var exitCode && exitCode != 0)
         {
             Console.Error.WriteLine($"Oops! ({exitCode})");

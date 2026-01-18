@@ -5,12 +5,12 @@ using Aion.Modules.Templates;
 
 namespace Aion.Modules;
 
-public class GlobalVariableGroup(IEnumerable<KeyValuePair<string, string>> variables) : TemplateVariableGroup("Variables")
+public class ContextVariableGroup(IEnumerable<KeyValuePair<string, string>>? variables) : TemplateVariableGroup("Parameters")
 {
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         return
-            variables
+            (variables ?? [])
                 .Select(variable => new KeyValuePair<string, object?>(variable.Key, variable.Value))
                 .GetEnumerator();
     }
@@ -46,7 +46,7 @@ public class WorkflowVariableGroup() : TemplateVariableGroup("Workflow")
 {
     public required string Name { get; init; }
 
-    public WorkflowMode Mode { get; set; }
+    public WorkflowMode Mode { get; init; }
 
     public override IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {

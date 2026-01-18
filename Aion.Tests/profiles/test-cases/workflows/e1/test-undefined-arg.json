@@ -1,7 +1,7 @@
 {
   "Enabled": true,
   "Sync": "0/15 * * * * ?",
-  "Variables": {
+  "Parameters": {
     "Exe": "{{ env \"DEV_HOME\" }}\\Aion\\Aion.Npc\\bin\\Debug\\net8.0\\Aion.Npc.exe"
   },
   "Steps": [

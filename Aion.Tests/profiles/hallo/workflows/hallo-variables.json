@@ -1,7 +1,7 @@
 {
   "Enabled": true,
   "Cron": "0/30 * * * * ?",
-  "Variables": {
+  "Parameters": {
     "LoggingPreset": "ConsoleFile28Days"
   },
   "Steps": [

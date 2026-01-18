@@ -25,7 +25,7 @@ public class Profile
 
     // meta: This property can be null in JSON, but nulls suck in code, so use empty dictionaries instead.
     // ReSharper disable once CollectionNeverUpdated.Global
-    public Dictionary<string, string> Variables { get; set; } = new();
+    public Dictionary<string, string>? Parameters { get; set; } = new();
 
     // meta: This property can be null in JSON, but nulls suck in code, so use empty dictionaries instead.
     // ReSharper disable once CollectionNeverUpdated.Global

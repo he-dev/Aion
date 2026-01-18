@@ -1,19 +1,19 @@
 {
   "Enabled": true,
   "Cron": "0/5 * * * * ?",
-  "Variables": {
+  "Parameters": {
     "Message": "This is step {{ Step.Index }} from {{ Workflow.Name }}."
   },
   "Environment": {
-    "Foo": "Foo"
+    "NPC_MODE": "test"
   },
   "Steps": [
     {
       "Enabled": true,
-      "FileName": "{{ Variables.NpcExe }}",
+      "FileName": "{{ Parameters.NpcExe }}",
       "Arguments": {
         "--sleep-seconds": 1,
-        "--message": "\"{{ Variables.Message }}\""
+        "--message": "\"{{ Parameters.Message }}\""
       },
       "Environment": {
         "Bar": "Bar"
