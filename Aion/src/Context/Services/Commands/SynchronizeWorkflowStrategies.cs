@@ -10,18 +10,19 @@ namespace Aion.Context.Services.Commands;
 
 public interface ISynchronizeWorkflow
 {
+    // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
+
     Task<SynchronizeWorkflowResult?> Try(Workflow workflow);
 }
 
 // util: This class supports the API response.
-public record SynchronizeWorkflowResult
+public record SynchronizeWorkflowResult(string WorkflowName, Type ActionType)
 {
-    public required string WorkflowName { get; init; }
-
-    public required Type ActionType { get; init; }
-
     public DateTimeOffset? NextUtc { get; init; }
 }
+
+public record SynchronizeWorkflowResult<T>(string WorkflowName)
+    : SynchronizeWorkflowResult(WorkflowName, typeof(T)) where T : ISynchronizeWorkflow;
 
 public class ScheduleCustomWorkflow
 (
@@ -31,7 +32,8 @@ public class ScheduleCustomWorkflow
 {
     public async Task<SynchronizeWorkflowResult?> Try(Workflow workflow)
     {
-        if (workflow.Trigger is ICronTrigger)
+        var hasCustomTrigger = workflow.Trigger is not ICronTrigger;
+        if (!hasCustomTrigger)
         {
             return null;
         }
@@ -56,10 +58,8 @@ public class ScheduleCustomWorkflow
         logger.LogInformation("Workflow '{WorkflowName}' will be executed once at '{Next}'.", workflow.Name, workflow.Trigger.GetNextFireTimeUtc());
 
         var next = await scheduler.ScheduleJob(jobDetail, workflow.Trigger);
-        return new SynchronizeWorkflowResult
+        return new SynchronizeWorkflowResult<ScheduleCustomWorkflow>(workflow.Name)
         {
-            WorkflowName = workflow.Name,
-            ActionType = typeof(ScheduleCustomWorkflow),
             NextUtc = next
         };
     }
@@ -75,21 +75,17 @@ public class UnscheduleDisabledWorkflow
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
-        if (!workflow.Enabled)
+        var canUnscheduleDisabled = !workflow.Enabled && await scheduler.CheckExists(workflow.Trigger.JobKey);
+
+        if (canUnscheduleDisabled)
         {
-            if (await scheduler.CheckExists(workflow.Trigger.JobKey))
+            if (await scheduler.DeleteJob(workflow.Trigger.JobKey))
             {
-                if (await scheduler.DeleteJob(workflow.Trigger.JobKey))
-                {
-                    logger.LogInformation("Workflow '{WorkflowName}' was unscheduled.", workflow.Name);
-                }
+                logger.LogInformation("Workflow '{WorkflowName}' was unscheduled.", workflow.Name);
+                return new SynchronizeWorkflowResult<UnscheduleDisabledWorkflow>(workflow.Name);
             }
 
-            return new SynchronizeWorkflowResult
-            {
-                WorkflowName = workflow.Name,
-                ActionType = typeof(UnscheduleDisabledWorkflow),
-            };
+            logger.LogWarning("Workflow '{WorkflowName}' could not be unscheduled.", workflow.Name);
         }
 
         return null;
@@ -106,21 +102,16 @@ public class UnscheduleEmptyWorkflow
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
-        if (!workflow.Steps.Any(s => s.Enabled))
-        {
-            if (await scheduler.CheckExists(workflow.Trigger.JobKey))
-            {
-                if (await scheduler.DeleteJob(workflow.Trigger.JobKey))
-                {
-                    logger.LogInformation("Workflow '{WorkflowName}' was unscheduled.", workflow.Name);
-                }
-            }
+        var canUnscheduleEmpty = workflow.Enabled && !workflow.Steps.Any();
 
-            return new SynchronizeWorkflowResult
+        if (canUnscheduleEmpty)
+        {
+            if (await scheduler.DeleteJob(workflow.Trigger.JobKey))
             {
-                WorkflowName = workflow.Name,
-                ActionType = typeof(UnscheduleEmptyWorkflow),
-            };
+                logger.LogInformation("Workflow '{WorkflowName}' was unscheduled.", workflow.Name);
+                return new SynchronizeWorkflowResult<UnscheduleEmptyWorkflow>(workflow.Name);
+            }
+            logger.LogWarning("Workflow '{WorkflowName}' could not be unscheduled.", workflow.Name);
         }
 
         return null;
@@ -137,17 +128,18 @@ public class RescheduleChangedWorkflow
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
-        if (await scheduler.CheckExists(workflow.Trigger.JobKey))
+        var canReschedule = workflow.Enabled && workflow.Steps.Any(s => s.Enabled);
+
+        if (canReschedule)
         {
+            // core: Compare the cron expressions.
             if (await scheduler.GetTrigger(workflow.Trigger.Key) is ICronTrigger { CronExpressionString: { } currentCron })
             {
                 if (workflow.Trigger is ICronTrigger { CronExpressionString: { } otherCron } && !currentCron.Equals(otherCron))
                 {
                     var next = await scheduler.RescheduleJob(workflow.Trigger.Key, workflow.Trigger);
-                    return new SynchronizeWorkflowResult
+                    return new SynchronizeWorkflowResult<RescheduleChangedWorkflow>(workflow.Name)
                     {
-                        WorkflowName = workflow.Name,
-                        ActionType = typeof(RescheduleChangedWorkflow),
                         NextUtc = next
                     };
                 }
@@ -168,7 +160,12 @@ public class ScheduleNewWorkflow
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
-        if (await scheduler.CheckExists(workflow.Trigger.JobKey))
+        var canScheduleNew =
+            workflow.Enabled &&
+            workflow.Steps.Any(s => s.Enabled) &&
+            !await scheduler.CheckExists(workflow.Trigger.JobKey);
+
+        if (canScheduleNew)
         {
             var jobDetail =
                 JobBuilder
@@ -179,10 +176,8 @@ public class ScheduleNewWorkflow
 
             var next = await scheduler.ScheduleJob(jobDetail, workflow.Trigger);
 
-            return new SynchronizeWorkflowResult
+            return new SynchronizeWorkflowResult<ScheduleNewWorkflow>(workflow.Name)
             {
-                WorkflowName = workflow.Name,
-                ActionType = typeof(ScheduleNewWorkflow),
                 NextUtc = next
             };
         }
@@ -199,10 +194,6 @@ public class IgnoreWorkflow
     public Task<SynchronizeWorkflowResult?> Try(Workflow workflow)
     {
         logger.LogInformation("Workflow '{WorkflowName}' is ignored.", workflow.Name);
-        return Task.FromResult(new SynchronizeWorkflowResult
-        {
-            WorkflowName = workflow.Name,
-            ActionType = typeof(ScheduleNewWorkflow),
-        })!;
+        return Task.FromResult<SynchronizeWorkflowResult>(new SynchronizeWorkflowResult<IgnoreWorkflow>(workflow.Name))!;
     }
 }

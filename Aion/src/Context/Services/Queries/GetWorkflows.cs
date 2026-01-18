@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Aion.Modules;
 using Aion.Modules.Scheduler;
 using Aion.Modules.Services;
 using Aion.Toolbox.Quartz;
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -85,26 +82,26 @@ public class GetWorkflows
     }
 }
 
-public abstract class CommandExceptionHandler<TException> : IExceptionHandler where TException : Exception
-{
-    public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
-    {
-        if (exception is TException)
-        {
-            var response = Evaluate(exception);
-            httpContext.Response.StatusCode = response.StatusCode;
-            await httpContext.Response.WriteAsJsonAsync(new { error = response.Message }, cancellationToken);
-            return true;
-        }
-
-        return false;
-    }
-
-    protected abstract (int StatusCode, string Message) Evaluate(Exception exception);
-}
-
-public class WorkflowNotExecutableExceptionHandler : CommandExceptionHandler<WorkflowNotExecutableException>
-{
-    protected override (int StatusCode, string Message) Evaluate(Exception exception) => (StatusCodes.Status422UnprocessableEntity, exception.Message);
-}
+// public abstract class CommandExceptionHandler<TException> : IExceptionHandler where TException : Exception
+// {
+//     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
+//     {
+//         if (exception is TException)
+//         {
+//             var response = Evaluate(exception);
+//             httpContext.Response.StatusCode = response.StatusCode;
+//             await httpContext.Response.WriteAsJsonAsync(new { error = response.Message }, cancellationToken);
+//             return true;
+//         }
+//
+//         return false;
+//     }
+//
+//     protected abstract (int StatusCode, string Message) Evaluate(Exception exception);
+// }
+//
+// public class WorkflowNotExecutableExceptionHandler : CommandExceptionHandler<WorkflowNotExecutableException>
+// {
+//     protected override (int StatusCode, string Message) Evaluate(Exception exception) => (StatusCodes.Status422UnprocessableEntity, exception.Message);
+// }
 

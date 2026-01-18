@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Aion.Modules;
-using Aion.Modules.Scheduler;
 using Aion.Modules.Services;
 using Aion.Modules.Services.Queries;
 using Aion.Toolbox.Logging;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Aion.Context.Services.Commands;
@@ -16,13 +14,11 @@ namespace Aion.Context.Services.Commands;
 public class SynchronizeWorkflow
 (
     ILogger<SynchronizeWorkflow> logger,
-    IOptionsSnapshot<SchedulerOptions> schedulerOptions,
+    GetProfile getProfile,
     CreateWorkflow createWorkflow,
     IEnumerable<ISynchronizeWorkflow> synchronizeWorkflows
 )
 {
-    // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
-
     public async Task<SynchronizeWorkflowResult> Invoke
     (
         string profileName,
@@ -31,7 +27,7 @@ public class SynchronizeWorkflow
         IImmutableList<StepIdentifier>? stepOrder = null
     )
     {
-        var profile = schedulerOptions.Value.Profiles[profileName];
+        var profile = getProfile.Where(profileName);
         var workflowPath = profile.Workflows.Single(workflowName);
         return await Invoke(workflowPath, trigger, stepOrder);
     }

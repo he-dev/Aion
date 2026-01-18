@@ -86,9 +86,6 @@ public class CreateWorkflow
                         .ToArray();
             }
 
-            // core: Workflows without any enabled steps are invalid.
-            if (steps.Length == 0) throw new WorkflowNotExecutableException("Workflow has no executable steps.");
-
             logger.LogTrace("Steps rendered: {StepCount}", steps.Length);
 
             return workflow with
@@ -139,8 +136,6 @@ public class CreateWorkflow
         }
     }
 }
-
-public class WorkflowNotExecutableException(string message) : Exception(message);
 
 public class CreateWorkflowException(string path, Exception innerException) : Exception
 (

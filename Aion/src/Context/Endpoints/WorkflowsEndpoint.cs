@@ -48,17 +48,17 @@ public static class WorkflowsEndpoint
         return Results.Ok(new { stepResults = results });
     }
 
-    private static async Task<IResult> StartIn(SynchronizeWorkflow command, string profileName, string workflowName, [FromBody] WorkflowStartInBody body)
+    private static async Task<IResult> StartIn(SynchronizeWorkflow synchronizeWorkflow, string profileName, string workflowName, [FromBody] WorkflowStartInBody body)
     {
         var trigger = CreateTrigger.Simple(profileName, workflowName, DateTimeOffset.UtcNow + body.Wait);
-        var scheduledFor = await command.Invoke(profileName, workflowName, trigger);
+        var scheduledFor = await synchronizeWorkflow.Invoke(profileName, workflowName, trigger);
         return Results.Accepted($"/api/profiles/{profileName}/workflows/{workflowName}", new { scheduledFor });
     }
 
-    private static async Task<IResult> StartAt(SynchronizeWorkflow command, string profileName, string workflowName, [FromBody] WorkflowStartAtBody body)
+    private static async Task<IResult> StartAt(SynchronizeWorkflow synchronizeWorkflow, string profileName, string workflowName, [FromBody] WorkflowStartAtBody body)
     {
         var trigger = CreateTrigger.Simple(profileName, workflowName, body.WhenUtc);
-        var scheduledFor = await command.Invoke(profileName, workflowName, trigger);
+        var scheduledFor = await synchronizeWorkflow.Invoke(profileName, workflowName, trigger);
         return Results.Accepted($"/api/profiles/{profileName}/workflows/{workflowName}", new { scheduledFor });
     }
 

@@ -11,11 +11,9 @@ namespace Aion.Modules.Services.Queries;
 // note: This class is deserialized from appsettings.Profiles.json.
 public class GetWorkflows
 {
-    public const string Name = "Workflows";
-
     internal Profile Profile { get; set; } = null!;
 
-    public string Path => System.IO.Path.Join(Profile.Path, Name);
+    public string Path => System.IO.Path.Join(Profile.Path, WorkflowPath.DefaultName);
 
     public string[] Includes { get; set; } = [];
 
@@ -40,7 +38,7 @@ public class GetWorkflows
         return
             from filePatternMatch in results
             let pathWithinProfile = filePatternMatch.Path.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar)
-            let workflowMatch = new WorkflowPath(Profile.Path, Profile.Name, new WorkflowName(pathWithinProfile))
+            let workflowMatch = new WorkflowPath(Profile.Path, new WorkflowName(pathWithinProfile))
             select workflowMatch;
     }
 
@@ -51,13 +49,6 @@ public class GetWorkflows
         onEmpty: () => new NoWorkflowMatch(Profile.Name, workflowFilter),
         onExtra: () => new AmbiguousWorkflowMatch(Profile.Name, workflowFilter)
     );
-}
-
-public record WorkflowPath(string ProfilePath, string ProfileName, WorkflowName WorkflowName)
-{
-    public override string ToString()=> Path.Join(ProfilePath, GetWorkflows.Name, WorkflowName.RelativePath);
-
-    public static implicit operator string(WorkflowPath workflowPath)  => workflowPath.ToString();
 }
 
 public class NoWorkflowMatch(string profileName, string workflowNameOrFilter)
