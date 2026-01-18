@@ -121,7 +121,7 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
         (
             DummyWorkflow with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
         );
-        Assert.Equal(1, results.Count);
+        Assert.Single(results);
         Assert.Equal(typeof(ScheduleNewWorkflow), results.First().ActionType);
     }
 }

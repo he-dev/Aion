@@ -7,7 +7,6 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Aion.Modules.Logging;
-using Aion.Modules.Services.Queries;
 using Aion.Toolbox.Json;
 
 namespace Aion.Modules;

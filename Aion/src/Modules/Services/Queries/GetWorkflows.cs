@@ -38,7 +38,7 @@ public class GetWorkflows
         return
             from filePatternMatch in results
             let pathWithinProfile = filePatternMatch.Path.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar)
-            let workflowMatch = new WorkflowPath(Profile.Path, new WorkflowName(pathWithinProfile))
+            let workflowMatch = new WorkflowPath(Profile.Path, WorkflowName.FromPath(pathWithinProfile))
             select workflowMatch;
     }
 

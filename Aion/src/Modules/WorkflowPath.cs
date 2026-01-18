@@ -8,7 +8,7 @@ public record WorkflowPath(string ProfilePath, WorkflowName WorkflowName)
 
     public string ProfileName => Path.GetFileName(ProfilePath);
 
-    public override string ToString()=> Path.Join(ProfilePath, DefaultName, WorkflowName.RelativePath);
+    public override string ToString()=> Path.Join(ProfilePath, DefaultName, WorkflowName.ToPath());
 
     public static implicit operator string(WorkflowPath workflowPath)  => workflowPath.ToString();
 }

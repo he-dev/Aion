@@ -82,7 +82,7 @@ public class TestWorkflowDowntime
         Assert.True(File.Exists(lockPath));
 
         workflowDowntime = await WorkflowDowntime.FromFile(lockPath);
-        workflowDowntime = workflowDowntime with { Clock = fakeNowUtc };
+        workflowDowntime = workflowDowntime! with { Clock = fakeNowUtc };
 
         Assert.Equal(WorkflowDowntimeStatus.Pending, workflowDowntime.Status);
         Assert.Equal(TimeSpan.FromHours(2), workflowDowntime.Remaining);

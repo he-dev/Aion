@@ -138,6 +138,7 @@ public class RescheduleChangedWorkflow
                 if (workflow.Trigger is ICronTrigger { CronExpressionString: { } otherCron } && !currentCron.Equals(otherCron))
                 {
                     var next = await scheduler.RescheduleJob(workflow.Trigger.Key, workflow.Trigger);
+                    logger.LogInformation("Workflow '{WorkflowName}' will be executed by {Cron} at '{Next}'.", workflow.Name, otherCron, next);
                     return new SynchronizeWorkflowResult<RescheduleChangedWorkflow>(workflow.Name)
                     {
                         NextUtc = next
@@ -175,6 +176,7 @@ public class ScheduleNewWorkflow
                     .Build();
 
             var next = await scheduler.ScheduleJob(jobDetail, workflow.Trigger);
+            logger.LogInformation("Workflow '{WorkflowName}' will be executed by {Cron} at '{Next}'.", workflow.Name, ((ICronTrigger)workflow.Trigger).CronExpressionString, next);
 
             return new SynchronizeWorkflowResult<ScheduleNewWorkflow>(workflow.Name)
             {

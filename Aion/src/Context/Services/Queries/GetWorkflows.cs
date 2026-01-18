@@ -3,11 +3,10 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Modules;
-using Aion.Modules.Scheduler;
 using Aion.Modules.Services;
+using Aion.Modules.Services.Queries;
 using Aion.Toolbox.Quartz;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Aion.Context.Services.Queries;
@@ -15,13 +14,13 @@ namespace Aion.Context.Services.Queries;
 public class GetWorkflows
 (
     ILogger<GetWorkflows> logger,
-    IOptionsSnapshot<SchedulerOptions> schedulerOptions,
+    GetProfile getProfile,
     CreateWorkflow createWorkflow
 )
 {
     public async Task<object> Invoke(string profileName, string? workflowFilter, bool? enabled = null)
     {
-        var profile = schedulerOptions.Value.Profiles[profileName];
+        var profile = getProfile.Where(profileName);
 
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflows = ImmutableList<Workflow>.Empty;
@@ -40,13 +39,13 @@ public class GetWorkflows
                 }
                 else
                 {
-                    workflowFailure = workflowFailure.Add(new { path = workflowPath.WorkflowName.RelativePath, issue = "Workflow name is not url-safe." });
+                    workflowFailure = workflowFailure.Add(new { path = workflowPath.WorkflowName.ToPath(), issue = "Workflow name is not url-safe." });
                 }
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Unable to load workflow from '{WorkflowPath}'.", workflowPath);
-                workflowFailure = workflowFailure.Add(new { path = workflowPath.WorkflowName.RelativePath, issue = ex.ToString() });
+                workflowFailure = workflowFailure.Add(new { path = workflowPath.WorkflowName.ToPath(), issue = ex.ToString() });
             }
         }
 
@@ -73,8 +72,8 @@ public class GetWorkflows
         {
             profile = new
             {
-                schedulerOptions.Value.Profiles[profileName].Name,
-                schedulerOptions.Value.Profiles[profileName].Path,
+                profile.Name,
+                profile.Path,
             },
             result = results,
             issues = workflowFailure

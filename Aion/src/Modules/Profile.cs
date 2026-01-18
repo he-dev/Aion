@@ -18,12 +18,17 @@ public class Profile
 
     public GetWorkflows Workflows
     {
-        get => field; //?? throw new InvalidOperationException("Workflows are not configured.");
-        set { field = value.Also(x => x.Profile = this); } // note: Is set implicitly by the json-serializer.
-    }
+        get;
+        // note: Is set implicitly by the json-serializer.
+        init { field = value.Also(x => x.Profile = this); }
+    } = null!;
 
+    // meta: This property can be null in JSON, but nulls suck in code, so use empty dictionaries instead.
+    // ReSharper disable once CollectionNeverUpdated.Global
     public Dictionary<string, string> Variables { get; set; } = new();
 
+    // meta: This property can be null in JSON, but nulls suck in code, so use empty dictionaries instead.
+    // ReSharper disable once CollectionNeverUpdated.Global
     public Dictionary<string, string> Environment { get; set; } = new();
 
     public GetLoggingPreset GetLoggingPreset => new(Path);

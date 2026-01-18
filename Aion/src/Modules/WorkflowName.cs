@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Aion.Modules;
 
-public record WorkflowName(string RelativePath)
+public record WorkflowName(string Value)
 {
     // note: group\workflow.json --> group.workflow
 
@@ -13,11 +13,21 @@ public record WorkflowName(string RelativePath)
     // The Regex is compiled for better performance since it will be reused.
     private static readonly Regex MatchesUrlSafeChars = new("^[a-zA-Z0-9._~-]+$", RegexOptions.Compiled);
 
-    public bool IsUrlSafe => MatchesUrlSafeChars.IsMatch(Render());
+    public bool IsUrlSafe => MatchesUrlSafeChars.IsMatch(Value);
 
-    private string Render() => Path.ChangeExtension(RelativePath, null).Replace(Path.DirectorySeparatorChar, '.');
+    public string ToPath()
+    {
+        var path = Value.Replace('.', Path.DirectorySeparatorChar);
+        return Path.ChangeExtension(path, "json");
+    }
 
-    public override string ToString() => Render();
+    public override string ToString() => Value;
 
     public static implicit operator string(WorkflowName workflowName) => workflowName.ToString();
+
+    public static WorkflowName FromPath(string path)
+    {
+        path = Path.ChangeExtension(path, null);
+        return new WorkflowName(path.Replace(Path.DirectorySeparatorChar, '.'));
+    }
 }

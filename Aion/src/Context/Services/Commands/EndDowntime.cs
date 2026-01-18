@@ -3,23 +3,21 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Modules;
-using Aion.Modules.Scheduler;
 using Aion.Modules.Services.Queries;
 using Aion.Toolbox.Logging;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Aion.Context.Services.Commands;
 
 public class EndDowntime
 (
     ILogger<EndDowntime> logger,
-    IOptionsSnapshot<SchedulerOptions> schedulerOptions
+    GetProfile getProfile
 )
 {
     public async Task<object> Now(string profileName, string? filter = null)
     {
-        var profile = schedulerOptions.Value.Profiles[profileName];
+        var profile = getProfile.Where(profileName);
         var workflowPaths = ImmutableList<WorkflowPath>.Empty;
 
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
@@ -43,7 +41,7 @@ public class EndDowntime
         return new
         {
             profile = profile.Path,
-            workflows = workflowPaths.Select(m => m.WorkflowName.RelativePath),
+            workflows = workflowPaths.Select(m => m.WorkflowName.ToPath()),
         };
     }
 }

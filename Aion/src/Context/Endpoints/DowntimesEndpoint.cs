@@ -32,20 +32,42 @@ public static class DowntimesEndpoint
 
     private static async Task<IResult> StartNow(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartInBody body)
     {
-        var workflows = await startDowntime.Now(profileName, body.Filter, WorkflowDowntime.StartsIn(TimeSpan.Zero, body.Duration));
-        return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });
-
+        try
+        {
+            var workflows = await startDowntime.Now(profileName, body.Filter, WorkflowDowntime.StartsIn(TimeSpan.Zero, body.Duration));
+            return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem(detail: ex.ToString(), statusCode: 500);
+        }
     }
 
     private static async Task<IResult> StartIn(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartInBody body)
     {
-        var workflows = await startDowntime.Now(profileName, body.Filter, WorkflowDowntime.StartsIn(body.Wait, body.Duration));
-        return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });    }
+        try
+        {
+            var workflows = await startDowntime.Now(profileName, body.Filter, WorkflowDowntime.StartsIn(body.Wait, body.Duration));
+            return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem(detail: ex.ToString(), statusCode: 500);
+        }
+    }
 
     private static async Task<IResult> StartAt(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartAtBody body)
     {
-        var workflows = await startDowntime.Now(profileName, body.Filter, WorkflowDowntime.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
-        return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });    }
+        try
+        {
+            var workflows = await startDowntime.Now(profileName, body.Filter, WorkflowDowntime.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
+            return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem(detail: ex.ToString(), statusCode: 500);
+        }
+    }
 
     private static async Task<IResult> EndNow(EndDowntime endDowntime, string profileName, [FromBody] DowntimeEndNowBody body)
     {

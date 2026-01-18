@@ -36,15 +36,17 @@ builder.Services.AddSingleton<IPostConfigureOptions<SchedulerOptions>, Scheduler
 builder.Services.AddSingleton<MapLogEvent>();
 
 builder
+    .Configuration
+    .AddJsonFile("appsettings.Serilog.json", optional: true, reloadOnChange: true)
+    .AddJsonFile("appsettings.Profiles.json", optional: false, reloadOnChange: true)
+    .AddCommandLine(args);
+
+builder
+    .Logging
+    .ClearProviders();
+
+builder
     .Host
-    .ConfigureAppConfiguration((host, config) =>
-    {
-        config
-            .AddJsonFile("appsettings.Serilog.json", optional: true, reloadOnChange: true)
-            .AddJsonFile("appsettings.Profiles.json", optional: false, reloadOnChange: true)
-            .AddCommandLine(args);
-    })
-    .ConfigureLogging(b => { b.ClearProviders(); })
     .UseSerilog((context, services, configuration) =>
     {
         var schedulerOptions = services.GetRequiredService<IOptions<SchedulerOptions>>().Value;

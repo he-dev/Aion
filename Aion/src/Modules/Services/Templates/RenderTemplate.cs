@@ -42,7 +42,7 @@ public static class RenderTemplate
         context.PushGlobal(customFunctions);
 
         // meta: Create a composite variable group for each name because they otherwise got replaced.
-        var compositeGroups =  variableGroups.GroupBy(g => g.Name).Select(g => new CompositeVariableGroup(g));
+        var compositeGroups =  variableGroups.GroupBy(g => g.Key).Select(g => new CompositeVariableGroup(g));
         foreach (var variableGroup in compositeGroups)
         {
             context.PushGlobal(variableGroup.ToScriptObject());
