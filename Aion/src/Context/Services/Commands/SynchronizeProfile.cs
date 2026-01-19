@@ -19,30 +19,36 @@ public class SynchronizeProfile
     {
         using var activity = new Activity(nameof(SynchronizeProfile)).Start();
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
-        logger.LogInformation("Profile synchronization...");
+        logger.LogInformation("Synchronizing profile '{ProfileName}'.", profileName);
 
-        var results = ImmutableList<SynchronizeWorkflowResult>.Empty;
-        var errors = ImmutableList<Exception>.Empty;
-
-        var profile = getProfile.Where(profileName);
-        var workflowMatches = profile.Workflows.All();
-        foreach (var workflowPath in workflowMatches)
+        try
         {
-            try
+            var results = ImmutableList<SynchronizeWorkflowResult>.Empty;
+            var profile = getProfile.Single(profileName);
+            var workflowMatches = profile.Workflows.All();
+            foreach (var workflowPath in workflowMatches)
             {
-                var result = await synchronizeWorkflow.Invoke(workflowPath);
-                results = results.Add(result);
+                try
+                {
+                    var result = await synchronizeWorkflow.Invoke(workflowPath);
+                    results = results.Add(result);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Unable to schedule workflow '{WorkflowPath}'.", workflowPath);
+                }
             }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Unable to schedule workflow '{WorkflowPath}'.", workflowPath);
-                errors = errors.Add(ex);
-            }
+
+            activity.SetStatus(ActivityStatusCode.Ok).Stop();
+            logger.LogInformation("Profile '{ProfileName}' synchronization finished in {Duration:N0}.", profileName, activity.Duration);
+
+            return results;
         }
-
-        activity.SetStatus(ActivityStatusCode.Ok).Stop();
-        logger.LogInformation("Profile synchronization finished in {Duration}.", activity.Duration);
-
-        return results;
+        catch (Exception ex)
+        {
+            activity.SetStatus(ActivityStatusCode.Error).Stop();
+            logger.LogError(ex, "Profile '{ProfileName}' synchronization failed.", profileName);
+            throw;
+        }
     }
 }

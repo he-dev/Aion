@@ -11,11 +11,7 @@ using Quartz;
 
 namespace Aion.Context.Jobs;
 
-public class WorkflowJob
-(
-    ILogger<WorkflowJob> logger,
-    ExecuteWorkflow executeWorkflow
-) : IJob
+public class WorkflowJob(ILogger<WorkflowJob> logger, ExecuteWorkflow executeWorkflow) : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
@@ -25,25 +21,27 @@ public class WorkflowJob
 
         using var scope = logger.BeginScopeFrom(new
         {
+            JobName = context.JobDetail.Key.Name,
             ProfileName = profileName,
             WorkflowName = workflowName,
             WorkflowMode = workflowMode,
         });
 
-        logger.LogDebug("Executing '{JobName}'.", nameof(WorkflowJob));
+        logger.LogDebug("Executing '{JobName}'.", context.JobDetail.Key.Name);
 
         try
         {
             var stepResults = await executeWorkflow.Now(profileName, workflowName);
             if (workflowMode == WorkflowMode.Cron && !stepResults.Any())
             {
-                logger.LogWarning("Unscheduling workflow because it does not do anything.");
+                logger.LogWarning("Unscheduling workflow '{WorkflowName}' because it does not do anything.", workflowName);
                 await context.Scheduler.DeleteJob(context.JobDetail.Key);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Workflow failed.");
+            logger.LogError(ex, "Workflow '{WorkflowName}' failed.", workflowName);
+            throw new JobExecutionException(ex, refireImmediately: false);
         }
     }
 }

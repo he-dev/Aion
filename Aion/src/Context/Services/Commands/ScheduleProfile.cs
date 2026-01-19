@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Aion.Context.Jobs;
 using Aion.Modules.Scheduler;
+using Aion.Modules.Services.Queries;
 using Aion.Toolbox.Quartz;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,7 +12,7 @@ namespace Aion.Context.Services.Commands;
 public class ScheduleProfile
 (
     ILogger<ScheduleProfile> logger,
-    IOptions<SchedulerOptions> options,
+    GetProfile getProfile,
     ISchedulerFactory schedulerFactory
 )
 {
@@ -19,17 +20,17 @@ public class ScheduleProfile
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
-        foreach (var (profileName, profile) in options.Value.Profiles)
+        foreach (var profile in getProfile.All())
         {
             if (!profile.Sync.Enabled)
             {
-                logger.LogWarning("Skipping profile '{ProfileName}' because it is not configured to sync.", profileName);
+                logger.LogWarning("Skipping profile '{ProfileName}' because it is not configured to sync.", profile.Name);
                 continue;
             }
 
             var jobDetail = JobBuilder
                 .Create<ProfileJob>()
-                .WithIdentity("sync-profile", new JobGroup<ProfileJob>(profileName))
+                .WithIdentity("sync-profile", profile.Name)
                 .StoreDurably()
                 .Build();
 
@@ -40,8 +41,8 @@ public class ScheduleProfile
                 TriggerBuilder
                     .Create()
                     .ForJob(jobDetail)
-                    .WithIdentity("sync-profile-cron", new JobGroup<ProfileJob>(profileName))
-                    .UsingJobData(JobDataKeys.ProfileName, profileName)
+                    .WithIdentity("sync-profile-cron", profile.Name)
+                    .UsingJobData(JobDataKeys.ProfileName, profile.Name)
                     .WithCronSchedule(profile.Sync.Cron)
                     .StartNow()
                     .Build()

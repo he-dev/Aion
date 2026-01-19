@@ -20,7 +20,7 @@ public class StartDowntime
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         try
         {
-            var profile = getProfile.Where(profileName);
+            var profile = getProfile.Single(profileName);
             var workflowPaths = ImmutableList<WorkflowPath>.Empty;
             foreach (var workflowPath in profile.Workflows.Where(workflowNameOrFilter))
             {

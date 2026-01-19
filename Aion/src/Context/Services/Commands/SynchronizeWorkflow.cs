@@ -16,7 +16,7 @@ public class SynchronizeWorkflow
     ILogger<SynchronizeWorkflow> logger,
     GetProfile getProfile,
     CreateWorkflow createWorkflow,
-    IEnumerable<ISynchronizeWorkflow> synchronizeWorkflows
+    IEnumerable<ISynchronizeWorkflow> synchronizeWorkflowActions
 )
 {
     public async Task<SynchronizeWorkflowResult> Invoke
@@ -27,7 +27,7 @@ public class SynchronizeWorkflow
         IImmutableList<StepIdentifier>? stepOrder = null
     )
     {
-        var profile = getProfile.Where(profileName);
+        var profile = getProfile.Single(profileName);
         var workflowPath = profile.Workflows.Single(workflowName);
         return await Invoke(workflowPath, trigger, stepOrder);
     }
@@ -54,11 +54,11 @@ public class SynchronizeWorkflow
         var workflow = await createWorkflow.From(workflowConfiguration, trigger, stepOrder);
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
-        foreach (var synchronizeWorkflow in synchronizeWorkflows)
+        foreach (var synchronizeWorkflowAction in synchronizeWorkflowActions)
         {
             try
             {
-                if (await synchronizeWorkflow.Try(workflow) is { } result)
+                if (await synchronizeWorkflowAction.Try(workflow) is { } result)
                 {
                     return result;
                 }
@@ -66,7 +66,7 @@ public class SynchronizeWorkflow
             catch (Exception ex)
             {
                 logger.LogError(ex, "Unable to synchronize workflow '{WorkflowName}'.", workflow.Name);
-                throw new SynchronizeWorkflowException(workflow.Name, synchronizeWorkflow, ex);
+                return new SynchronizeWorkflowResult(workflow.Name, synchronizeWorkflowAction.GetType()) { Exception = ex };
             }
         }
 

@@ -19,6 +19,8 @@ public interface ISynchronizeWorkflow
 public record SynchronizeWorkflowResult(string WorkflowName, Type ActionType)
 {
     public DateTimeOffset? NextUtc { get; init; }
+
+    public Exception? Exception { get; init; }
 }
 
 public record SynchronizeWorkflowResult<T>(string WorkflowName)

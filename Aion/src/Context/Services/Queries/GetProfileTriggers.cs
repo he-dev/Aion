@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Aion.Context.Jobs;
-using Aion.Toolbox.Quartz;
 using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Impl.Matchers;
@@ -17,8 +15,7 @@ public class GetProfileTriggers
 {
     public async IAsyncEnumerable<ITrigger> Invoke(string profileName, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var groupMatcher = GroupMatcher<JobKey>.GroupEquals(new JobGroup<WorkflowJob>(profileName));
-
+        var groupMatcher = GroupMatcher<JobKey>.GroupEquals(profileName);
         var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
         var jobKeys = await scheduler.GetJobKeys(groupMatcher, cancellationToken);
         foreach (var jobKey in jobKeys)

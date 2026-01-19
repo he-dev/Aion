@@ -17,7 +17,7 @@ public class EndDowntime
 {
     public async Task<object> Now(string profileName, string? filter = null)
     {
-        var profile = getProfile.Where(profileName);
+        var profile = getProfile.Single(profileName);
         var workflowPaths = ImmutableList<WorkflowPath>.Empty;
 
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });

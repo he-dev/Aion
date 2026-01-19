@@ -1,5 +1,4 @@
 ﻿using System;
-using Aion.Context.Jobs;
 using Aion.Modules.Scheduler;
 using Aion.Toolbox.Quartz;
 using Quartz;
@@ -12,21 +11,18 @@ public static class CreateTrigger
     (
         string profileName,
         string workflowName,
-        Func<TriggerOptions> createOptions,
+        WorkflowMode workflowMode,
         Action<TriggerBuilder> customize
     )
     {
-        var options = createOptions();
-        var group = new JobGroup<WorkflowJob>(profileName);
-
         var builder =
             TriggerBuilder
                 .Create()
-                .ForJob(workflowName, group)
-                .WithIdentity(workflowName, group)
-                .UsingJobData(JobDataKeys.WorkflowName, workflowName)
+                .ForJob($"{profileName}:{workflowName}", profileName)
+                .WithIdentity($"{profileName}:{workflowName}:{workflowMode}", profileName)
                 .UsingJobData(JobDataKeys.ProfileName, profileName)
-                .UsingJobData(options.WorkflowMode);
+                .UsingJobData(JobDataKeys.WorkflowName, workflowName)
+                .UsingJobData(workflowMode);
         customize(builder);
         return builder.Build();
     }
@@ -40,7 +36,7 @@ public static class CreateTrigger
     (
         profileName,
         workflowName,
-        () => new TriggerOptions(WorkflowMode.Cron),
+        WorkflowMode.Cron,
         builder => builder.WithCronSchedule(cronExpression));
 
     public static ITrigger Simple
@@ -52,7 +48,7 @@ public static class CreateTrigger
     (
         profileName,
         workflowName,
-        () => new TriggerOptions(WorkflowMode.User),
+        WorkflowMode.User,
         builder => builder.StartAt(startAtUtc).WithSimpleSchedule(x => x.WithRepeatCount(0))
     );
 }

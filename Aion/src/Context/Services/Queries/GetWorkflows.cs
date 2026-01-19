@@ -20,7 +20,7 @@ public class GetWorkflows
 {
     public async Task<object> Invoke(string profileName, string? workflowFilter, bool? enabled = null)
     {
-        var profile = getProfile.Where(profileName);
+        var profile = getProfile.Single(profileName);
 
         // note: Uses Workflow as the type and not an object so that we can calculate next later and sort them.
         var workflows = ImmutableList<Workflow>.Empty;

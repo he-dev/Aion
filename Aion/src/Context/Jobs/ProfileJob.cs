@@ -14,15 +14,21 @@ internal class ProfileJob(ILogger<ProfileJob> logger, SynchronizeProfile synchro
     public async Task Execute(IJobExecutionContext context)
     {
         var profileName = context.Trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
-        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
-        logger.LogDebug("Executing '{JobName}'.", nameof(ProfileJob));
+        using var scope = logger.BeginScopeFrom(new
+        {
+            JobName = context.JobDetail.Key.Name,
+            ProfileName = profileName
+        });
+
+        logger.LogDebug("Executing '{JobName}'.", context.JobDetail.Key.Name);
         try
         {
             await synchronizeProfile.Invoke(profileName);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Job failed.");
+            logger.LogError(ex, "Job '{JobName}' failed.", context.JobDetail.Key.Name);
+            throw new JobExecutionException(ex, refireImmediately: false);
         }
     }
 }

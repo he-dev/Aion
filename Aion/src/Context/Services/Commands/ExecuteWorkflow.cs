@@ -61,45 +61,49 @@ public class ExecuteWorkflow
 
         // core: Does not filter out disabled steps because we want them logged.
         var stepResults = new StepResultCollection();
-        foreach (var step in workflow.Steps)
+        try
         {
-            var stepResult = await executeStep.Now(step);
-            stepResults.Add(stepResult);
-
-            if (stepResult.ExitCode is not null and not 0 && step.OnError is { } onError)
+            foreach (var step in workflow.Steps)
             {
-                if (onError.Trim().Equals("continue", StringComparison.OrdinalIgnoreCase))
-                {
-                    // core: Just continue with the next step.
-                }
+                var stepResult = await executeStep.Now(step);
+                stepResults.Add(stepResult);
 
-                if (onError.Trim().Equals("break", StringComparison.OrdinalIgnoreCase))
+                if (stepResult.ExitCode is not null and not 0 && step.OnError is { } onError)
                 {
-                    logger.LogWarning("Workflow execution stopped due to a failed step.");
-                    break;
+                    if (onError.Trim().Equals("continue", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // core: Just continue with the next step.
+                    }
+
+                    if (onError.Trim().Equals("break", StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogWarning("Workflow execution stopped due to a failed step.");
+                        break;
+                    }
                 }
             }
+
+            activity.SetStatus(ActivityStatusCode.Ok).Stop();
+
+            logger.LogInformation(
+                "Workflow '{WorkflowName}' completed in {Duration:N0} ms. Steps: {Total}, Passed: {Passed}, Failed={Failed}.",
+                workflow.Name, activity.Duration, stepResults.Count, stepResults.Passed, stepResults.Failed
+            );
+
+            return stepResults;
         }
-
-        activity.SetStatus(ActivityStatusCode.Ok).Stop();
-
-        logger.LogInformation("Workflow '{WorkflowName}' completed in {Duration:N0} ms.", workflow.Name, activity.Duration);
-        logger.LogInformation
-        (
-            "Steps={TotalStepCount}, Executed={ExecutedStepCount}, Passed={PassedStepCount}, Failed={FailedStepCount}.",
-            stepResults.Count,
-            stepResults.ExecutedStepCount,
-            stepResults.PassedStepCount,
-            stepResults.FailedStepCount
-        );
-
-        return stepResults;
+        catch (Exception ex)
+        {
+            activity.SetStatus(ActivityStatusCode.Error).Stop();
+            logger.LogError(ex, "Workflow '{WorkflowName}' execution failed in {Duration:N0}.", workflow.Name, activity.Duration);
+            throw;
+        }
     }
 }
 
 public class StepResultCollection : Collection<StepResult>
 {
-    public int ExecutedStepCount => this.Count(result => result.ExitCode is not null);
-    public int PassedStepCount => this.Count(result => result.ExitCode == 0);
-    public int FailedStepCount => this.Count(result => result.ExitCode is not null && result.ExitCode != 0);
+    public int Actual => this.Count(result => result.ExitCode is not null);
+    public int Passed => this.Count(result => result.ExitCode == 0);
+    public int Failed => this.Count(result => result.ExitCode is not null && result.ExitCode != 0);
 }
