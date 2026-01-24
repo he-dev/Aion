@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Aion.Core.Services.Commands;
+using Aion.Core.Services;
 using Aion.Util;
 using Aion.Util.Services;
 using Microsoft.Extensions.DependencyInjection;

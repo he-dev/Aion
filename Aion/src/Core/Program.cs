@@ -2,13 +2,13 @@
 using Aion.Core.Endpoints;
 using Aion.Core.Jobs;
 using Aion.Core.Services;
-using Aion.Core.Services.Commands;
 using Aion.Meta;
 using Aion.Meta.Serilog;
 using Aion.Meta.Serilog.Enriching;
 using Aion.Util.Scheduler;
 using Aion.Util.Scheduler.JobExecutionRules;
 using Aion.Util.Services;
+using Aion.Util.Services.Synchronizations;
 using Aion.Util.StepExecutionRules;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -108,9 +108,16 @@ builder.Services.AddQuartzServer(options =>
     options.StartDelay = schedulerOptions.StartDelay;
 });
 
-builder.Services.AddWorkflowCommands();
-builder.Services.AddScheduleCommands();
-builder.Services.AddDowntimeCommands();
+
+builder.Services.AddScoped<GetWorkflowsInfo>();
+builder.Services.AddScoped<SynchronizeWorkflow>();
+builder.Services.AddScoped<SynchronizeProfile>();
+builder.Services.AddScoped<ExecuteWorkflow>();
+builder.Services.AddScoped<GetProfileTriggers>();
+builder.Services.AddScoped<GetDowntimes>();
+builder.Services.AddScoped<StartDowntime>();
+builder.Services.AddScoped<EndDowntime>();
+
 
 builder.Services.AddProblemDetails();
 //builder.Services.AddExceptionHandler<WorkflowNotExecutableExceptionHandler>();

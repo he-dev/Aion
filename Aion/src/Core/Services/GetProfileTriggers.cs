@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Impl.Matchers;
 
-namespace Aion.Core.Services.Queries;
+namespace Aion.Core.Services;
 
 public class GetProfileTriggers
 (

@@ -20,8 +20,4 @@
 
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="src\Util\Services\Queries\" />
-    </ItemGroup>
-
 </Project>

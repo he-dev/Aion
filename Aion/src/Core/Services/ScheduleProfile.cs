@@ -5,7 +5,7 @@ using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Services.Commands;
+namespace Aion.Core.Services;
 
 public class ScheduleProfile
 (

@@ -5,9 +5,10 @@ using System.Threading.Tasks;
 using Aion.Meta.Logging;
 using Aion.Util;
 using Aion.Util.Services;
+using Aion.Util.Services.Synchronizations;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Core.Services.Commands;
+namespace Aion.Core.Services;
 
 public class SynchronizeProfile
 (

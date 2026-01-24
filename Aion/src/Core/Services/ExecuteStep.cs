@@ -8,7 +8,7 @@ using Aion.Util.Logging;
 using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Core.Services.Commands;
+namespace Aion.Core.Services;
 
 public class ExecuteStep
 (

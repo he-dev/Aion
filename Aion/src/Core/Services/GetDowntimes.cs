@@ -7,7 +7,7 @@ using Aion.Util;
 using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Core.Services.Queries;
+namespace Aion.Core.Services;
 
 public class GetDowntimes
 (

@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Aion.Core.Endpoints.Filters;
-using Aion.Core.Services.Commands;
-using Aion.Core.Services.Queries;
+using Aion.Core.Services;
 using Aion.Util;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
