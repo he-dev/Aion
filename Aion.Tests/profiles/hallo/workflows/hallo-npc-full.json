@@ -9,7 +9,6 @@
       "Enabled": true,
       "FileName": "{{ Variables.NpcExe }}",
       "Arguments": {
-        "--sleep-seconds": 2,
         "--message": "\"{{ Variables.NpcMsg }}\""
       },
       "Logging": {

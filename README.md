@@ -19,22 +19,26 @@ This file contains two custom sections.
 
 ```yaml
 Name: string # Required name of the instance.
-Variables: #
+StartDelay: Timestamp # How long to wait for the scheduler to start.
+Shutdown: # Kills the scheduler and lets Windows restart the service.
+  Enabled: bool # Whether it is enabled.
+  Cron: string # When to kill it.
+  ExitCode: int # Service exit-code.
+Parameters: # Step execution parameters that are merged from all levels where the last wins.
   string: string
 Profiles:
-  - Path: string # Path where to find this profile.
-    Sync: string # Cron expression to synchronize this profile.
-    SyncEnabled: boolean # Whether to synchronize this profile.
-    Variables:
+  Name: string # Profile name.
+    Path: string # Path where to find this profile.
+    Sync: 
+      Enabled: boolean # Whether to synchronize this profile.
+      Cron: string # Cron expression to synchronize this profile.
+    Parameters:
       string: string # Key/value pairs of profile-wide variables.
     Environment:
       string: string # Key/value pairs of profile-wide evnrionment variables.
-    Includes: array # Glob filters that specify which workflows to include in the search.
-    Excludes: array # Glob filters that specify which workflows to exclude from the search.
-    Logging:
-      Preset:
-        Name: string # Specifies the logging preset for this profile.
-
+    Workflows:
+      Includes: array # Glob filters that specify which workflows to include in the search.
+      Excludes: array # Glob filters that specify which workflows to exclude from the search.
 ```
 
 - `QuartzServer`
@@ -60,11 +64,11 @@ Their body needs to conform to this:
 ```yaml
 Enabled: boolean # Required if this workflow should be scheduled. Defaults to false.
 Cron: string # Required cron-expression.
-Variables: # Workflow variables.
+Parameters: 
   string: string # Name/value pairs.
 Environment: # Environment variables to apply to each step.
   string: string # Name/value pairs.
-Logging: json # Logging preset or Serilog configuration.
+Logging: object # Logging preset or Serilog configuration. See steps.
 Steps:
   - Enabled: boolean # Required if this step should be executed. Defaults to false.
     FileName: string | template # Required file-name to execute.
@@ -77,14 +81,12 @@ Steps:
       $: string | array # raw vaues (no processing)      
     Environment: # Environment variables to apply to each step.
       string: string # Name/value pairs.
-    DependsOn: $previous | array<int> # Whether this step depends on the result of the previous one.
     OnFaiure: string | null # break, continue (default)
     Logging: # Std logging settings.    
-      source: string | null # None, Auto, Preset, Custom
-      preset: string | null # Preset name.
-      custom: object | null # Serilog configuration.
-      global: bool # Whether to inlcude the output in the global log.
-      target: string # Self (default), Main - Where to inlcude the output.
+      Preset: string # Name of the preset.
+      Custom: json # Serilog configuration.
+      Source: string # Which logging to use: None, Auto, Preset, Custom where Auto picks Custom first.
+      Target: string # Specifies where to log: Self and/or Main.
 ```
 
 ## Variables
