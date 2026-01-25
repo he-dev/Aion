@@ -52,7 +52,7 @@ public class CreateWorkflow
             new SchedulerVariableGroup { Name = schedulerOptions.Value.Name },
             new ProfileVariableGroup
             {
-                //Root = workflowPath.ProfileRoot,
+                Path = profile.Path,
                 Name = configuration.Path.ProfileName,
             },
             new WorkflowVariableGroup

@@ -1,6 +1,8 @@
 {
   "Enabled": true,
   "Cron": "0/5 * * * * ?",
+  "Parameters": {},
+  "Environment": {},
   "Steps": [
     {
       "Enabled": true,
@@ -8,6 +10,7 @@
       "Arguments": {
         "/c": "echo Hallo cmd!"
       },
+      "Environment": {},
       "Logging": {
         "Preset": "StepFile28Days"
       }

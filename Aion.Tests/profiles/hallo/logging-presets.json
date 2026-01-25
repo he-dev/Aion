@@ -28,7 +28,7 @@
           {
             "Name": "File",
             "Args": {
-              "path": "{{ Parameters.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Mode }}\\{{ Workflow.Name }}-step-{{ Step.Index | object.format 'D2' }}_.log",
+              "path": "{{ Parameters.LogsDirectory }}\\{{ Profile.Name }}\\{{ Workflow.Mode }}\\{{ Workflow.Name }}-step-{{ Step.Index | object.format 'D3' }}_.log",
               "outputTemplate": "{Timestamp:HH:mm:ss.fff} [{Level:u3}] [{ConsoleStreamType}] {Message:lj}{NewLine}",
               "rollingInterval": "Day",
               "retainedFileCountLimit": 28

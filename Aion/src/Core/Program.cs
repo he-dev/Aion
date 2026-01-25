@@ -77,7 +77,7 @@ builder.Services.AddTransient<SynchronizeWorkflowAction, UnscheduleEmptyWorkflow
 builder.Services.AddTransient<SynchronizeWorkflowAction, RescheduleChangedWorkflow>();
 builder.Services.AddTransient<SynchronizeWorkflowAction, ScheduleRegularWorkflow>();
 
-// meta: These two must be singletons because otherwise cannot inject them into ITriggerListener instances.
+// meta: These two services must be singletons because otherwise cannot inject them into ITriggerListener instances.
 builder.Services.AddSingleton<FindWorkflows>();
 builder.Services.AddSingleton<GetProfile>();
 

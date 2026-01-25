@@ -1,6 +1,8 @@
 {
   "Enabled": true,
   "Cron": "0/5 * * * * ?",
+  "Parameters": {},
+  "Environment": {},
   "Steps": [
     {
       "Enabled": true,
@@ -10,6 +12,7 @@
         "-ExecutionPolicy": "Bypass",
         "-File": "\"{{ Profile.Path }}\\workflows\\hallo-pwsh.ps1\""
       },
+      "Environment": {},
       "Logging": {
         "Preset": "StepFile28Days"
       }

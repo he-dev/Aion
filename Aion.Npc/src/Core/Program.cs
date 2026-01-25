@@ -2,32 +2,44 @@
 using System.CommandLine;
 using System.Threading;
 
-namespace Aion.Npc.Context;
+namespace Aion.Npc.Core;
 
 internal static class Program
 {
     public static int Main(string[] args)
     {
+        var workflowOption = new Option<string>("--workflow") { Required = false };
+        var stepOption = new Option<int>("--step") { Required = false };
         var messageOption = new Option<string>("--message") { Required = false };
-        var sleepSecondsOption = new Option<int>("--sleep-seconds") { Required = false };
+        var sleepOption = new Option<int>("--sleep") { Required = false };
         var exitCodeOption = new Option<int>("--exit-code") { Required = false };
 
-        var rootCommand = new RootCommand { messageOption, sleepSecondsOption, exitCodeOption };
+        var rootCommand = new RootCommand { messageOption, sleepOption, exitCodeOption };
         var commandLine = rootCommand.Parse(args);
 
         if (Environment.GetEnvironmentVariable("NPC_MODE") is { } mode)
         {
-            Console.WriteLine($"NPC mode is: {mode}");
+            Console.WriteLine($"NPC mode: {mode}");
+        }
+
+        if (commandLine.GetValue(workflowOption) is { } workflow)
+        {
+            Console.WriteLine($"Workflow: {workflow}");
+        }
+
+        if (commandLine.GetValue(stepOption) is var step)
+        {
+            Console.WriteLine($"Step: {step}");
         }
 
         if (commandLine.GetValue(messageOption) is { } message)
         {
-            Console.WriteLine(message);
+            Console.WriteLine($"Message: {message}");
         }
 
-        if (commandLine.GetValue(sleepSecondsOption) is var sleep and > 0)
+        if (commandLine.GetValue(sleepOption) is var sleep and > 0)
         {
-            Console.WriteLine($"Waiting for {sleep} seconds...");
+            Console.WriteLine($"Waiting {sleep} seconds...");
             Thread.Sleep(sleep * 1000);
         }
 

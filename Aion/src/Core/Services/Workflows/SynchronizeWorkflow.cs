@@ -86,7 +86,6 @@ public class SynchronizeWorkflow
     }
 }
 
-// util: This class supports the API response.
 public record SynchronizeWorkflowResult(string WorkflowName)
 {
     public string? Action { get; init; }

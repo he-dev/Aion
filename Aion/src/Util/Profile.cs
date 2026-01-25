@@ -19,11 +19,11 @@ public class Profile
 
     // meta: This property can be null in JSON, but nulls suck in code, so use empty dictionaries instead.
     // ReSharper disable once CollectionNeverUpdated.Global
-    public Dictionary<string, string>? Parameters { get; set; } = new();
+    public Dictionary<string, string> Parameters { get; set; } = null!;
 
     // meta: This property can be null in JSON, but nulls suck in code, so use empty dictionaries instead.
     // ReSharper disable once CollectionNeverUpdated.Global
-    public Dictionary<string, string> Environment { get; set; } = new();
+    public Dictionary<string, string> Environment { get; set; } = null!;
 
     public GetLoggingPreset GetLoggingPreset => new(Path);
 }
@@ -31,5 +31,6 @@ public class Profile
 public class ProfileSync
 {
     public bool Enabled { get; set; }
+
     public string Cron { get; set; } = null!;
 }

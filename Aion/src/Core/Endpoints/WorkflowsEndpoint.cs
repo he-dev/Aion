@@ -38,14 +38,13 @@ public static class WorkflowsEndpoint
             from stepResult in stepResults
             select new
             {
-                stepResult.Index,
-                stepResult.Order,
+                step = stepResult.Index,
                 stepResult.ExitCode,
                 Status = stepResult.Status.ToString(),
                 stepResult.Duration,
                 stepResult.Exception?.Message
             };
-        return Results.Ok(new { stepResults = results });
+        return Results.Ok(new { profileName, workflowName, results });
     }
 
     private static async Task<IResult> StartIn(SynchronizeWorkflow synchronizeWorkflow, string profileName, string workflowName, [FromBody] WorkflowStartInBody body)

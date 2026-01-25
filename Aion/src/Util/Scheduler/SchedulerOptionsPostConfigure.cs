@@ -23,17 +23,12 @@ public class SchedulerOptionsPostConfigure : IPostConfigureOptions<SchedulerOpti
                 },
                 new ProfileVariableGroup
                 {
-                    //Path = profile.Path,
+                    Path = profile.Path,
                     Name = profile.Name,
                 },
             ]);
 
             profile.Path = profile.Path.Render(variables);
-            // profile.LoggingFor = (mode) =>
-            // {
-            //     variables = variables.Add(new ExecutionVariableGroup { Mode = mode });
-            //     return profile.Logging?.ToJsonObject().RenderFilePaths(variables);
-            // };
         }
     }
 }

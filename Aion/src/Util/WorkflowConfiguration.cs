@@ -20,11 +20,11 @@ public record WorkflowConfiguration
     [MustBeCron]
     public string Cron { get; init; } = null!;
 
-    public Dictionary<string, string>? Parameters { get; init; } = new();
+    public Dictionary<string, string> Parameters { get; init; } = null!;
 
-    public Dictionary<string, string> Environment { get; init; } = new();
+    public Dictionary<string, string> Environment { get; init; } = null!;
 
-    public LoggingConfiguration Logging { get; init; } = new();
+    public LoggingConfiguration? Logging { get; init; }
 
     public StepConfiguration[] Steps { get; init; } = null!;
 
@@ -45,6 +45,10 @@ public record WorkflowConfiguration
             ReadCommentHandling = JsonCommentHandling.Skip,
             PropertyNameCaseInsensitive = true,
             AllowTrailingCommas = true,
+            Converters =
+            {
+                new JsonStringEnumConverter()
+            }
         }) ?? throw new InvalidWorkflowConfiguration(path);
 
         template = template with { Path = path };
@@ -71,11 +75,10 @@ public record StepConfiguration
 
     public TimeSpan? Timeout { get; init; }
 
-    public LoggingConfiguration Logging { get; init; } = new();
+    public LoggingConfiguration Logging { get; init; } = null!;
 
     public string? OnError { get; init; }
 }
-
 
 public class InvalidWorkflowConfiguration(string path) : Exception($"File '{path}' is not a valid workflow template.");
 

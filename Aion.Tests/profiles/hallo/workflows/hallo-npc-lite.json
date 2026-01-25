@@ -1,22 +1,25 @@
 {
   "Enabled": true,
   "Cron": "0/5 * * * * ?",
-  "Parameters": {
-    "Message": "This is step {{ Step.Index }} from {{ Workflow.Name }}."
-  },
-  "Environment": {
-    "NPC_MODE": "test"
-  },
+  "Parameters": {},
+  "Environment": {},
   "Steps": [
     {
       "Enabled": true,
       "FileName": "{{ Parameters.NpcExe }}",
       "Arguments": {
-        "--sleep-seconds": 1,
-        "--message": "\"{{ Parameters.Message }}\""
+        "--scheduler": "{{ Scheduler.Name }}",
+        "--profile": "{{ Profile.Name }}",
+        "--workflow": "{{ Workflow.Name }}",
+        "--workflow-mode": "{{ Workflow.Mode }}",
+        "--step": "{{ Step.Index }}",
+        "--step-trace-id": "{{ Step.TraceId }}",
+        "--step-span-id": "{{ Step.SpanId }}",
+        "--step-parent-id": "{{ Step.ParentId }}",
+        "--sleep": 1
       },
       "Environment": {
-        "Bar": "Bar"
+        "NPC_MODE": "lite"
       },
       "Logging": {
         "Preset": "StepFile28Days"

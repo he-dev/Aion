@@ -1,39 +1,27 @@
 
-### Starts workflow at the specified time.
-POST {{host}}{{profiles.two}}/workflows/fast-trio:start-now
 
-### Starts workflow at the specified time.
+### Starts the workflow now.
 POST {{host}}{{profiles.hallo}}/workflows/hallo-npc-lite:start-now
 
-### Starts workflow at the specified time.
-POST {{host}}{{profiles.two}}/workflows/hallo-1-of-3:start-now
+### Starts the workflow now.
+POST {{host}}{{profiles.hallo}}/workflows/hallo-npc-full:start-now
 
-### Starts workflow at the specified time.
-POST {{host}}{{profiles.two}}/workflows/hallo-cmd:start-now
-
-### Starts workflow at the specified time.
-POST {{host}}{{profiles.two}}/workflows/hallo-pwsh:start-now
-
-### Starts workflow at the specified time.
-POST {{host}}{{profiles.two}}/workflows/hallo-variables:start-now
-
-
-### Starts workflow at the specified time.
-POST {{host}}{{profiles.two}}/workflows/hallo-npc:start-now
+### Starts the workflow now but only selected steps.
+POST {{host}}{{profiles.hallo}}/workflows/hallo-npc-full:start-now
 Content-Type: application/json
 
 {
-  "steps": []
+  "steps": [
+    1
+  ]
 }
 
-### Starts workflow at the specified time.
-POST {{host}}{{profiles.two}}/workflows/fast-trio:start-now
-Content-Type: application/json
+### Starts the workflow now.
+POST {{host}}{{profiles.hallo}}/workflows/hallo-cmd:start-now
 
-{
-  "steps": [1, "foo"]
-}
+### Starts the workflow now.
+POST {{host}}{{profiles.hallo}}/workflows/hallo-pwsh:start-now
 
-### Starts workflow at the specified time.
+### Synchronizes the profile.
 POST {{host}}{{profiles.hallo}}/workflows:sync
 
