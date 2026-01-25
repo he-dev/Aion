@@ -2,10 +2,10 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Aion.Core.Services.Workflows;
 using Aion.Meta.Logging;
 using Aion.Util;
 using Aion.Util.Services;
-using Aion.Util.Services.Synchronizations;
 using Microsoft.Extensions.Logging;
 
 namespace Aion.Core.Services;
@@ -18,6 +18,7 @@ public class SynchronizeProfile
     SynchronizeWorkflow synchronizeWorkflow
 )
 {
+    // meta: Cannot be IAsyncEnumerable because of try/catch.
     public async Task<IImmutableList<SynchronizeWorkflowResult>> Invoke(string profileName)
     {
         using var activity = new Activity(nameof(SynchronizeProfile)).Start();
@@ -28,18 +29,11 @@ public class SynchronizeProfile
         {
             var results = ImmutableList<SynchronizeWorkflowResult>.Empty;
             var profile = getProfile.Single(profileName);
-            var workflowMatches = findWorkflows.Where(WorkflowSearchCriteria.Where(profile));
-            foreach (var workflowPath in workflowMatches)
+            var workflowPaths = findWorkflows.Where(WorkflowSearchCriteria.Where(profile));
+            foreach (var workflowPath in workflowPaths)
             {
-                try
-                {
-                    var result = await synchronizeWorkflow.Invoke(workflowPath);
-                    results = results.Add(result);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Unable to schedule workflow '{WorkflowPath}'.", workflowPath);
-                }
+                var result = await synchronizeWorkflow.Invoke(workflowPath);
+                results = results.Add(result);
             }
 
             activity.SetStatus(ActivityStatusCode.Ok).Stop();

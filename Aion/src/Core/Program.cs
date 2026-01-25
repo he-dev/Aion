@@ -2,6 +2,8 @@
 using Aion.Core.Endpoints;
 using Aion.Core.Jobs;
 using Aion.Core.Services;
+using Aion.Core.Services.Downtimes;
+using Aion.Core.Services.Workflows;
 using Aion.Meta;
 using Aion.Meta.Serilog;
 using Aion.Meta.Serilog.Enriching;
@@ -69,12 +71,11 @@ builder.Services.AddScoped<WorkflowJob>();
 builder.Services.AddScoped<ProfileJob>();
 
 // meta: The order these services are registered specifies their execution order.
-builder.Services.AddTransient<ISynchronizeWorkflow, ScheduleCustomWorkflow>();
-builder.Services.AddTransient<ISynchronizeWorkflow, UnscheduleDisabledWorkflow>();
-builder.Services.AddTransient<ISynchronizeWorkflow, UnscheduleEmptyWorkflow>();
-builder.Services.AddTransient<ISynchronizeWorkflow, RescheduleChangedWorkflow>();
-builder.Services.AddTransient<ISynchronizeWorkflow, ScheduleNewWorkflow>();
-builder.Services.AddTransient<ISynchronizeWorkflow, IgnoreWorkflow>();
+builder.Services.AddTransient<SynchronizeWorkflowAction, ScheduleCustomWorkflow>();
+builder.Services.AddTransient<SynchronizeWorkflowAction, UnscheduleDisabledWorkflow>();
+builder.Services.AddTransient<SynchronizeWorkflowAction, UnscheduleEmptyWorkflow>();
+builder.Services.AddTransient<SynchronizeWorkflowAction, RescheduleChangedWorkflow>();
+builder.Services.AddTransient<SynchronizeWorkflowAction, ScheduleRegularWorkflow>();
 
 // meta: These two must be singletons because otherwise cannot inject them into ITriggerListener instances.
 builder.Services.AddSingleton<FindWorkflows>();
@@ -112,6 +113,7 @@ builder.Services.AddQuartzServer(options =>
 builder.Services.AddScoped<GetWorkflowsInfo>();
 builder.Services.AddScoped<SynchronizeWorkflow>();
 builder.Services.AddScoped<SynchronizeProfile>();
+builder.Services.AddScoped<ScheduleProfile>();
 builder.Services.AddScoped<ExecuteWorkflow>();
 builder.Services.AddScoped<GetProfileTriggers>();
 builder.Services.AddScoped<GetDowntimes>();
@@ -142,9 +144,12 @@ app.MapDowntimes();
 
 using (var scope = app.Services.CreateScope())
 {
-    await ActivatorUtilities
-        .CreateInstance<ScheduleProfile>(scope.ServiceProvider)
-        .Invoke();
+    var getProfile = scope.ServiceProvider.GetRequiredService<GetProfile>();
+    var scheduleProfile = scope.ServiceProvider.GetRequiredService<ScheduleProfile>();
+    foreach (var profile in getProfile.All())
+    {
+        await scheduleProfile.For(profile);
+    }
 }
 
 app.Run();

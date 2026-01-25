@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Endpoints.Filters;
 using Aion.Core.Services;
+using Aion.Core.Services.Workflows;
 using Aion.Util;
 using Aion.Util.Services;
 using Microsoft.AspNetCore.Builder;
@@ -57,8 +58,8 @@ public static class WorkflowsEndpoint
     private static async Task<IResult> StartAt(SynchronizeWorkflow synchronizeWorkflow, string profileName, string workflowName, [FromBody] WorkflowStartAtBody body)
     {
         var trigger = CreateTrigger.Simple(profileName, workflowName, body.WhenUtc);
-        var scheduledFor = await synchronizeWorkflow.Invoke(profileName, workflowName, trigger);
-        return Results.Accepted($"/api/profiles/{profileName}/workflows/{workflowName}", new { scheduledFor });
+        var synchronizationResult = await synchronizeWorkflow.Invoke(profileName, workflowName, trigger);
+        return Results.Accepted($"/api/profiles/{profileName}/workflows/{workflowName}", new { scheduledFor = synchronizationResult });
     }
 
     private static async Task<IResult> Synchronize(SynchronizeProfile synchronizeProfile, string profileName)

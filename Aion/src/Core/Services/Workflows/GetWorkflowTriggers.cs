@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Impl.Matchers;
 
-namespace Aion.Core.Services;
+namespace Aion.Core.Services.Workflows;
 
 public class GetProfileTriggers
 (
@@ -13,7 +13,7 @@ public class GetProfileTriggers
     ISchedulerFactory schedulerFactory
 )
 {
-    public async IAsyncEnumerable<ITrigger> Invoke(string profileName, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<ITrigger> Where(string profileName, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var groupMatcher = GroupMatcher<JobKey>.GroupEquals(profileName);
         var scheduler = await schedulerFactory.GetScheduler(cancellationToken);

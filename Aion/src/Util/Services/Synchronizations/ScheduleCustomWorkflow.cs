@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using Aion.Core.Jobs;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -9,14 +9,14 @@ public class ScheduleCustomWorkflow
 (
     ILogger<ScheduleCustomWorkflow> logger,
     ISchedulerFactory schedulerFactory
-) : ISynchronizeWorkflow
+) : SynchronizeWorkflowAction
 {
-    public async Task<SynchronizeWorkflowResult?> Try(Workflow workflow)
+    public async IAsyncEnumerable<SynchronizationStep> Invoke(Workflow workflow)
     {
         var hasCustomTrigger = workflow.Trigger is not ICronTrigger;
         if (!hasCustomTrigger)
         {
-            return null;
+            yield break;
         }
 
         var jobDetail =
@@ -33,15 +33,13 @@ public class ScheduleCustomWorkflow
             if (await scheduler.DeleteJob(workflow.Trigger.JobKey))
             {
                 logger.LogInformation("Workflow '{WorkflowName}' was unscheduled.", workflow.Name);
+                yield return new SynchronizationStep("DeleteJob");
             }
         }
 
         logger.LogInformation("Workflow '{WorkflowName}' will be executed once at '{Next}'.", workflow.Name, workflow.Trigger.GetNextFireTimeUtc());
 
         var next = await scheduler.ScheduleJob(jobDetail, workflow.Trigger);
-        return new SynchronizeWorkflowResult<ScheduleCustomWorkflow>(workflow.Name)
-        {
-            NextUtc = next
-        };
+        yield return new SynchronizationStep("ScheduleJob", next);
     }
 }

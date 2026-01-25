@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
@@ -8,9 +8,9 @@ public class UnscheduleDisabledWorkflow
 (
     ILogger<UnscheduleDisabledWorkflow> logger,
     ISchedulerFactory schedulerFactory
-) : ISynchronizeWorkflow
+) : SynchronizeWorkflowAction
 {
-    public async Task<SynchronizeWorkflowResult?> Try(Workflow workflow)
+    public async IAsyncEnumerable<SynchronizationStep> Invoke(Workflow workflow)
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -21,12 +21,11 @@ public class UnscheduleDisabledWorkflow
             if (await scheduler.DeleteJob(workflow.Trigger.JobKey))
             {
                 logger.LogInformation("Workflow '{WorkflowName}' was unscheduled.", workflow.Name);
-                return new SynchronizeWorkflowResult<UnscheduleDisabledWorkflow>(workflow.Name);
+                yield return new SynchronizationStep("DeleteJob");
+                yield break;
             }
 
             logger.LogWarning("Workflow '{WorkflowName}' could not be unscheduled.", workflow.Name);
         }
-
-        return null;
     }
 }

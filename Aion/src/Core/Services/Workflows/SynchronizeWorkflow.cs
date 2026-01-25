@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading.Tasks;
 using Aion.Meta.Logging;
 using Aion.Util;
 using Aion.Util.Services;
-using Aion.Util.Services.Synchronizations;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Services;
+namespace Aion.Core.Services.Workflows;
 
 public class SynchronizeWorkflow
 (
@@ -17,9 +17,11 @@ public class SynchronizeWorkflow
     GetProfile getProfile,
     FindWorkflows findWorkflows,
     CreateWorkflow createWorkflow,
-    IEnumerable<ISynchronizeWorkflow> synchronizeWorkflowActions
+    IEnumerable<SynchronizeWorkflowAction> synchronizeWorkflowActions
 )
 {
+    // https://www.quartz-scheduler.net/documentation/quartz-3.x/quick-start.html
+
     public async Task<SynchronizeWorkflowResult> Invoke
     (
         string profileName,
@@ -55,25 +57,41 @@ public class SynchronizeWorkflow
         var workflow = await createWorkflow.From(workflowConfiguration, trigger, stepOrder);
         using var scope = logger.BeginScopeFrom(new { WorkflowName = workflow.Name });
 
-        foreach (var synchronizeWorkflowAction in synchronizeWorkflowActions)
+        foreach (var synchronizeWorkflow in synchronizeWorkflowActions)
         {
             try
             {
-                if (await synchronizeWorkflowAction.Try(workflow) is { } result)
+                if (await synchronizeWorkflow.Invoke(workflow).ToListAsync() is { Count: > 0 } steps)
                 {
-                    return result;
+                    return new SynchronizeWorkflowResult(workflow.Name)
+                    {
+                        Action = synchronizeWorkflow.GetType().Name,
+                        Steps = steps
+                    };
                 }
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Unable to synchronize workflow '{WorkflowName}'.", workflow.Name);
-                return new SynchronizeWorkflowResult(workflow.Name, synchronizeWorkflowAction.GetType()) { Exception = ex };
+                return new SynchronizeWorkflowResult(workflow.Name)
+                {
+                    Action = synchronizeWorkflow.GetType().Name,
+                    Error = ex.Message
+                };
             }
         }
 
-        throw new Exception($"No workflow synchronization strategy could handle workflow '{workflow.Name}'.");
+        logger.LogInformation("No workflow synchronization strategy applies to workflow '{WorkflowName}'.", workflow.Name);
+        return new SynchronizeWorkflowResult(workflow.Name);
     }
 }
 
-public class SynchronizeWorkflowException(string workflowName, object action, Exception inner) :
-    Exception($"Failed to synchronize workflow '{workflowName}' with action '{action.GetType().Name}': {inner.Message}", inner);
+// util: This class supports the API response.
+public record SynchronizeWorkflowResult(string WorkflowName)
+{
+    public string? Action { get; init; }
+
+    public IEnumerable<SynchronizationStep> Steps { get; init; } = [];
+
+    public string? Error { get; init; }
+}

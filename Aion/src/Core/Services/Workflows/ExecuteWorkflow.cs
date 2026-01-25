@@ -12,7 +12,7 @@ using Aion.Util.Logging;
 using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
 
-namespace Aion.Core.Services;
+namespace Aion.Core.Services.Workflows;
 
 public class ExecuteWorkflow
 (

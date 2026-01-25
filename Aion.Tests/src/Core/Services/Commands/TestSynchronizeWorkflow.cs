@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Services;
+using Aion.Core.Services.Workflows;
 using Aion.Util;
 using Aion.Util.Services.Synchronizations;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,7 +70,7 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
             DummyWorkflow with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
         );
         Assert.Equal(2, results.Count);
-        Assert.Equal(typeof(ScheduleNewWorkflow), results.First().ActionType);
+        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
         Assert.Equal(typeof(IgnoreWorkflow), results.Last().ActionType);
     }
 
@@ -82,7 +83,7 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
             DummyWorkflow with { Enabled = false, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
         );
         Assert.Equal(2, results.Count);
-        Assert.Equal(typeof(ScheduleNewWorkflow), results.First().ActionType);
+        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
         Assert.Equal(typeof(UnscheduleDisabledWorkflow), results.Last().ActionType);
     }
 
@@ -95,7 +96,7 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
             DummyWorkflow with { Enabled = true, Steps = [] }
         );
         Assert.Equal(2, results.Count);
-        Assert.Equal(typeof(ScheduleNewWorkflow), results.First().ActionType);
+        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
         Assert.Equal(typeof(UnscheduleEmptyWorkflow), results.Last().ActionType);
     }
 
@@ -108,7 +109,7 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
             DummyWorkflow with { Enabled = true, Cron = "0/6 * * * * ?",Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
         );
         Assert.Equal(2, results.Count);
-        Assert.Equal(typeof(ScheduleNewWorkflow), results.First().ActionType);
+        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
         Assert.Equal(typeof(RescheduleChangedWorkflow), results.Last().ActionType);
     }
 
@@ -120,6 +121,6 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
             DummyWorkflow with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
         );
         Assert.Single(results);
-        Assert.Equal(typeof(ScheduleNewWorkflow), results.First().ActionType);
+        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
     }
 }

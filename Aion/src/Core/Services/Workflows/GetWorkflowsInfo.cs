@@ -8,7 +8,7 @@ using Aion.Util.Services;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
-namespace Aion.Core.Services;
+namespace Aion.Core.Services.Workflows;
 
 public class GetWorkflowsInfo
 (

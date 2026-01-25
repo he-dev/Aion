@@ -35,5 +35,5 @@ Content-Type: application/json
 }
 
 ### Starts workflow at the specified time.
-POST {{host}}{{profiles.two}}/workflows:sync
+POST {{host}}{{profiles.hallo}}/workflows:sync
 

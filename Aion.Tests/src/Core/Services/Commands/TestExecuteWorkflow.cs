@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Aion.Core.Services;
+using Aion.Core.Services.Workflows;
 using Aion.Util;
 using Aion.Util.Services;
 using Microsoft.Extensions.DependencyInjection;

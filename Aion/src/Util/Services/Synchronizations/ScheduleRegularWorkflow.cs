@@ -1,18 +1,18 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Linq;
 using Aion.Core.Jobs;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
 namespace Aion.Util.Services.Synchronizations;
 
-public class ScheduleNewWorkflow
+public class ScheduleRegularWorkflow
 (
-    ILogger<ScheduleNewWorkflow> logger,
+    ILogger<ScheduleRegularWorkflow> logger,
     ISchedulerFactory schedulerFactory
-) : ISynchronizeWorkflow
+) : SynchronizeWorkflowAction
 {
-    public async Task<SynchronizeWorkflowResult?> Try(Workflow workflow)
+    public async IAsyncEnumerable<SynchronizationStep> Invoke(Workflow workflow)
     {
         var scheduler = await schedulerFactory.GetScheduler();
 
@@ -32,13 +32,7 @@ public class ScheduleNewWorkflow
 
             var next = await scheduler.ScheduleJob(jobDetail, workflow.Trigger);
             logger.LogInformation("Workflow '{WorkflowName}' will be executed by {Cron} at '{Next}'.", workflow.Name, ((ICronTrigger)workflow.Trigger).CronExpressionString, next);
-
-            return new SynchronizeWorkflowResult<ScheduleNewWorkflow>(workflow.Name)
-            {
-                NextUtc = next
-            };
+            yield return new SynchronizationStep("ScheduleJob", next);
         }
-
-        return null;
     }
 }
