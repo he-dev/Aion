@@ -22,7 +22,7 @@ public class UnscheduleEmptyWorkflow
             if (await scheduler.DeleteJob(workflow.Trigger.JobKey))
             {
                 logger.LogInformation("Workflow '{WorkflowName}' was unscheduled.", workflow.Name);
-                yield return new SynchronizationStep("DeleteJob");
+                yield return new SynchronizationStep.DeleteJob(new { Reason = "Empty" });
                 yield break;
             }
 

@@ -15,15 +15,15 @@ public class Profile
 
     public ProfileSync Sync { get; set; } = null!;
 
-    public WorkflowPatterns Workflows { get; set; } = null!;
+    public WorkflowPatterns? Workflows { get; set; }
 
     // meta: This property can be null in JSON, but nulls suck in code, so use empty dictionaries instead.
     // ReSharper disable once CollectionNeverUpdated.Global
-    public Dictionary<string, string> Parameters { get; set; } = null!;
+    public Dictionary<string, string>? Parameters { get; set; }
 
     // meta: This property can be null in JSON, but nulls suck in code, so use empty dictionaries instead.
     // ReSharper disable once CollectionNeverUpdated.Global
-    public Dictionary<string, string> Environment { get; set; } = null!;
+    public Dictionary<string, string>? Environment { get; set; }
 
     public GetLoggingPreset GetLoggingPreset => new(Path);
 }

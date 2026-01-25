@@ -5,7 +5,7 @@
   "Steps": [
     {
       "Enabled": false,
-      "FileName": "{{ Variables.NpcExe }}",
+      "FileName": "{{ Parameters.NpcExe }}",
       "Arguments": null
     }
   ]

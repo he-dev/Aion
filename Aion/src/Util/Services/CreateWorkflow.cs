@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Meta;
 using Aion.Meta.Logging;
+using Aion.Util.Logging;
 using Aion.Util.Scheduler;
 using Aion.Util.Services.Templates;
 using Aion.Util.Templates;
@@ -64,10 +66,9 @@ public class CreateWorkflow
 
         // core: Merge profile and workflow environments with intended precedence: the workflow overrides profile.
         var environment =
-            profile
-                .Environment
+            (profile.Environment ?? new Dictionary<string, string>())
                 .ToImmutableDictionary()
-                .SetItems(configuration.Environment)
+                .SetItems(configuration.Environment ?? new Dictionary<string, string>())
                 .ToImmutableDictionary(x => x.Key, x => x.Value.Render(variables));
         var stepTasks = configuration.Steps.Select((step, index) => CreateStep(profile, variables, environment, step, index));
 
@@ -89,7 +90,7 @@ public class CreateWorkflow
 
             return workflow with
             {
-                Logging = await profile.GetLoggingPreset.Where(configuration.Logging).Let(jsonObject => RenderTemplate.RenderFilePaths(jsonObject, variables)),
+                Logging = await profile.GetLoggingPreset.Where(configuration.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
                 Steps = steps.ToImmutableList(),
             };
         }
@@ -121,12 +122,12 @@ public class CreateWorkflow
                 FileName = configuration.FileName.Render(variables),
                 Arguments = () => configuration.Arguments?.Select(argument => argument.RenderValues(variables)) ?? [],
                 // core: Merge environment with intended precedence: the step overrides workflow.
-                Environment = environment.SetItems(configuration.Environment),
+                Environment = environment.SetItems(configuration.Environment ?? new Dictionary<string, string>()),
                 WorkingDirectory = (configuration.WorkingDirectory ?? string.Empty).Render(variables),
                 Timeout = configuration.Timeout ?? System.Threading.Timeout.InfiniteTimeSpan,
                 OnError = configuration.OnError,
                 Logging = await profile.GetLoggingPreset.Where(configuration.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
-                LoggingTarget = configuration.Logging.Target,
+                LoggingTarget = configuration.Logging?.Target ?? LoggingTarget.Self,
             };
         }
         catch (Exception ex)

@@ -5,9 +5,9 @@
   "Steps": [
     {
       "Enabled": true,
-      "FileName": "{{ Variables.NpcExe }}",
+      "FileName": "{{ Parameters.NpcExe }}",
       "Arguments": {
-        "--sleep-seconds": 5
+        "--sleep": 5
       },
       "Timeout": "0:00:03"
     }

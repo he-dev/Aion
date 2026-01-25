@@ -8,8 +8,10 @@ namespace Aion.Util.Services;
 
 public class GetLoggingPreset(string profilePath)
 {
-    public async Task<JsonObject?> Where(LoggingConfiguration loggingConfiguration)
+    public async Task<JsonObject?> Where(LoggingConfiguration? loggingConfiguration)
     {
+        if (loggingConfiguration is null) return null;
+
         // core: Determine the logging source and return the configuration.
         return loggingConfiguration.Source switch
         {

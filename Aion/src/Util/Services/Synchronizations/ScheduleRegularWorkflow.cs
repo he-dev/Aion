@@ -32,7 +32,7 @@ public class ScheduleRegularWorkflow
 
             var next = await scheduler.ScheduleJob(jobDetail, workflow.Trigger);
             logger.LogInformation("Workflow '{WorkflowName}' will be executed by {Cron} at '{Next}'.", workflow.Name, ((ICronTrigger)workflow.Trigger).CronExpressionString, next);
-            yield return new SynchronizationStep("ScheduleJob", next);
+            yield return new SynchronizationStep("ScheduleJob", new { next });
         }
     }
 }

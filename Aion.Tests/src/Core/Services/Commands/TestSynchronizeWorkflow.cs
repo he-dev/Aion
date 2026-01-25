@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Services;
@@ -13,21 +14,18 @@ namespace Aion.Tests.Core.Services.Commands;
 
 public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IClassFixture<TestWebApplication>
 {
-    private async Task<ImmutableList<SynchronizeWorkflowResult>> SynchronizeWorkflow(params WorkflowConfiguration[] workflows)
+    // core: Synchronizes each specified workflow and returns their results.
+    private async IAsyncEnumerable<SynchronizeWorkflowResult> SynchronizeWorkflow(params WorkflowConfiguration[] workflows)
     {
         using var scope = testWebApplication.Services.CreateScope();
         var scheduleWorkflow = scope.ServiceProvider.GetRequiredService<SynchronizeWorkflow>();
 
         try
         {
-            var results = ImmutableList<SynchronizeWorkflowResult>.Empty;
             foreach (var workflow in workflows)
             {
-                var result = await scheduleWorkflow.Invoke(workflow);
-                results = results.Add(result);
+                yield return await scheduleWorkflow.Invoke(workflow);
             }
-
-            return results;
         }
         finally
         {
@@ -37,28 +35,28 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
         }
     }
 
-    private static readonly WorkflowConfiguration DummyWorkflow = new WorkflowConfiguration
+    private static readonly WorkflowConfiguration EmptyWorkflowDraft = new WorkflowConfiguration
     {
         Enabled = true,
         Cron = "0/5 * * * * ?",
-        Path = new WorkflowPath(@"C:\fake\path\to\profiles\test-cases", new WorkflowName("fake-workflow.json")),
+        Path = new WorkflowPath(@"C:\fake\path\to\profiles\tests", new WorkflowName("fake-workflow")),
         Steps = []
     };
 
     [Fact]
     public async Task IgnoresDisabledWorkflow()
     {
-        var results = await SynchronizeWorkflow(DummyWorkflow with { Enabled = false });
+        var results = await SynchronizeWorkflow(EmptyWorkflowDraft with { Enabled = false }).ToListAsync();
         Assert.Single(results);
-        Assert.Equal(typeof(IgnoreWorkflow), results.First().ActionType);
+        Assert.Null(results.First().Action);
     }
 
     [Fact]
     public async Task IgnoresEmptyWorkflow()
     {
-        var results = await SynchronizeWorkflow(DummyWorkflow with { Enabled = true });
+        var results = await SynchronizeWorkflow(EmptyWorkflowDraft with { Enabled = true }).ToListAsync();
         Assert.Single(results);
-        Assert.Equal(typeof(IgnoreWorkflow), results.First().ActionType);
+        Assert.Null(results.First().Action);
     }
 
     [Fact]
@@ -66,12 +64,13 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
     {
         var results = await SynchronizeWorkflow
         (
-            DummyWorkflow with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] },
-            DummyWorkflow with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
-        );
+            EmptyWorkflowDraft with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] },
+            EmptyWorkflowDraft with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
+        ).ToListAsync();
+
         Assert.Equal(2, results.Count);
-        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
-        Assert.Equal(typeof(IgnoreWorkflow), results.Last().ActionType);
+        Assert.Equal(nameof(ScheduleRegularWorkflow), results.First().Action);
+        Assert.Null(results.Last().Action);
     }
 
     [Fact]
@@ -79,12 +78,13 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
     {
         var results = await SynchronizeWorkflow
         (
-            DummyWorkflow with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] },
-            DummyWorkflow with { Enabled = false, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
-        );
+            EmptyWorkflowDraft with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] },
+            EmptyWorkflowDraft with { Enabled = false, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
+        ).ToListAsync();
+
         Assert.Equal(2, results.Count);
-        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
-        Assert.Equal(typeof(UnscheduleDisabledWorkflow), results.Last().ActionType);
+        Assert.Equal(nameof(ScheduleRegularWorkflow), results[0].Action);
+        Assert.Equal(nameof(UnscheduleDisabledWorkflow), results[1].Action);
     }
 
     [Fact]
@@ -92,12 +92,13 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
     {
         var results = await SynchronizeWorkflow
         (
-            DummyWorkflow with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] },
-            DummyWorkflow with { Enabled = true, Steps = [] }
-        );
+            EmptyWorkflowDraft with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] },
+            EmptyWorkflowDraft with { Enabled = true, Steps = [] }
+        ).ToListAsync();
+
         Assert.Equal(2, results.Count);
-        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
-        Assert.Equal(typeof(UnscheduleEmptyWorkflow), results.Last().ActionType);
+        Assert.Equal(nameof(ScheduleRegularWorkflow), results.First().Action);
+        Assert.Equal(nameof(UnscheduleEmptyWorkflow), results.Last().Action);
     }
 
     [Fact]
@@ -105,12 +106,13 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
     {
         var results = await SynchronizeWorkflow
         (
-            DummyWorkflow with { Enabled = true, Cron = "0/5 * * * * ?", Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] },
-            DummyWorkflow with { Enabled = true, Cron = "0/6 * * * * ?",Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
-        );
+            EmptyWorkflowDraft with { Enabled = true, Cron = "0/5 * * * * ?", Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] },
+            EmptyWorkflowDraft with { Enabled = true, Cron = "0/6 * * * * ?", Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
+        ).ToListAsync();
+
         Assert.Equal(2, results.Count);
-        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
-        Assert.Equal(typeof(RescheduleChangedWorkflow), results.Last().ActionType);
+        Assert.Equal(nameof(ScheduleRegularWorkflow), results.First().Action);
+        Assert.Equal(nameof(RescheduleChangedWorkflow), results.Last().Action);
     }
 
     [Fact]
@@ -118,9 +120,10 @@ public class TestSynchronizeWorkflow(TestWebApplication testWebApplication) : IC
     {
         var results = await SynchronizeWorkflow
         (
-            DummyWorkflow with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
-        );
+            EmptyWorkflowDraft with { Enabled = true, Steps = [new StepConfiguration { Enabled = true, FileName = @"c:\fake\path\to\fake.exe" }] }
+        ).ToListAsync();
+
         Assert.Single(results);
-        Assert.Equal(typeof(ScheduleRegularWorkflow), results.First().ActionType);
+        Assert.Equal(nameof(ScheduleRegularWorkflow), results.First().Action);
     }
 }

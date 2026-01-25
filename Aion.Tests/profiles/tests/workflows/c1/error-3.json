@@ -5,7 +5,7 @@
   "Steps": [
     {
       "Enabled": true,
-      "FileName": "{{ Variables.NpcExe }}",
+      "FileName": "{{ Parameters.NpcExe }}",
       "Arguments": {
         "--exit-code":  3
       }

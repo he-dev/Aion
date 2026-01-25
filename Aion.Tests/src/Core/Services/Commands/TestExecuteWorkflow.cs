@@ -31,9 +31,10 @@ public class TestExecuteWorkflow(TestWebApplication testWebApplication) : IClass
         var createWorkflow = scope.ServiceProvider.GetRequiredService<CreateWorkflow>();
         var executeWorkflow = scope.ServiceProvider.GetRequiredService<ExecuteWorkflow>();
         var getProfile = scope.ServiceProvider.GetRequiredService<GetProfile>();
+        var findWorkflows = scope.ServiceProvider.GetRequiredService<FindWorkflows>();
 
-        var profile = getProfile.Single("test-cases");
-        var workflowPath = profile.Workflows.Single(new WorkflowSearchCriteria(testCase));
+        var profile = getProfile.Single("tests");
+        var workflowPath = findWorkflows.Single(new WorkflowSearchCriteria(profile, testCase));
         var workflowTemplate = await WorkflowConfiguration.FromFile(workflowPath);
         var workflow = await createWorkflow.From(workflowTemplate);
         var actual = await executeWorkflow.Now(workflow);

@@ -21,8 +21,8 @@ public class FindWorkflows
 
         // core: Pass-1 - Use profile patterns to pre-filter its files.
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
-        matcher.AddIncludePatterns(criteria.Profile.Workflows.Includes);
-        matcher.AddExcludePatterns(criteria.Profile.Workflows.Excludes);
+        matcher.AddIncludePatterns(criteria.Profile.Workflows?.Includes ?? []);
+        matcher.AddExcludePatterns(criteria.Profile.Workflows?.Excludes ?? []);
 
         var candidates =
             from match in matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(criteria.Path))).Files

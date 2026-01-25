@@ -21,7 +21,7 @@ public class UnscheduleDisabledWorkflow
             if (await scheduler.DeleteJob(workflow.Trigger.JobKey))
             {
                 logger.LogInformation("Workflow '{WorkflowName}' was unscheduled.", workflow.Name);
-                yield return new SynchronizationStep("DeleteJob");
+                yield return new SynchronizationStep.DeleteJob(new { Reason = "Disabled" });
                 yield break;
             }
 

@@ -20,9 +20,9 @@ public record WorkflowConfiguration
     [MustBeCron]
     public string Cron { get; init; } = null!;
 
-    public Dictionary<string, string> Parameters { get; init; } = null!;
+    public Dictionary<string, string>? Parameters { get; init; }
 
-    public Dictionary<string, string> Environment { get; init; } = null!;
+    public Dictionary<string, string>? Environment { get; init; }
 
     public LoggingConfiguration? Logging { get; init; }
 
@@ -55,6 +55,11 @@ public record WorkflowConfiguration
 
         return WorkflowTemplateValidation.Validate(template);
     }
+
+    public static async Task<WorkflowConfiguration> FromFile(string profilePath, string workflowPath)
+    {
+        return await FromFile(new WorkflowPath(profilePath, WorkflowName.FromPath(workflowPath)));
+    }
 }
 
 public record StepConfiguration
@@ -67,24 +72,24 @@ public record StepConfiguration
     public string FileName { get; init; } = null!;
 
     [JsonConverter(typeof(StepArgumentConverter))]
-    public IImmutableList<StepArgument>? Arguments { get; init; } = [];
+    public IImmutableList<StepArgument>? Arguments { get; init; }
 
-    public Dictionary<string, string> Environment { get; init; } = new();
+    public Dictionary<string, string>? Environment { get; init; }
 
     public string? WorkingDirectory { get; init; }
 
     public TimeSpan? Timeout { get; init; }
 
-    public LoggingConfiguration Logging { get; init; } = null!;
-
     public string? OnError { get; init; }
+
+    public LoggingConfiguration? Logging { get; init; }
 }
 
 public class InvalidWorkflowConfiguration(string path) : Exception($"File '{path}' is not a valid workflow template.");
 
 public record LoggingConfiguration
 {
-    public LoggingSource Source { get; init; } = LoggingSource.Auto;
+    public LoggingSource? Source { get; init; }
 
     [JsonConverter(typeof(LoggingPresetExpressionConverter))]
     public LoggingPresetExpression? Preset { get; init; }
@@ -92,5 +97,5 @@ public record LoggingConfiguration
     public JsonObject? Custom { get; init; }
 
     [JsonConverter(typeof(FlagsEnumConverter<LoggingTarget>))]
-    public LoggingTarget Target { get; init; } = LoggingTarget.Self;
+    public LoggingTarget? Target { get; init; }
 }

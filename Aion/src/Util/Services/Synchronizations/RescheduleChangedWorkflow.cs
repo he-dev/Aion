@@ -28,7 +28,7 @@ public class RescheduleChangedWorkflow
                     if (await scheduler.RescheduleJob(workflow.Trigger.Key, workflow.Trigger) is { } next)
                     {
                         logger.LogInformation("Workflow '{WorkflowName}' will be executed by {Cron} at '{Next}'.", workflow.Name, otherCron, next);
-                        yield return new SynchronizationStep("RescheduleJob", next);
+                        yield return new SynchronizationStep.RescheduleJob(next);
                     }
                     else
                     {

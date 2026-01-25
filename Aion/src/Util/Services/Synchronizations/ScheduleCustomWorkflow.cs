@@ -33,13 +33,13 @@ public class ScheduleCustomWorkflow
             if (await scheduler.DeleteJob(workflow.Trigger.JobKey))
             {
                 logger.LogInformation("Workflow '{WorkflowName}' was unscheduled.", workflow.Name);
-                yield return new SynchronizationStep("DeleteJob");
+                yield return new SynchronizationStep.DeleteJob(null);
             }
         }
 
         logger.LogInformation("Workflow '{WorkflowName}' will be executed once at '{Next}'.", workflow.Name, workflow.Trigger.GetNextFireTimeUtc());
 
         var next = await scheduler.ScheduleJob(jobDetail, workflow.Trigger);
-        yield return new SynchronizationStep("ScheduleJob", next);
+        yield return new SynchronizationStep.ScheduleJob(new { next });
     }
 }
