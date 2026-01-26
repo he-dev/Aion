@@ -1,7 +1,6 @@
 
-### Lists workflows in one.
-GET {{host}}{{profiles.two}}/schedules
+### Lists workflow schedules.
+GET {{host}}{{profiles.hallo}}/schedules
 
-
-
-###
+### Lists workflow schedules.
+GET {{host}}{{profiles.hallo}}/schedules?q=*cmd*

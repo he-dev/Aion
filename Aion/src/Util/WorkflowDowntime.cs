@@ -22,6 +22,9 @@ public record WorkflowDowntime
     [JsonIgnore]
     public TimeProvider Clock { get; init; } = TimeProvider.System;
 
+    // util: Does not have any function. Purely informational.
+    public string Pattern { get; init; } = null!;
+
     public DateTimeOffset StartsOnUtc { get; init; }
     public DateTimeOffset EndsOnUtc { get; init; }
     public DateTimeOffset CreatedOnUtc { get; init; }
@@ -50,29 +53,30 @@ public record WorkflowDowntime
         }
     }
 
-    public static WorkflowDowntime StartsAt(DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
+    public static WorkflowDowntime At(string pattern, DateTimeOffset startsOnUtc, DateTimeOffset endsOnUtc, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
-        var now = clock.GetUtcNow();
+        var createdOnUtc = clock.GetUtcNow();
         if (startsOnUtc > endsOnUtc) throw new DowntimeMustStartBeforeItEnds();
-        if (endsOnUtc < now) throw new DowntimeMustEndInTheFuture();
+        if (endsOnUtc < createdOnUtc) throw new DowntimeMustEndInTheFuture();
 
         return new WorkflowDowntime
         {
+            Pattern = pattern,
             StartsOnUtc = startsOnUtc,
             EndsOnUtc = endsOnUtc,
-            CreatedOnUtc = now,
-            Checksum = CalculatesChecksum.For(startsOnUtc, endsOnUtc, now),
+            CreatedOnUtc = createdOnUtc,
+            Checksum = CalculateChecksum.For(startsOnUtc, endsOnUtc, createdOnUtc),
         };
     }
 
-    public static WorkflowDowntime StartsIn(TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
+    public static WorkflowDowntime In(string pattern, TimeSpan wait, TimeSpan length, TimeProvider? clock = null)
     {
         clock ??= TimeProvider.System;
         var startsOnUtc = clock.GetUtcNow().Add(wait);
         var endsOnUtc = startsOnUtc.Add(length);
 
-        return StartsAt(startsOnUtc, endsOnUtc);
+        return At(pattern, startsOnUtc, endsOnUtc);
     }
 
     public static async Task<WorkflowDowntime?> FromFile(string workflowPath)
@@ -89,7 +93,7 @@ public record WorkflowDowntime
             await using var fileStream = new FileStream(workflowDowntimePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             if (await JsonSerializer.DeserializeAsync<WorkflowDowntime>(fileStream) is { } workflowDowntime)
             {
-                if (workflowDowntime.Checksum != CalculatesChecksum.For(workflowDowntime.StartsOnUtc, workflowDowntime.EndsOnUtc, workflowDowntime.CreatedOnUtc))
+                if (workflowDowntime.Checksum != CalculateChecksum.For(workflowDowntime.StartsOnUtc, workflowDowntime.EndsOnUtc, workflowDowntime.CreatedOnUtc))
                 {
                     throw new WorkflowDowntimeCorrupted(workflowPath);
                 }
@@ -105,16 +109,10 @@ public record WorkflowDowntime
         }
     }
 
-    public async Task ApplyTo(IEnumerable<string> workflowPaths)
-    {
-        foreach (var workflowFile in workflowPaths)
-        {
-            await ToFile(workflowFile);
-        }
-    }
-
     public async Task<string> ToFile(string workflowPath)
     {
+        if (!Path.Exists(workflowPath)) throw new FileNotFoundException($"There is not such workflow '{workflowPath}'.", workflowPath);
+
         var lockPath = Path.ChangeExtension(workflowPath, FileExtension);
 
         // core: Avoid race conditions by locking file operations.
@@ -157,11 +155,11 @@ public record WorkflowDowntime
     }
 }
 
-public static class CalculatesChecksum
+public static class CalculateChecksum
 {
     public static string For(params DateTimeOffset[] values)
     {
-        // meta: This is a very simple checksum, but it is good enough for our purposes.
+        // note: This is a very simple checksum, but it is good enough for our purposes.
         var value = string.Join("_", values.Select(x => x.ToString("O")));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
     }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Aion.Meta.Logging;
@@ -15,34 +16,40 @@ public class StartDowntime
     FindWorkflows findWorkflows
 )
 {
-    public async Task<IImmutableList<WorkflowPath>> Now(string profileName, string pattern, WorkflowDowntime downtime)
+    public async Task<IImmutableList<StartDowntimeResult>> Now(string profileName, string pattern, WorkflowDowntime downtime)
     {
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         try
         {
             var profile = getProfile.Single(profileName);
-            var workflowPaths = ImmutableList<WorkflowPath>.Empty;
+            var workflowPaths = new List<StartDowntimeResult>();
             foreach (var workflowPath in findWorkflows.Where(WorkflowSearchCriteria.Where(profile, pattern)))
             {
                 try
                 {
-                    var workflowLock = await downtime.ToFile(workflowPath);
-                    workflowPaths = workflowPaths.Add(workflowPath);
-                    logger.LogInformation("Workflow '{WorkflowName}' has been locked by '{WorkflowLock}'.", workflowPath.WorkflowName, workflowLock);
+                    await downtime.ToFile(workflowPath);
+                    workflowPaths.Add(new StartDowntimeResult(workflowPath.WorkflowName));
+                    logger.LogInformation("Workflow '{WorkflowName}' has been locked for {Duration} starting at {StartsOnUtc} (UTC).", workflowPath.WorkflowName, downtime.Duration, downtime.StartsOnUtc);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Unable to schedule maintenance for '{WorkflowName}'.", workflowPath.WorkflowName);
+                    logger.LogError(ex, "Unable to lock '{WorkflowName}'.", workflowPath.WorkflowName);
+                    workflowPaths.Add(new StartDowntimeResult(workflowPath.WorkflowName) { Exception = ex });
                 }
             }
 
-            return workflowPaths;
+            return workflowPaths.ToImmutableList();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unable to schedule maintenance for '{WorkflowNameOrFilter}'.", pattern);
+            logger.LogError(ex, "Unable to lock '{WorkflowNameOrFilter}'.", pattern);
             //return Problem(detail: ex.ToString(), statusCode: 500);
             throw;
         }
     }
+}
+
+public record StartDowntimeResult(WorkflowName WorkflowName)
+{
+    public Exception? Exception { get; init; }
 }

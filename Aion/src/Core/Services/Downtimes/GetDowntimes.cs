@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Threading.Tasks;
 using Aion.Meta.Logging;
 using Aion.Util;
@@ -16,12 +16,12 @@ public class GetDowntimes
     FindWorkflows findWorkflows
 )
 {
-    public async Task<object> Invoke(string profileName)
+    public async Task<ImmutableList<WorkflowDowntime>> Where(string profileName)
     {
-        var profile = getProfile.Single(profileName);
-        var workflowDowntimes = ImmutableList<WorkflowDowntime>.Empty;
-
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
+
+        var profile = getProfile.Single(profileName);
+        var workflowDowntimes = new List<WorkflowDowntime>();
 
         foreach (var workflowPath in findWorkflows.Where(WorkflowSearchCriteria.Where(profile)))
         {
@@ -29,7 +29,7 @@ public class GetDowntimes
             {
                 if (await WorkflowDowntime.FromFile(workflowPath) is { } lockFile)
                 {
-                    workflowDowntimes = workflowDowntimes.Add(lockFile);
+                    workflowDowntimes.Add(lockFile);
                 }
             }
             catch (Exception ex)
@@ -38,24 +38,6 @@ public class GetDowntimes
             }
         }
 
-        var downtimes =
-            from s in workflowDowntimes
-            orderby s.Remaining descending, s.Duration descending
-            select new
-            {
-                s.FileName,
-                CreatedOn = s.CreatedOnUtc.ToLocalTime(),
-                StartsOn = s.StartsOnUtc.ToLocalTime(),
-                EndsOn = s.EndsOnUtc.ToLocalTime(),
-                s.Duration,
-                s.Remaining,
-                Status = s.Status.ToString()
-            };
-
-        return new
-        {
-            profile = profile.Path,
-            downtimes
-        };
+        return workflowDowntimes.ToImmutableList();
     }
 }

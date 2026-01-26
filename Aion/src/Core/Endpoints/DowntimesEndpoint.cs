@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Endpoints.Filters;
 using Aion.Core.Services.Downtimes;
@@ -17,24 +18,53 @@ public static class DowntimesEndpoint
             .MapGroup("api/profiles/{profileName}")
             .AddEndpointFilter<EnsureProfileExists>();
         downtimes.MapPost("downtimes", GetDowntimes);
-        downtimes.MapPost("downtimes:start-now", StartNow);
-        downtimes.MapPost("downtimes:start-in", StartIn);
-        downtimes.MapPost("downtimes:start-at", StartAt);
-        downtimes.MapPost("downtimes:end-now", EndNow);
+        downtimes.MapPost("downtimes:start", Start);
+        downtimes.MapPost("downtimes:end", EndNow);
     }
 
     private static async Task<IResult> GetDowntimes(GetDowntimes getDowntimes, string profileName)
     {
-        var workflows = await getDowntimes.Invoke(profileName);
-        return Results.Ok(workflows);
+        var downtimes = await getDowntimes.Where(profileName);
+        return Results.Ok(new
+        {
+            profile = profileName,
+            downtimes =
+                from downtime in downtimes
+                orderby downtime.Remaining descending, downtime.Duration descending
+                select new
+                {
+                    downtime.Pattern,
+                    StartsOn = downtime.StartsOnUtc.ToLocalTime(),
+                    EndsOn = downtime.EndsOnUtc.ToLocalTime(),
+                    downtime.Duration,
+                    downtime.Remaining,
+                    Status = downtime.Status.ToString()
+                }
+        });
     }
 
-    private static async Task<IResult> StartNow(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartInBody body)
+    private static async Task<IResult> Start(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartBody body)
     {
         try
         {
-            var workflows = await startDowntime.Now(profileName, body.Filter, WorkflowDowntime.StartsIn(TimeSpan.Zero, body.Duration));
-            return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });
+            var downtime = WorkflowDowntime.At(body.Pattern, body.StartsOnUtc, body.EndsOnUtc);
+            var results = await startDowntime.Now(profileName, body.Pattern, downtime);
+
+            return Results.Accepted($"/api/profiles/{profileName}/downtimes", new
+            {
+                profile = profileName,
+                downtime = new
+                {
+                    StartsAt = downtime.StartsOnUtc.ToLocalTime(),
+                    EndsAt = downtime.EndsOnUtc.ToLocalTime(),
+                    downtime.Duration,
+                    downtime.Remaining,
+                    Status = downtime.Status.ToString()
+                },
+                locks =
+                    from result in results
+                    select new { Workflow = result.WorkflowName.Value, Error = result.Exception?.Message }
+            });
         }
         catch (Exception ex)
         {
@@ -42,59 +72,55 @@ public static class DowntimesEndpoint
         }
     }
 
-    private static async Task<IResult> StartIn(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartInBody body)
+    private static async Task<IResult> EndNow(EndDowntime endDowntime, string profileName, [FromBody] DowntimeEndNowBody? body)
     {
-        try
+        var downtimes = await endDowntime.Now(profileName, body?.Pattern);
+        return Results.Ok(new
         {
-            var workflows = await startDowntime.Now(profileName, body.Filter, WorkflowDowntime.StartsIn(body.Wait, body.Duration));
-            return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });
-        }
-        catch (Exception ex)
-        {
-            return Results.Problem(detail: ex.ToString(), statusCode: 500);
-        }
-    }
-
-    private static async Task<IResult> StartAt(StartDowntime startDowntime, string profileName, [FromBody] DowntimeStartAtBody body)
-    {
-        try
-        {
-            var workflows = await startDowntime.Now(profileName, body.Filter, WorkflowDowntime.StartsAt(body.StartsAtUtc, body.EndsAtUtc));
-            return Results.Accepted($"/api/profiles/{profileName}/downtimes", new { workflows });
-        }
-        catch (Exception ex)
-        {
-            return Results.Problem(detail: ex.ToString(), statusCode: 500);
-        }
-    }
-
-    private static async Task<IResult> EndNow(EndDowntime endDowntime, string profileName, [FromBody] DowntimeEndNowBody body)
-    {
-        var workflows = await endDowntime.Now(profileName, body.Filter);
-        return Results.Ok(workflows);
+            profile = profileName,
+            pattern = body?.Pattern,
+            downtimes =
+                from downtime in downtimes
+                orderby downtime.Remaining descending, downtime.Duration descending
+                select new
+                {
+                    downtime.Pattern,
+                    StartsOn = downtime.StartsOnUtc.ToLocalTime(),
+                    EndsOn = downtime.EndsOnUtc.ToLocalTime(),
+                    downtime.Duration,
+                }
+        });
     }
 }
 
-public record DowntimeStartInBody
+public record DowntimeStartBody
 {
-    public string Filter { get; init; } = null!;
+    public string Pattern { get; init; } = null!;
+    public TimeSpan? Wait { get; init; }
+    public DateTime? StartsOn { get; init; }
+    public TimeSpan? Duration { get; init; }
+    public DateTime? EndsOn { get; init; }
 
-    public TimeSpan Wait { get; init; }
-    public TimeSpan Duration { get; init; }
-}
+    public DateTimeOffset StartsOnUtc
+    {
+        get
+        {
+            if (StartsOn is null && Wait is null) throw new InvalidOperationException("Downtime must have either a start time or a wait time.");
+            return StartsOn?.ToUniversalTime() ?? DateTimeOffset.UtcNow + (Wait ?? TimeSpan.Zero);
+        }
+    }
 
-public record DowntimeStartAtBody
-{
-    public string Filter { get; init; } = null!;
-
-    public DateTime StartsAt { get; init; }
-    public DateTime EndsAt { get; init; }
-
-    public DateTimeOffset StartsAtUtc => StartsAt.ToUniversalTime();
-    public DateTimeOffset EndsAtUtc => EndsAt.ToUniversalTime();
+    public DateTimeOffset EndsOnUtc
+    {
+        get
+        {
+            if (EndsOn is null && Duration is null) throw new InvalidOperationException("Downtime must have an end time.");
+            return EndsOn?.ToUniversalTime() ?? StartsOnUtc + (Duration ?? TimeSpan.Zero);
+        }
+    }
 }
 
 public record DowntimeEndNowBody
 {
-    public string Filter { get; init; } = null!;
+    public string Pattern { get; init; } = null!;
 }

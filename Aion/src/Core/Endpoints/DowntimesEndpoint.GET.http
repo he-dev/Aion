@@ -1,0 +1,6 @@
+
+
+### Starts the dowtime.
+POST {{host}}{{profiles.hallo}}/downtimes
+
+

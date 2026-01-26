@@ -25,7 +25,7 @@ public record StepArgument(string Name, string[]? Values)
         public const string Positional = "_";
     }
 
-    public record Positional(string Value) : StepArgument(Names.Positional, [Value]);
+    public record Positional(params string[] Values) : StepArgument(Names.Positional, Values);
 
     public override string ToString()
     {

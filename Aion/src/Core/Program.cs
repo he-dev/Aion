@@ -3,6 +3,7 @@ using Aion.Core.Endpoints;
 using Aion.Core.Jobs;
 using Aion.Core.Services;
 using Aion.Core.Services.Downtimes;
+using Aion.Core.Services.Profiles;
 using Aion.Core.Services.Workflows;
 using Aion.Meta;
 using Aion.Meta.Serilog;

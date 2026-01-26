@@ -1,10 +1,15 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Aion.Core.Endpoints.Filters;
 using Aion.Core.Services.Workflows;
+using Aion.Meta;
+using Aion.Meta.Quartz;
+using Aion.Util.Scheduler;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Quartz;
 
 namespace Aion.Core.Endpoints;
 
@@ -18,15 +23,25 @@ public static class SchedulesEndpoint
 
     private static async Task<IResult> GetSchedules(GetProfileTriggers getProfileTriggers, string profileName, [FromQuery(Name = "q")] string? workflowFilter)
     {
-        var workflows = await getProfileTriggers.Where(profileName).FormatResponse(workflowFilter).ToListAsync();
-        return Results.Ok(workflows);
-    }
-}
+        var triggers = await getProfileTriggers.Where(profileName).ToListAsync();
 
-public enum OrderBy
-{
-    Name,
-    Path,
-    Cron,
-    Next
+        // meta: Keep it stable.
+        var utcNow = DateTimeOffset.UtcNow;
+        return Results.Ok(new
+        {
+            profile = profileName,
+            pattern = workflowFilter,
+            schedules =
+                from trigger in triggers
+                where trigger.JobKey.Name.IsLike(workflowFilter)
+                let next = ((ICronTrigger)trigger).FiresAt(utcNow).Take(3)
+                orderby next.FirstOrDefault()
+                select new
+                {
+                    workflow = trigger.JobDataMap.GetString(JobDataKeys.WorkflowName),
+                    cron = ((ICronTrigger)trigger).CronExpressionString,
+                    next
+                }
+        });
+    }
 }

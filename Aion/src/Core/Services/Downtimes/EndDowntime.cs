@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,21 +17,21 @@ public class EndDowntime
     FindWorkflows findWorkflows
 )
 {
-    public async Task<object> Now(string profileName, string? pattern = null)
+    public async Task<IImmutableList<WorkflowDowntime>> Now(string profileName, string? pattern = null)
     {
-        var profile = getProfile.Single(profileName);
-        var workflowPaths = ImmutableList<WorkflowPath>.Empty;
-
         using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
+
+        var profile = getProfile.Single(profileName);
+        var workflowDowntimes = new List<WorkflowDowntime>();
 
         foreach (var workflowPath in findWorkflows.Where(WorkflowSearchCriteria.Where(profile, pattern)))
         {
             try
             {
-                if (await WorkflowDowntime.FromFile(workflowPath) is { } lockFile)
+                if (await WorkflowDowntime.FromFile(workflowPath) is { } workflowDowntime)
                 {
-                    await lockFile.EndsNow();
-                    workflowPaths = workflowPaths.Add(workflowPath);
+                    await workflowDowntime.EndsNow();
+                    workflowDowntimes.Add(workflowDowntime);
                 }
             }
             catch (Exception ex)
@@ -39,10 +40,6 @@ public class EndDowntime
             }
         }
 
-        return new
-        {
-            profile = profile.Path,
-            workflows = workflowPaths.Select(m => m.WorkflowName.ToPath()),
-        };
+        return workflowDowntimes.ToImmutableList();
     }
 }

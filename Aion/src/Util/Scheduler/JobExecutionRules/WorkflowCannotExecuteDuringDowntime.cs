@@ -28,6 +28,7 @@ public class WorkflowCannotExecuteDuringDowntime
         var profile = getProfile.Single(profileName);
         try
         {
+            // core: Get the triggered workflow's path and check its downtime.
             var workflowPath = findWorkflows.Single(WorkflowSearchCriteria.Where(profile, workflowName));
             if (await WorkflowDowntime.FromFile(workflowPath) is { } workflowDowntime)
             {
@@ -37,6 +38,7 @@ public class WorkflowCannotExecuteDuringDowntime
                     await workflowDowntime.EndsNow();
                 }
 
+                logger.LogDebug("Workflow '{WorkflowName}' is currently {Status}.", workflowName, workflowDowntime.Status);
                 return workflowDowntime.Status == WorkflowDowntimeStatus.Ongoing;
             }
         }
@@ -60,6 +62,7 @@ public class WorkflowCannotExecuteDuringDowntime
             return true;
         }
 
+        logger.LogDebug("Workflow '{WorkflowName}' does not have an ongoing downtime.", workflowName);
         return false;
     }
 
@@ -68,7 +71,7 @@ public class WorkflowCannotExecuteDuringDowntime
         var profileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName)!;
         var workflowName = trigger.JobDataMap.GetString(JobDataKeys.WorkflowName)!;
 
-        using var scope = logger.BeginScopeFrom(new { ProfileName = trigger.JobDataMap.GetString(JobDataKeys.ProfileName) });
+        using var scope = logger.BeginScopeFrom(new { ProfileName = profileName });
         logger.LogDebug("Workflow trigger '{TriggerName}' has fired.", trigger.Key.Name);
         return Task.CompletedTask;
     }
