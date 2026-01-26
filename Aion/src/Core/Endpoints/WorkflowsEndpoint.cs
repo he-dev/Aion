@@ -35,17 +35,21 @@ public static class WorkflowsEndpoint
     private static async Task<IResult> StartNow(ExecuteWorkflow executeWorkflow, string profileName, string workflowName, [FromBody] WorkflowStartNowBody? body)
     {
         var stepResults = await executeWorkflow.Now(profileName, workflowName, body?.Steps.ToImmutableList());
-        var results =
-            from stepResult in stepResults
-            select new
-            {
-                step = stepResult.Index,
-                stepResult.ExitCode,
-                Status = stepResult.Status.ToString(),
-                stepResult.Duration,
-                stepResult.Exception?.Message
-            };
-        return Results.Ok(new { profileName, workflowName, results });
+        return Results.Ok(new
+        {
+            profile = profileName,
+            workflow = workflowName,
+            steps =
+                from stepResult in stepResults
+                select new
+                {
+                    stepResult.Index,
+                    stepResult.ExitCode,
+                    Status = stepResult.Status.ToString(),
+                    stepResult.Duration,
+                    error = stepResult.Exception?.Message
+                }
+        });
     }
 
     private static async Task<IResult> StartIn(SynchronizeWorkflow synchronizeWorkflow, string profileName, string workflowName, [FromBody] WorkflowStartInBody body)
