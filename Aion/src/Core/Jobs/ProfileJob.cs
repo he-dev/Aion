@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Aion.Core.Services;
 using Aion.Core.Services.Profiles;
 using Aion.Meta.Logging;
 using Aion.Util.Scheduler;

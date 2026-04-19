@@ -5,10 +5,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aion.Meta;
 using Aion.Meta.Logging;
+using Aion.Meta.Serilog;
 using Aion.Util.Logging;
 using Aion.Util.Scheduler;
-using Aion.Util.Services.Templates;
-using Aion.Util.Templates;
+using Aion.Util.Templating.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
@@ -46,11 +46,11 @@ public class CreateWorkflow
             Variables = configuration.Parameters?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
         };
 
-        var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
+        var variables = ImmutableList<IVariableGroup>.Empty.AddRange
         ([
-            new ContextVariableGroup(schedulerOptions.Value.Parameters),
-            new ContextVariableGroup(profile.Parameters),
-            new ContextVariableGroup(configuration.Parameters),
+            new ParametersVariableGroup(schedulerOptions.Value.Parameters),
+            new ParametersVariableGroup(profile.Parameters),
+            new ParametersVariableGroup(configuration.Parameters),
             new SchedulerVariableGroup { Name = schedulerOptions.Value.Name },
             new ProfileVariableGroup
             {
@@ -90,7 +90,7 @@ public class CreateWorkflow
 
             return workflow with
             {
-                Logging = await profile.GetLoggingPreset.Where(configuration.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
+                Logging = await profile.GetLoggingPreset.Where(configuration.Logging).Let(config => config.WithPaths(path => path.Render(variables))),
                 Steps = steps.ToImmutableList(),
             };
         }
@@ -103,7 +103,7 @@ public class CreateWorkflow
     private async Task<Workflow.Step> CreateStep
     (
         Profile profile,
-        IImmutableList<TemplateVariableGroup> variables,
+        IImmutableList<IVariableGroup> variables,
         IImmutableDictionary<string, string> environment,
         StepConfiguration configuration,
         int index
@@ -126,7 +126,7 @@ public class CreateWorkflow
                 WorkingDirectory = (configuration.WorkingDirectory ?? string.Empty).Render(variables),
                 Timeout = configuration.Timeout ?? System.Threading.Timeout.InfiniteTimeSpan,
                 OnError = configuration.OnError,
-                Logging = await profile.GetLoggingPreset.Where(configuration.Logging).Let(jsonObject => jsonObject.RenderFilePaths(variables)),
+                Logging = await profile.GetLoggingPreset.Where(configuration.Logging).Let(config => config.WithPaths(path => path.Render(variables))),
                 LoggingTarget = configuration.Logging?.Target ?? LoggingTarget.Self,
             };
         }

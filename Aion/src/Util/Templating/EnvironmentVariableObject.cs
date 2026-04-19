@@ -1,18 +1,14 @@
 ﻿using System;
+using Aion.Util.Templating.Services;
 using Scriban;
 using Scriban.Parsing;
 using Scriban.Runtime;
 using Scriban.Syntax;
 
-namespace Aion.Util.Templates;
+namespace Aion.Util.Templating;
 
-public class EnvironmentVariableObject : ScriptObject
+public class EnvironmentVariableGroup : ScriptObject, IVariableGroup
 {
-    public static readonly ScriptObject Default = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["Environment"] = new EnvironmentVariableObject()
-    };
-
     // meta: Scriban calls this for BOTH Environment.Name and Environment["Name"]
     public override bool TryGetValue(TemplateContext context, SourceSpan span, string member, out object value)
     {
@@ -32,8 +28,4 @@ public class EnvironmentVariableObject : ScriptObject
         value = temp;
         return true;
     }
-
-    // meta: Optional but recommended to prevent users from accidentally
-    // trying to overwrite Environment vars inside the template.
-    public override bool CanWrite(string member) => false;
 }

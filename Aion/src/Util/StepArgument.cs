@@ -6,8 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Aion.Meta;
-using Aion.Util.Services.Templates;
-using Aion.Util.Templates;
+using Aion.Util.Templating.Services;
 
 namespace Aion.Util;
 
@@ -91,7 +90,7 @@ public static class StepArgumentExtensions
         return string.Join(" ", arguments.Select(cla => cla.ToString()));
     }
 
-    public static StepArgument RenderValues(this StepArgument argument, IImmutableList<TemplateVariableGroup> variables)
+    public static StepArgument RenderValues(this StepArgument argument, IImmutableList<IVariableGroup> variables)
     {
         return argument with
         {

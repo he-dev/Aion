@@ -1,6 +1,5 @@
 ﻿using System.Collections.Immutable;
-using Aion.Util.Services.Templates;
-using Aion.Util.Templates;
+using Aion.Util.Templating.Services;
 using Microsoft.Extensions.Options;
 
 namespace Aion.Util.Scheduler;
@@ -13,10 +12,10 @@ public class SchedulerOptionsPostConfigure : IPostConfigureOptions<SchedulerOpti
         foreach (var (profileName, profile) in scheduler.Profiles)
         {
             // note: Other variables are unknown at this stage, so only ENV is supported.
-            var variables = ImmutableList<TemplateVariableGroup>.Empty.AddRange
+            var variables = ImmutableList<IVariableGroup>.Empty.AddRange
             ([
-                new ContextVariableGroup(scheduler.Parameters),
-                new ContextVariableGroup(profile.Parameters),
+                new ParametersVariableGroup(scheduler.Parameters),
+                new ParametersVariableGroup(profile.Parameters),
                 new SchedulerVariableGroup
                 {
                     Name = scheduler.Name,

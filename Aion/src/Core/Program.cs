@@ -1,13 +1,13 @@
 ﻿using System;
 using Aion.Core.Endpoints;
 using Aion.Core.Jobs;
-using Aion.Core.Services;
 using Aion.Core.Services.Downtimes;
 using Aion.Core.Services.Profiles;
 using Aion.Core.Services.Workflows;
 using Aion.Meta;
 using Aion.Meta.Serilog;
 using Aion.Meta.Serilog.Enriching;
+using Aion.Util;
 using Aion.Util.Scheduler;
 using Aion.Util.Scheduler.JobExecutionRules;
 using Aion.Util.Services;
@@ -120,12 +120,22 @@ builder.Services.AddScoped<GetProfileTriggers>();
 builder.Services.AddScoped<GetDowntimes>();
 builder.Services.AddScoped<StartDowntime>();
 builder.Services.AddScoped<EndDowntime>();
-
+builder.Services.AddScoped<Telemetry<Program>>();
 
 builder.Services.AddProblemDetails();
 //builder.Services.AddExceptionHandler<WorkflowNotExecutableExceptionHandler>();
 
 var app = builder.Build();
+
+// todo: new logger test
+using (var scope = app.Services.CreateScope())
+{
+    var telemetry = scope.ServiceProvider.GetRequiredService<Telemetry<Program>>();
+    using var step = telemetry.Core.LogExecuteStep(7);
+    step.LogOk();
+
+    telemetry.Meta.LogDeleteFile("test.txt");
+}
 
 //app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
