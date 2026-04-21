@@ -1,89 +1,114 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Aion.Meta.Logging;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 
 namespace Aion.Util;
 
-public abstract class Role
+public abstract class Contract
 {
-    public abstract class Core : Role;
+    // core: Logs about what the system is supposed to produce.
+    public abstract class Output : Contract;
 
-    public abstract class Util : Role;
-
-    public abstract class Meta : Role;
+    // core: Logs about what allows the system able to produce.
+    public abstract class Engine : Contract;
 }
 
-public class TelemetryLogger<TLogger, TRole>(ILogger<TLogger> inner) : ILogger<TRole> where TRole : Role
+public static class LoggerExtensions
 {
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+    extension<T>(ILogger<T> logger)
     {
-        return inner.BeginScope(state);
+        public ILogger<Contract.Output> Output => new TelemetryLogger<T, Contract.Output>(logger);
+        public ILogger<Contract.Engine> Engine => new TelemetryLogger<T, Contract.Engine>(logger);
     }
 
-    public bool IsEnabled(LogLevel logLevel)
+    // meta: This class is used to add a role to a logger.
+    // It re-wraps the class-logger into a role-logger.
+    // This way we can conveniently chain role-specific extensions.
+    private class TelemetryLogger<TLogger, TContract>(ILogger<TLogger> inner) : ILogger<TContract> where TContract : Contract
     {
-        return inner.IsEnabled(logLevel);
-    }
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        {
+            return inner.BeginScope(state);
+        }
 
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-    {
-        inner.Log(logLevel, eventId, state, exception, formatter);
-    }
-}
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return inner.IsEnabled(logLevel);
+        }
 
-public static class TelemetryLogger
-{
-    public static ILogger<TRole> AsRole<TLogger, TRole>(this ILogger<TLogger> logger) where TRole : Role
-    {
-        return new TelemetryLogger<TLogger, TRole>(logger);
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            inner.Log(logLevel, eventId, state, exception, formatter);
+        }
     }
-}
-
-// core: This class encapsulates the three classes of logging.
-public class Telemetry<T>(ILoggerFactory loggerFactory)
-{
-    public ILogger<Role.Core> Core { get; } = loggerFactory.CreateLogger<T>().AsRole<T, Role.Core>();
-    public ILogger<Role.Util> Util { get; } = loggerFactory.CreateLogger<T>().AsRole<T, Role.Util>();
-    public ILogger<Role.Meta> Meta { get; } = loggerFactory.CreateLogger<T>().AsRole<T, Role.Meta>();
 }
 
 public static class Telemetry
 {
-    public static ITelemetryTask LogTask<T>(ILogger<T> logger, string name, Action<TelemetryTaskInfo<T>> log) where T : Role
+    public static string CallerToActivityName([CallerMemberName] string? callerName = null)
     {
-        //return new TelemetryTask<T>(logger, name, onDone);
-        return TelemetryTask<T>.From(logger, name, log);
+        if (callerName == null) throw new ArgumentNullException(nameof(callerName));
+        if (!callerName.StartsWith("Log")) throw new ArgumentException("Caller's name must start with 'Log'.", nameof(callerName));
+        return callerName[3..];
     }
 
-    public static void LogFact<T>(ILogger<T> logger, Exception? exception, [StructuredMessageTemplate] string? message, params object?[] args) where T : Role
+    extension<TContract>(ILogger<TContract> logger) where TContract : Contract
     {
-        using (logger.BeginScopeFrom(new { Role = typeof(T).Name }))
+        public IDisposable? BeginContract()
         {
-            if (exception is null)
+            return logger.BeginScopeFrom(new { Contract = typeof(TContract).Name });
+        }
+
+        public void LogInformation([StructuredMessageTemplate] string? message, params object?[] args)
+        {
+            using (logger.BeginContract())
             {
-                logger.LogInformation(message, args);
+                logger.Log(LogLevel.Information, message, args);
             }
-            else
+        }
+
+        public void LogDebug([StructuredMessageTemplate] string? message, params object?[] args)
+        {
+            using (logger.BeginContract())
             {
-                logger.LogError(exception, message, args);
+                logger.Log(LogLevel.Debug, message, args);
+            }
+        }
+
+        public void LogTrace([StructuredMessageTemplate] string? message, params object?[] args)
+        {
+            using (logger.BeginContract())
+            {
+                logger.Log(LogLevel.Trace, message, args);
+            }
+        }
+
+        public void LogError(Exception? exception, [StructuredMessageTemplate] string? message, params object?[] args)
+        {
+            using (logger.BeginContract())
+            {
+                logger.Log(LogLevel.Error, exception, message, args);
             }
         }
     }
 
-    public static void LogNote<T>(this ILogger<T> logger, [StructuredMessageTemplate] string? message, params object?[] args) where T : Role
+    extension(ILogger<Contract.Engine> logger)
     {
-        using (logger.BeginScopeFrom(new { Role = typeof(T).Name }))
+        public ITelemetryScope<TActivity> Begin<TActivity>()
         {
-            if (typeof(T) == typeof(Role.Util))
-            {
-                logger.LogDebug(message, args);
-            }
-            else
-            {
-                logger.LogInformation(message, args);
-            }
+            return TelemetryScope<TActivity>.With(logger);
+        }
+    }
+
+    extension(ILogger<Contract.Output> logger)
+    {
+        public ITelemetryScope<TActivity> Begin<TActivity>()
+        {
+            return TelemetryScope<TActivity>.With(logger);
         }
     }
 
@@ -94,52 +119,55 @@ public static class Telemetry
     };
 }
 
-public interface ITelemetryTask : IDisposable
+// meta: The generic parameter is a marker for extensions.
+// note: Implements the ILogger<Contract> for easier extension chaining.
+public interface ITelemetryScope<TActivity> : ILogger<Contract>, IDisposable
 {
     public Activity Activity { get; }
-    public void LogOk();
-    public void LogError(Exception? exception = null);
+    public ITelemetryScope<TActivity> Ok();
+    public ITelemetryScope<TActivity> Error();
 }
 
-public class TelemetryTask<T>(ILogger logger, string name, Action<TelemetryTaskInfo<T>> log) : ITelemetryTask where T : Role
+public class TelemetryScope<TActivity>(ILogger<Contract> logger, string? name)
+    : ITelemetryScope<TActivity>
 {
-    public Activity Activity { get; } = new(name);
+    public Activity Activity { get; } = new Activity(name ?? typeof(TActivity).Name).Start();
 
-    private ITelemetryTask Start()
+    private ITelemetryScope<TActivity> Start([StructuredMessageTemplate] string? message, params object?[] args)
     {
-        using (logger.BeginScopeFrom(new { Role = typeof(T).Name }))
+        if (message is null)
         {
-            log(new TelemetryTaskInfo<T>(logger, Activity.Start()));
+            logger.LogTrace("{ActivityName}: Begin.", Activity.OperationName);
+        }
+        else
+        {
+            logger.LogTrace(message, args);
         }
 
         return this;
     }
 
-    public void LogOk()
+    public ITelemetryScope<TActivity> Ok()
     {
         if (Activity.IsStopped) throw new InvalidOperationException("Cannot call Ok() on a stopped activity.");
 
         Activity.SetStatus(ActivityStatusCode.Ok).Stop();
-        using (logger.BeginScopeFrom(new { Role = typeof(T).Name }))
-        {
-            log(new TelemetryTaskInfo<T>(logger, Activity));
-        }
+
+        return this;
     }
 
-    public void LogError(Exception? exception = null)
+    public ITelemetryScope<TActivity> Error()
     {
         if (Activity.IsStopped) throw new InvalidOperationException("Cannot call Error() on a stopped activity.");
 
         Activity.SetStatus(ActivityStatusCode.Error).Stop();
-        using (logger.BeginScopeFrom(new { Role = typeof(T).Name }))
-        {
-            log(new TelemetryTaskInfo<T>(logger, Activity, exception));
-        }
+
+        return this;
     }
 
-    public static ITelemetryTask From(ILogger logger, string name, Action<TelemetryTaskInfo<T>> onDone)
+    public static ITelemetryScope<TActivity> With(ILogger<Contract> logger, string? name = null, [StructuredMessageTemplate] string? message = null, params object?[] args)
     {
-        return new TelemetryTask<T>(logger, name, onDone).Start();
+        return new TelemetryScope<TActivity>(logger, name).Start(message, args);
     }
 
     public void Dispose()
@@ -151,60 +179,51 @@ public class TelemetryTask<T>(ILogger logger, string name, Action<TelemetryTaskI
 
         Activity.Dispose();
     }
+
+    #region ILogger<TContract>
+
+    public IDisposable? BeginScope<TState>(TState state)
+    {
+        return logger.BeginScope(state);
+    }
+
+    public bool IsEnabled(LogLevel logLevel)
+    {
+        return logger.IsEnabled(logLevel);
+    }
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        logger.Log(logLevel, eventId, state, exception, formatter);
+    }
+
+    #endregion
 }
 
-// meta: Helper class that allows using the task result in a structured way.
-public class TelemetryTaskInfo<T>(ILogger logger, Activity activity, Exception? exception = null) where T : Role
+public static class TelemetryContracts
 {
-    public Activity Activity => activity;
+    // note: Only for testing purposes. In the actual code this would be the actual micro-service-class.
+    public abstract class ExecuteStep;
 
-    public Exception? Exception => exception;
-
-    public void Log([StructuredMessageTemplate] string? message, params object?[] args)
+    extension(ITelemetryScope<ExecuteStep> scope)
     {
-        // core: The activity has just started, so its status is unset.
-        if (Activity.Status == ActivityStatusCode.Unset)
+        public void LogOk(int index)
         {
-            logger.LogTrace(message, args);
+            scope.Ok().LogInformation("{ActivityName}[{StepIndex}]: {StatusCode} in {Duration:N0} ms.", scope.Activity.OperationName, index, scope.Activity.Status, scope.Activity.Duration);
         }
-        else
+
+        public void LogError(int index, Exception? exception = null)
         {
-            if (exception is null)
-            {
-                if (typeof(T) == typeof(Role.Util))
-                {
-                    logger.LogDebug(message, args);
-                }
-                else
-                {
-                    logger.LogInformation(message, args);
-                }
-            }
-            else
-            {
-                logger.LogError(exception, message, args);
-            }
+            scope.Error().LogError(exception, "{ActivityName}[{StepIndex}]: {StatusCode} in {Duration:N0} ms.", scope.Activity.OperationName, index, scope.Activity.Status, scope.Activity.Duration);
         }
     }
-}
 
-public static class CoreTasks
-{
-    public static ITelemetryTask LogExecuteStep(this ILogger<Role.Core> logger, int index)
+    extension(ILogger<Contract.Engine> logger)
     {
-        return Telemetry.LogTask(logger, "ExecuteStep", task =>
+        public void LogDeleteFile(string fileName, Exception? exception = null)
         {
-            // ...
-            task.Log("Execute step {Index}: {Status} in {Duration:N0} ms.", index, task.Activity.Status, task.Activity.Duration);
-        });
-    }
-}
-
-public static class MetaFacts
-{
-    public static void LogDeleteFile(this ILogger<Role.Meta> logger, string name, Exception? exception = null)
-    {
-        Telemetry.LogFact(logger, exception, "Delete file '{name}': {Status}", name, exception.ToStatusCode());
+            logger.LogInformation("{ActivityName}: {StatusCode}; File: {FileName} ", Telemetry.CallerToActivityName(), exception.ToStatusCode(), fileName);
+        }
     }
 }
 
@@ -212,16 +231,18 @@ public abstract class Examples
 {
     public static void TaskExample()
     {
-        var telemetry = new Telemetry<Examples>(new LoggerFactory());
-        using var step = telemetry.Core.LogExecuteStep(5);
+        var logger = new LoggerFactory().CreateLogger<Examples>();
+        using var step = logger.Output.Begin<TelemetryContracts.ExecuteStep>();
         // busy...
-        step.LogOk();
+        step.LogOk(3);
+        step.LogError(3, new Exception("Fake error")); // core: This will throw.
     }
 
     public static void FactExample()
     {
-        var telemetry = new Telemetry<Examples>(new LoggerFactory());
+        var logger = new LoggerFactory().CreateLogger<Examples>();
         // busy...
-        telemetry.Meta.LogDeleteFile("fake.exe");
+        logger.Engine.LogDeleteFile("fake.exe");
+        logger.Output.LogTrace("Fake trace");
     }
 }

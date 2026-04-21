@@ -120,7 +120,6 @@ builder.Services.AddScoped<GetProfileTriggers>();
 builder.Services.AddScoped<GetDowntimes>();
 builder.Services.AddScoped<StartDowntime>();
 builder.Services.AddScoped<EndDowntime>();
-builder.Services.AddScoped<Telemetry<Program>>();
 
 builder.Services.AddProblemDetails();
 //builder.Services.AddExceptionHandler<WorkflowNotExecutableExceptionHandler>();
@@ -130,11 +129,11 @@ var app = builder.Build();
 // todo: new logger test
 using (var scope = app.Services.CreateScope())
 {
-    var telemetry = scope.ServiceProvider.GetRequiredService<Telemetry<Program>>();
-    using var step = telemetry.Core.LogExecuteStep(7);
-    step.LogOk();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    using var step = logger.Output.Begin<TelemetryContracts.ExecuteStep>(); //new { StepIndex = 7 });
+    step.LogOk(7);
 
-    telemetry.Meta.LogDeleteFile("test.txt");
+    logger.Engine.LogDeleteFile("test.txt");
 }
 
 //app.UseExceptionHandler();
