@@ -13,7 +13,7 @@ public class EnrichesLogEventWithActivity : ILogEventEnricher
             logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty(nameof(Activity.TraceId), activity.TraceId));
             logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty(nameof(Activity.SpanId), activity.SpanId));
             logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty(nameof(Activity.ParentId), activity.ParentId));
-            logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty(nameof(Activity.Status), activity.Status));
+            logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty(nameof(Activity.Status), activity.Status));
         }
     }
 }

@@ -23,6 +23,7 @@ using Quartz;
 using Quartz.AspNetCore;
 using Quartz.Impl.Matchers;
 using Serilog;
+using ExecuteStep = Aion.Core.Services.Workflows.ExecuteStep;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -130,10 +131,11 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    using var step = logger.Output.Begin<TelemetryContracts.ExecuteStep>(); //new { StepIndex = 7 });
-    step.LogOk(7);
+    using var step = logger.Output.Begin<Aion.Util.ExecuteStep>(); //new { StepIndex = 7 });
+    step.Log(new Aion.Util.ExecuteStep.Start(7));
+    step.Log(new Aion.Util.ExecuteStep.Ok(7));
 
-    logger.Engine.LogDeleteFile("test.txt");
+    logger.Engine.Log(new DeleteFile.Ok("test.txt"));
 }
 
 //app.UseExceptionHandler();
