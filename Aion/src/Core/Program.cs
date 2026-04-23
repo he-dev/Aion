@@ -60,6 +60,7 @@ builder
         configuration
             .ReadFrom.Configuration(context.Configuration)
             .Enrich.With<EnrichesLogEventWithActivity>()
+            .Enrich.FromLogContext()
             //.Enrich.WithProperty("Application", Program.Name)
             //.Enrich.WithProperty("Version", Program.Version)
             .Enrich.WithProperty("Instance", schedulerOptions.Name)
@@ -131,11 +132,10 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    using var step = logger.Output.Begin<Aion.Util.ExecuteStep>(); //new { StepIndex = 7 });
-    step.Log(new Aion.Util.ExecuteStep.Start(7));
-    step.Log(new Aion.Util.ExecuteStep.Ok(7));
+    using var step = logger.Output.BeginScope<Aion.Util.ExecuteStep>(new { StepIndex = 7 }); // todo: cannot digest an object!
+    step.LogStatus(new Aion.Util.ExecuteStep.Ok(7));
 
-    logger.Engine.Log(new DeleteFile.Ok("test.txt"));
+    logger.Engine.LogStatus(new DeleteFile.Ok("test.txt"));
 }
 
 //app.UseExceptionHandler();
