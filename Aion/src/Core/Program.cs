@@ -64,7 +64,7 @@ builder
             //.Enrich.WithProperty("Application", Program.Name)
             //.Enrich.WithProperty("Version", Program.Version)
             .Enrich.WithProperty("Instance", schedulerOptions.Name)
-            .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds))
+            .Enrich.With(new EnrichesLogEventWithDuration(ts => (int)ts.TotalMilliseconds, "DurationMs"))
             .WriteTo.Sink(services.GetRequiredService<MapLogEvent>());
     });
 
@@ -132,10 +132,12 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    using var step = logger.Output.BeginScope<Aion.Util.ExecuteStep>(new { StepIndex = 7 }); // todo: cannot digest an object!
+    using var step = logger.Output.BeginScope<Aion.Util.ExecuteStep>("Now", ("StepIndex", 7));
+    step.LogNote("This step has a note.");
     step.LogStatus(new Aion.Util.ExecuteStep.Ok(7));
 
-    logger.Engine.LogStatus(new DeleteFile.Ok("test.txt"));
+    logger.LogText("This is a log text.");
+    logger.Engine.LogStatus(new DeleteFile.Ok("test.txt"), "Force");
 }
 
 //app.UseExceptionHandler();
