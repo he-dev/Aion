@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
@@ -30,27 +29,35 @@ public static class Telemetry
         // core: Readable entries meant for the console.
         public abstract class Text;
     }
-}
 
-public record Overload(string Name)
-{
-    [return: NotNullIfNotNull("name")]
-    public static implicit operator Overload?(string? name) => name is null ? null : new Overload(name);
+    public interface IContract;
 
-    public override string ToString() => Name;
-}
+    public interface IStatusOnly;
 
-public record ActivityName<TActivity>(Overload? Overload)
-{
-    public override string ToString()
+    public interface IStatusWithDuration;
+
+    public static class ContractName
     {
-        return
-            Overload is null
-                ? typeof(TActivity).Name
-                : $"{typeof(TActivity).Name}.{Overload}";
-    }
+        public static string From<TContract>() => From(typeof(TContract));
 
-    public static implicit operator string(ActivityName<TActivity> name) => name.ToString();
+        public static string From(Type contract)
+        {
+            var parts = new Stack<string>();
+
+            for (var type = contract; type is not null; type = type.DeclaringType)
+            {
+                parts.Push(type.Name);
+
+                // core: This is the first part of the contract name.
+                if (typeof(IContract).IsAssignableFrom(type))
+                {
+                    break;
+                }
+            }
+
+            return string.Join(".", parts);
+        }
+    }
 }
 
 public static class LoggerExtensions
@@ -118,71 +125,108 @@ public static class LoggerExtensions
     extension<TContract>(ILogger<TContract> logger) where TContract : Telemetry.Channel
     {
         // core: Logs scope-less activity because their duration does not matter. Usually nearly instant ones. You just want to log their occurrence.
-        public void LogStatus<TActivity>(ActivityStatus<TActivity> status, Overload? overload = null)
+        public void LogStatus<TActivity>(ActivityStatus<TActivity> status) where TActivity : Telemetry.IStatusOnly
         {
-            status.Log(logger, new ActivityStatusContext(new ActivityName<TActivity>(overload), nameof(Telemetry.Stream.Data)));
+            status.Log(logger, new ActivityStatus<TActivity>.Context(Telemetry.ContractName.From<TActivity>(), nameof(Telemetry.Stream.Data)));
+        }
+
+    }
+
+    extension<TActivity, TChannel>(ActivityScope<TActivity, TChannel> scope)
+        where TActivity : Telemetry.IStatusWithDuration
+        where TChannel : Telemetry.Channel
+    {
+        public void LogStatus(ActivityStatus<TActivity> status)
+        {
+            if (status.IsLast)
+            {
+                scope.Stop(status.NativeCode);
+            }
+
+            using (scope.State is null ? Disposable.Empty : scope.BeginScope(scope.State))
+            {
+                status.Log(scope, new ActivityStatus<TActivity>.Context(scope.Activity.OperationName, nameof(Telemetry.Stream.Data))
+                {
+                    Duration = scope.Activity.Duration
+                });
+            }
         }
     }
 
     extension(ILogger<Telemetry.Channel.Engine> logger)
     {
-        public ActivityScope<TActivity, Telemetry.Channel.Engine> BeginScope<TActivity>(params (string Key, object Value)[] state)
+        public ActivityScope<TActivity, Telemetry.Channel.Engine> BeginScope<TActivity>(params (string Key, object Value)[] state) where TActivity : Telemetry.IStatusWithDuration
         {
-            return ActivityScope<TActivity, Telemetry.Channel.Engine>.Start(logger, null, state);
-        }
-
-        public ActivityScope<TActivity, Telemetry.Channel.Engine> BeginScope<TActivity>(Overload overload, params (string Key, object Value)[] state)
-        {
-            return ActivityScope<TActivity, Telemetry.Channel.Engine>.Start(logger, overload, state);
+            return ActivityScope<TActivity, Telemetry.Channel.Engine>.Start(logger, state);
         }
     }
 
     extension(ILogger<Telemetry.Channel.Output> logger)
     {
-        public ActivityScope<TActivity, Telemetry.Channel.Output> BeginScope<TActivity>(params (string Key, object Value)[] state)
+        public ActivityScope<TActivity, Telemetry.Channel.Output> BeginScope<TActivity>(params (string Key, object Value)[] state) where TActivity : Telemetry.IStatusWithDuration
         {
-            return ActivityScope<TActivity, Telemetry.Channel.Output>.Start(logger, null, state);
+            return ActivityScope<TActivity, Telemetry.Channel.Output>.Start(logger, state);
         }
+    }
 
-        public ActivityScope<TActivity, Telemetry.Channel.Output> BeginScope<TActivity>(Overload overload, params (string Key, object Value)[] state)
-        {
-            return ActivityScope<TActivity, Telemetry.Channel.Output>.Start(logger, overload, state);
-        }
+    private class Disposable : IDisposable
+    {
+        public static readonly IDisposable Empty = new Disposable();
+
+        public void Dispose() { }
     }
 }
 
 // core: This class, also being a logger, makes it very convenient to use as it does not require to re-implement each logger API.
-public class ActivityScope<TActivity, TChannel> : ILogger<TChannel>, IDisposable where TChannel : Telemetry.Channel
+public class ActivityScope<TActivity, TChannel> : ILogger<TChannel>, IDisposable
+    where TChannel : Telemetry.Channel
+    where TActivity : Telemetry.IStatusWithDuration
 {
     // note: Not using the default constructor because the "state" parameter name clashes with the ILogger interface.
-    private ActivityScope(ILogger<TChannel> logger, Overload? overload, object? state)
+    private ActivityScope(ILogger<TChannel> logger, object? state)
     {
         Logger = logger;
         State = state;
-        Activity = new Activity(new ActivityName<TActivity>(overload)).Start();
+        Activity = new Activity(Telemetry.ContractName.From<TActivity>()).Start();
     }
 
     private ILogger<TChannel> Logger { get; }
 
-    private object? State { get; }
+    public object? State { get; }
 
-    private Activity Activity { get; }
+    public Activity Activity { get; }
 
-    public ActivityScope<TActivity, TChannel> LogStatus(ActivityStatus<TActivity> status)
+    public ActivityScope<TActivity, TChannel> Stop(ActivityStatusCode status)
     {
-        if (Activity.IsStopped) throw new InvalidOperationException($"Cannot call {nameof(LogStatus)}() on an already stopped activity.");
+        if (Activity.IsStopped)
+        {
+            throw new InvalidOperationException($"Activity '{Activity.OperationName}' is already stopped, so calling {nameof(LogStatus)}() again is illegal.");
+        }
+
+        Activity.Stop();
+        Activity.SetStatus(status);
+
+        return this;
+    }
+
+    public ActivityScope<TActivity, TChannel> LogStatus_(ActivityStatus<TActivity> status)
+    {
+        if (Activity.IsStopped)
+        {
+            throw new InvalidOperationException($"Activity '{Activity.OperationName}' is already stopped, so calling {nameof(LogStatus)}() again is illegal.");
+        }
 
         if (status.IsLast)
         {
             Activity.Stop();
-            Activity.SetStatus(status.Code);
+            Activity.SetStatus(status.NativeCode);
         }
 
         using (State is null ? Disposable.Empty : Logger.BeginScope(State))
         {
-            status.Log(Logger, new ActivityStatusContext(Activity.OperationName, nameof(Telemetry.Stream.Data))
+            status.Log(Logger, new ActivityStatus<TActivity>.Context(Activity.OperationName, nameof(Telemetry.Stream.Data))
             {
-                DurationMs = Activity.Duration
+                Duration = Activity.Duration
             });
         }
 
@@ -199,10 +243,10 @@ public class ActivityScope<TActivity, TChannel> : ILogger<TChannel>, IDisposable
         Activity.Dispose();
     }
 
-    public static ActivityScope<TActivity, TChannel> Start(ILogger<TChannel> logger, Overload? overload, params (string Key, object Value)[] state)
+    public static ActivityScope<TActivity, TChannel> Start(ILogger<TChannel> logger, params (string Key, object Value)[] state)
     {
-        var first = new ActivityStatus<TActivity>.First(activity => new StatusTemplate("{Activity}: {Status}", activity.Activity, nameof(ActivityStatus<>.First)));
-        return new ActivityScope<TActivity, TChannel>(logger, overload, state.ToDictionary()).LogStatus(first);
+        var first = new ActivityStatus<TActivity>.First();
+        return new ActivityScope<TActivity, TChannel>(logger, state.ToDictionary()).LogStatus(first);
     }
 
     #region ILogger<TContract>
@@ -235,28 +279,24 @@ public class ActivityScope<TActivity, TChannel> : ILogger<TChannel>, IDisposable
     }
 }
 
-public record ActivityStatusContext(string Activity, string Stream)
-{
-    public TimeSpan DurationMs { get; init; } = TimeSpan.Zero;
-}
-
 // meta: This class is required to make the message template work with structured logging as the attribute can only be used on parameters.
-public record StatusTemplate([StructuredMessageTemplate] string? Message, params object?[] Args);
+public record StatusContract([StructuredMessageTemplate] string? Message, params object?[] Args);
 
-public delegate StatusTemplate RenderStatusTemplateFunc(ActivityStatusContext activity);
-
-public delegate void LogAction(ILogger logger, string? message, object?[] args);
-
-public abstract class ActivityStatus<TActivity>(RenderStatusTemplateFunc render, LogAction log)
+public abstract class ActivityStatus<TActivity>
 {
+    // todo: this needs a better name but there are two code properties... mhmmm
+    public abstract string CustomCode { get; }
+
     public abstract bool IsLast { get; }
 
-    public abstract ActivityStatusCode Code { get; }
+    public abstract ActivityStatusCode NativeCode { get; }
 
-    public void Log(ILogger logger, ActivityStatusContext context)
+    protected abstract StatusContract Render(Context activity);
+
+    protected abstract void Emit(ILogger logger, StatusContract contract);
+
+    public void Log(ILogger logger, Context context)
     {
-        var template = render(context);
-
         var state = new Dictionary<string, object>
         {
             { nameof(context.Activity), context.Activity },
@@ -264,58 +304,109 @@ public abstract class ActivityStatus<TActivity>(RenderStatusTemplateFunc render,
         };
 
         // core: Including a zero-length duration is pointless.
-        if (context.DurationMs > TimeSpan.Zero)
+        if (context.Duration > TimeSpan.Zero)
         {
-            state.Add(nameof(context.DurationMs), context.DurationMs);
+            state.Add(nameof(context.Duration), context.Duration);
         }
 
         using (logger.BeginScope(state))
         {
-            log(logger, template.Message, template.Args);
+            Emit(logger, Render(context));
         }
     }
 
-    // core: First status always logs at trace level.
-    public class First(RenderStatusTemplateFunc render)
-        : ActivityStatus<TActivity>(render, Microsoft.Extensions.Logging.LoggerExtensions.LogTrace)
+    protected static StatusContract Template([StructuredMessageTemplate] string? message, params object?[] args) => new(message, args);
+
+    public record Context(string Activity, string Stream)
     {
+        // core: Not part of the constructor because optional.
+        public TimeSpan Duration { get; init; } = TimeSpan.Zero;
+    }
+
+    // core: First status always logs at trace level.
+    public class First : ActivityStatus<TActivity>
+    {
+        public override string CustomCode => nameof(First);
+
         public override bool IsLast => false;
 
-        public override ActivityStatusCode Code => ActivityStatusCode.Unset;
+        public override ActivityStatusCode NativeCode => ActivityStatusCode.Unset;
+
+        protected override StatusContract Render(Context activity)
+        {
+            return Template("{Activity}: {Status}", activity.Activity, nameof(First));
+        }
+
+        protected override void Emit(ILogger logger, StatusContract contract) => logger.LogTrace(contract.Message, contract.Args);
     }
 
     // core: Ok status always logs at info level.
-    public abstract class Ok(RenderStatusTemplateFunc render)
-        : ActivityStatus<TActivity>(render, Microsoft.Extensions.Logging.LoggerExtensions.LogInformation)
+    public abstract class Ok : ActivityStatus<TActivity>
     {
+        public override string CustomCode => nameof(Ok);
+
         public override bool IsLast => true;
 
-        public override ActivityStatusCode Code => ActivityStatusCode.Ok;
+        public override ActivityStatusCode NativeCode => ActivityStatusCode.Ok;
+
+        protected override void Emit(ILogger logger, StatusContract contract) => logger.LogInformation(contract.Message, contract.Args);
     }
 
     // core: Error status always logs at error level.
-    public abstract class Error(RenderStatusTemplateFunc render, Exception? exception)
-        : ActivityStatus<TActivity>(render, (logger, message, args) => logger.LogError(exception, message, args))
+    public abstract class Error : ActivityStatus<TActivity>
     {
+        public override string CustomCode => nameof(Error);
+
         public override bool IsLast => true;
 
-        public override ActivityStatusCode Code => ActivityStatusCode.Error;
+        public override ActivityStatusCode NativeCode => ActivityStatusCode.Error;
+
+        public Exception? Exception { get; set; }
+
+        protected override void Emit(ILogger logger, StatusContract contract) => logger.LogError(Exception, contract.Message, contract.Args);
     }
 }
 
-public abstract class ExecuteStep
+public abstract class Contracts
 {
-    public class Ok(int stepIndex) : ActivityStatus<ExecuteStep>.Ok(activity =>
-        new StatusTemplate("{Activity}: {Status} in {DurationMs:N0} ms; StepIndex: {StepIndex}", activity.Activity, nameof(Ok), activity.DurationMs.TotalMilliseconds, stepIndex));
+    public abstract class Workflow : Telemetry.IContract
+    {
+        public abstract class ExecuteStep
+        {
+            public abstract class Now : Telemetry.IStatusWithDuration
+            {
+                public class Ok(int stepIndex) : ActivityStatus<Now>.Ok
+                {
+                    protected override StatusContract Render(Context activity)
+                    {
+                        return Template("{Activity}: {Status} in {DurationMs:N0} ms; StepIndex: {StepIndex}", activity.Activity, CustomCode, activity.Duration, stepIndex);
+                    }
+                }
 
-    public class Error(int stepIndex, Exception? exception) : ActivityStatus<ExecuteStep>.Error(activity =>
-        new StatusTemplate("{Activity}: {Status} in {DurationMs:N0} ms; StepIndex: {StepIndex}", activity.Activity, nameof(Error), activity.DurationMs.TotalMilliseconds, stepIndex), exception);
-}
+                public class Error(int stepIndex) : ActivityStatus<Now>.Error
+                {
+                    protected override StatusContract Render(Context activity)
+                    {
+                        return Template("{Activity}: {Status} in {DurationMs:N0} ms; StepIndex: {StepIndex}", activity.Activity, CustomCode, activity.Duration, stepIndex);
+                    }
+                }
+            }
+        }
+    }
 
-public abstract record DeleteFile
-{
-    public class Ok(string fileName) : ActivityStatus<DeleteFile>.Ok(activity =>
-        new StatusTemplate("{Activity}: {Status}; File: {FileName} ", activity.Activity, nameof(Ok), fileName));
+    public abstract record DeleteFile : Telemetry.IContract
+    {
+        public abstract class Force : Telemetry.IStatusOnly
+        {
+            public class Ok(string fileName) : ActivityStatus<Force>.Ok
+            {
+                protected override StatusContract Render(Context activity)
+                {
+                    return Template("{Activity}: {Status}; File: {FileName} ", activity.Activity, CustomCode, fileName);
+                }
+            }
+        }
+    }
 }
 
 public abstract class Examples
@@ -323,18 +414,18 @@ public abstract class Examples
     public static void TaskExample()
     {
         var logger = new LoggerFactory().CreateLogger<Examples>();
-        using var step = logger.Output.BeginScope<ExecuteStep>("Now");
+        using var step = logger.Output.BeginScope<Contracts.Workflow.ExecuteStep.Now>();
         // busy...
-        step.LogStatus(new ExecuteStep.Ok(1));
+        step.LogStatus(new Contracts.Workflow.ExecuteStep.Now.Ok(1));
         // step.LogStatus(DeleteFile.Ok("fake.exe")); // core: Compile error because the activity does not match the scope!
-        step.LogStatus(new ExecuteStep.Error(3, new Exception("Fake error"))); // core: This will throw as the activity is already stopped.
+        step.LogStatus(new Contracts.Workflow.ExecuteStep.Now.Error(3) { Exception = new Exception("Fake error") }); // core: This will throw as the activity is already stopped.
     }
 
     public static void FactExample()
     {
         var logger = new LoggerFactory().CreateLogger<Examples>();
         // busy...
-        logger.Engine.LogStatus(new DeleteFile.Ok("fake.exe"));
+        logger.Engine.LogStatus(new Contracts.DeleteFile.Force.Ok("fake.exe"));
         logger.Output.LogTrace("Fake trace");
         //logger.Output.Note.LogInformation("Fake note");
         //logger.Output.Metric.LogInformation("Fake note");

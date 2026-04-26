@@ -132,12 +132,13 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    using var step = logger.Output.BeginScope<Aion.Util.ExecuteStep>("Now", ("StepIndex", 7));
+    using var step = logger.Output.BeginScope<Contracts.Workflow.ExecuteStep.Now>(("StepIndex", 7));
     step.LogNote("This step has a note.");
-    step.LogStatus(new Aion.Util.ExecuteStep.Ok(7));
+    step.LogStatus(new Contracts.Workflow.ExecuteStep.Now.Ok(7));
+    step.LogStatus(new Contracts.DeleteFile.Force.Ok("test.txt"));
 
     logger.LogText("This is a log text.");
-    logger.Engine.LogStatus(new DeleteFile.Ok("test.txt"), "Force");
+    logger.Engine.LogStatus(new Contracts.DeleteFile.Force.Ok("test.txt"));
 }
 
 //app.UseExceptionHandler();
