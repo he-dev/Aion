@@ -133,12 +133,13 @@ using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     using var step = logger.Output.BeginScope<Contracts.Workflow.ExecuteStep.Now>(("StepIndex", 7));
-    step.LogNote("This step has a note.");
+    logger.Output.Note.LogInformation("This step has a note.");
     step.LogStatus(new Contracts.Workflow.ExecuteStep.Now.Ok(7));
-    step.LogStatus(new Contracts.DeleteFile.Force.Ok("test.txt"));
+    //step.LogStatus(new Contracts.DeleteFile.Force.Ok("test.txt")); // note: Not assignable! Check!
 
-    logger.LogText("This is a log text.");
+    logger.Engine.Text.LogDebug("This is a log text.");
     logger.Engine.LogStatus(new Contracts.DeleteFile.Force.Ok("test.txt"));
+    //logger.Engine.LogStatus(new Contracts.Workflow.ExecuteStep.Now.Ok(7)); // note: Not assignable! Check!
 }
 
 //app.UseExceptionHandler();

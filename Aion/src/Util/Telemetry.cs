@@ -36,26 +36,84 @@ public static class Telemetry
 
     public interface IStatusWithDuration;
 
-    public static class ContractName
+    public interface IResolveContractName
     {
-        public static string From<TContract>() => From(typeof(TContract));
+        string From<TContract>() where TContract : notnull;
+    }
+}
 
-        public static string From(Type contract)
+[AttributeUsage(AttributeTargets.Class)]
+public class ResolveContractNameByTypeHierarchy : Attribute, Telemetry.IResolveContractName
+{
+    public string From<TContract>() where TContract : notnull
+    {
+        var parts = new Stack<string>();
+
+        for (var type = typeof(TContract); type is not null; type = type.DeclaringType)
         {
-            var parts = new Stack<string>();
+            parts.Push(type.Name);
 
-            for (var type = contract; type is not null; type = type.DeclaringType)
+            // core: This is the first part of the contract name.
+            if (typeof(Telemetry.IContract).IsAssignableFrom(type))
             {
-                parts.Push(type.Name);
-
-                // core: This is the first part of the contract name.
-                if (typeof(IContract).IsAssignableFrom(type))
-                {
-                    break;
-                }
+                break;
             }
+        }
 
-            return string.Join(".", parts);
+        return string.Join(".", parts);
+    }
+}
+
+public static class ResolveContractName
+{
+    private static Telemetry.IResolveContractName Default { get; } = new ResolveContractNameByTypeHierarchy();
+
+    public static string From<T>() where T : notnull
+    {
+        for (var type = typeof(T); type is not null; type = type.DeclaringType)
+        {
+            if (GetResolveContractNameFrom(type) is { } resolveContractName)
+            {
+                return resolveContractName.From<T>();
+            }
+        }
+
+        return Default.From<T>();
+    }
+
+    private static Telemetry.IResolveContractName? GetResolveContractNameFrom(Type type)
+    {
+        return
+            Attribute
+                .GetCustomAttributes(type, inherit: false)
+                .OfType<Telemetry.IResolveContractName>()
+                .SingleOrDefault();
+    }
+}
+
+public sealed class LoggerMapping<TFrom, TTo>(ILogger<TFrom> inner) : ILogger<TTo>
+{
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => inner.BeginScope(state);
+
+    public bool IsEnabled(LogLevel logLevel) => inner.IsEnabled(logLevel);
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        inner.Log(logLevel, eventId, state, exception, formatter);
+    }
+}
+
+public sealed class LoggerStating<T, TStating>(ILogger inner, TStating stating) : ILogger<T> where TStating : notnull
+{
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => inner.BeginScope(state);
+
+    public bool IsEnabled(LogLevel logLevel) => inner.IsEnabled(logLevel);
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        using (inner.BeginScope(stating))
+        {
+            inner.Log(logLevel, eventId, state, exception, formatter);
         }
     }
 }
@@ -65,138 +123,80 @@ public static class LoggerExtensions
     // note: Channels.
     extension<T>(ILogger<T> logger)
     {
-        // core: This is the channel for things that the system produces.
-        public ILogger<Telemetry.Channel.Output> Output => new TelemetryLogger<T, Telemetry.Channel.Output>(logger);
+        public ILogger<TOther> MapAs<TOther>() => new LoggerMapping<T, TOther>(logger);
 
-        // core: This is the channel for things that enables the system to produce.
-        public ILogger<Telemetry.Channel.Engine> Engine => new TelemetryLogger<T, Telemetry.Channel.Engine>(logger);
+        public ILogger<T> With<TState>(TState state) where TState : notnull => new LoggerStating<T, TState>(logger, state);
+
+        public ILogger<T> With(params (string Key, object? Value)[] state) => new LoggerStating<T, IDictionary<string, object?>>(logger, state.ToDictionary());
+
+        public ILogger<Telemetry.Channel.Output> Output => logger.MapAs<T, Telemetry.Channel.Output>().With((nameof(Telemetry.Channel), nameof(Telemetry.Channel.Output)));
+        public ILogger<Telemetry.Channel.Engine> Engine => logger.MapAs<T, Telemetry.Channel.Engine>().With((nameof(Telemetry.Channel), nameof(Telemetry.Channel.Engine)));
+
+        public ILogger<Telemetry.Stream.Data> Data => logger.MapAs<T, Telemetry.Stream.Data>().With((nameof(Telemetry.Stream), nameof(Telemetry.Stream.Data)));
+        public ILogger<Telemetry.Stream.Note> Note => logger.MapAs<T, Telemetry.Stream.Note>().With((nameof(Telemetry.Stream), nameof(Telemetry.Stream.Note)));
+        public ILogger<Telemetry.Stream.Text> Text => logger.MapAs<T, Telemetry.Stream.Text>().With((nameof(Telemetry.Stream), nameof(Telemetry.Stream.Text)));
     }
 
-    // note: Streams.
-    extension<T>(ILogger<T> logger)
-    {
-        public void LogNote([StructuredMessageTemplate] string? message, params object?[] args)
-        {
-            using (logger.BeginScope(new Dictionary<string, object> { { nameof(Telemetry.Stream), nameof(Telemetry.Stream.Note) } }))
-            {
-                logger.Log(ILogger<T>.IsChannel() ? LogLevel.Information : LogLevel.Debug, message, args);
-            }
-        }
-
-        public void LogText([StructuredMessageTemplate] string? message, params object?[] args)
-        {
-            using (logger.BeginScope(new Dictionary<string, object> { { nameof(Telemetry.Stream), nameof(Telemetry.Stream.Text) } }))
-            {
-                logger.Log(ILogger<T>.IsChannel() ? LogLevel.Information : LogLevel.Debug, message, args);
-            }
-        }
-
-        private static bool IsChannel() => typeof(Telemetry.Channel).IsAssignableFrom(typeof(T));
-    }
-
-    // meta: This class is used to add a role to a logger.
-    // It re-wraps the class-logger into a role-logger.
-    // This way we can conveniently chain role-specific extensions.
-    private class TelemetryLogger<TLogger, TChannel>(ILogger<TLogger> inner) : ILogger<TChannel> where TChannel : Telemetry.Channel
-    {
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
-        {
-            return inner.BeginScope(state);
-        }
-
-        public bool IsEnabled(LogLevel logLevel)
-        {
-            return inner.IsEnabled(logLevel);
-        }
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-        {
-            var status = new Dictionary<string, object>
-            {
-                { nameof(Telemetry.Channel), typeof(TChannel).Name },
-            };
-            using (BeginScope(status))
-            {
-                inner.Log(logLevel, eventId, state, exception, formatter);
-            }
-        }
-    }
-
-    extension<TContract>(ILogger<TContract> logger) where TContract : Telemetry.Channel
+    extension<TChannel>(ILogger<TChannel> logger) where TChannel : Telemetry.Channel
     {
         // core: Logs scope-less activity because their duration does not matter. Usually nearly instant ones. You just want to log their occurrence.
         public void LogStatus<TActivity>(ActivityStatus<TActivity> status) where TActivity : Telemetry.IStatusOnly
         {
-            status.Log(logger, new ActivityStatus<TActivity>.Context(Telemetry.ContractName.From<TActivity>(), nameof(Telemetry.Stream.Data)));
-        }
-
-    }
-
-    extension<TActivity, TChannel>(ActivityScope<TActivity, TChannel> scope)
-        where TActivity : Telemetry.IStatusWithDuration
-        where TChannel : Telemetry.Channel
-    {
-        public void LogStatus(ActivityStatus<TActivity> status)
-        {
-            if (status.IsLast)
-            {
-                scope.Stop(status.NativeCode);
-            }
-
-            using (scope.State is null ? Disposable.Empty : scope.BeginScope(scope.State))
-            {
-                status.Log(scope, new ActivityStatus<TActivity>.Context(scope.Activity.OperationName, nameof(Telemetry.Stream.Data))
-                {
-                    Duration = scope.Activity.Duration
-                });
-            }
+            var contractName = ResolveContractName.From<TActivity>();
+            status.Log(logger.Data, new ActivityStatus<TActivity>.Context(contractName, nameof(Telemetry.Stream.Data)));
         }
     }
+
+    // note: Without these two concrete extensions, the wrong BeginScope is resolved and BeginScope requires two generic parameters to resolve correctly.
 
     extension(ILogger<Telemetry.Channel.Engine> logger)
     {
-        public ActivityScope<TActivity, Telemetry.Channel.Engine> BeginScope<TActivity>(params (string Key, object Value)[] state) where TActivity : Telemetry.IStatusWithDuration
+        public ActivityScope<TActivity> BeginScope<TActivity>(params (string Key, object Value)[] state) where TActivity : Telemetry.IStatusWithDuration
         {
-            return ActivityScope<TActivity, Telemetry.Channel.Engine>.Start(logger, state);
+            return ActivityScope<TActivity>.Start(logger, state);
         }
     }
 
     extension(ILogger<Telemetry.Channel.Output> logger)
     {
-        public ActivityScope<TActivity, Telemetry.Channel.Output> BeginScope<TActivity>(params (string Key, object Value)[] state) where TActivity : Telemetry.IStatusWithDuration
+        public ActivityScope<TActivity> BeginScope<TActivity>(params (string Key, object Value)[] state) where TActivity : Telemetry.IStatusWithDuration
         {
-            return ActivityScope<TActivity, Telemetry.Channel.Output>.Start(logger, state);
+            return ActivityScope<TActivity>.Start(logger, state);
         }
-    }
-
-    private class Disposable : IDisposable
-    {
-        public static readonly IDisposable Empty = new Disposable();
-
-        public void Dispose() { }
     }
 }
 
-// core: This class, also being a logger, makes it very convenient to use as it does not require to re-implement each logger API.
-public class ActivityScope<TActivity, TChannel> : ILogger<TChannel>, IDisposable
-    where TChannel : Telemetry.Channel
-    where TActivity : Telemetry.IStatusWithDuration
+// core: This class may not be a logger, because it will circumvent the LogStatus constraints for statuses allowing to apply IStatusOnly to an IStatusWithDuration scope!
+public class ActivityScope<TActivity> : IDisposable where TActivity : notnull
 {
     // note: Not using the default constructor because the "state" parameter name clashes with the ILogger interface.
-    private ActivityScope(ILogger<TChannel> logger, object? state)
+    private ActivityScope(ILogger logger)
     {
         Logger = logger;
-        State = state;
-        Activity = new Activity(Telemetry.ContractName.From<TActivity>()).Start();
+        var contractName = ResolveContractName.From<TActivity>();
+        Activity = new Activity(contractName).Start();
     }
 
-    private ILogger<TChannel> Logger { get; }
+    private ILogger Logger { get; }
 
-    public object? State { get; }
+    private Activity Activity { get; }
 
-    public Activity Activity { get; }
+    public ActivityScope<TActivity> LogStatus(ActivityStatus<TActivity> status)
+    {
+        if (status.IsLast)
+        {
+            Stop(status.NativeCode);
+        }
 
-    public ActivityScope<TActivity, TChannel> Stop(ActivityStatusCode status)
+        status.Log(Logger, new ActivityStatus<TActivity>.Context(Activity.OperationName, nameof(Telemetry.Stream.Data))
+        {
+            Duration = Activity.Duration
+        });
+
+        return this;
+    }
+
+    private void Stop(ActivityStatusCode status)
     {
         if (Activity.IsStopped)
         {
@@ -205,33 +205,8 @@ public class ActivityScope<TActivity, TChannel> : ILogger<TChannel>, IDisposable
 
         Activity.Stop();
         Activity.SetStatus(status);
-
-        return this;
     }
 
-    public ActivityScope<TActivity, TChannel> LogStatus_(ActivityStatus<TActivity> status)
-    {
-        if (Activity.IsStopped)
-        {
-            throw new InvalidOperationException($"Activity '{Activity.OperationName}' is already stopped, so calling {nameof(LogStatus)}() again is illegal.");
-        }
-
-        if (status.IsLast)
-        {
-            Activity.Stop();
-            Activity.SetStatus(status.NativeCode);
-        }
-
-        using (State is null ? Disposable.Empty : Logger.BeginScope(State))
-        {
-            status.Log(Logger, new ActivityStatus<TActivity>.Context(Activity.OperationName, nameof(Telemetry.Stream.Data))
-            {
-                Duration = Activity.Duration
-            });
-        }
-
-        return this;
-    }
 
     public void Dispose()
     {
@@ -243,39 +218,11 @@ public class ActivityScope<TActivity, TChannel> : ILogger<TChannel>, IDisposable
         Activity.Dispose();
     }
 
-    public static ActivityScope<TActivity, TChannel> Start(ILogger<TChannel> logger, params (string Key, object Value)[] state)
+    public static ActivityScope<TActivity> Start<TChannel>(ILogger<TChannel> logger, params (string Key, object Value)[] state) where TChannel : Telemetry.Channel
     {
+        logger = state.Any() ? logger.With(state.ToDictionary()) : logger;
         var first = new ActivityStatus<TActivity>.First();
-        return new ActivityScope<TActivity, TChannel>(logger, state.ToDictionary()).LogStatus(first);
-    }
-
-    #region ILogger<TContract>
-
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
-    {
-        return Logger.BeginScope(state);
-    }
-
-    public bool IsEnabled(LogLevel logLevel)
-    {
-        return Logger.IsEnabled(logLevel);
-    }
-
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-    {
-        using (State is null ? Disposable.Empty : BeginScope(State))
-        {
-            Logger.Log(logLevel, eventId, state, exception, formatter);
-        }
-    }
-
-    #endregion
-
-    private class Disposable : IDisposable
-    {
-        public static readonly IDisposable Empty = new Disposable();
-
-        public void Dispose() { }
+        return new ActivityScope<TActivity>(logger.Data).LogStatus(first);
     }
 }
 
@@ -300,7 +247,6 @@ public abstract class ActivityStatus<TActivity>
         var state = new Dictionary<string, object>
         {
             { nameof(context.Activity), context.Activity },
-            { nameof(context.Stream), context.Stream },
         };
 
         // core: Including a zero-length duration is pointless.
@@ -375,7 +321,7 @@ public abstract class Contracts
         {
             public abstract class Now : Telemetry.IStatusWithDuration
             {
-                public class Ok(int stepIndex) : ActivityStatus<Now>.Ok
+                public sealed class Ok(int stepIndex) : ActivityStatus<Now>.Ok
                 {
                     protected override StatusContract Render(Context activity)
                     {
@@ -383,7 +329,7 @@ public abstract class Contracts
                     }
                 }
 
-                public class Error(int stepIndex) : ActivityStatus<Now>.Error
+                public sealed class Error(int stepIndex) : ActivityStatus<Now>.Error
                 {
                     protected override StatusContract Render(Context activity)
                     {
@@ -398,7 +344,7 @@ public abstract class Contracts
     {
         public abstract class Force : Telemetry.IStatusOnly
         {
-            public class Ok(string fileName) : ActivityStatus<Force>.Ok
+            public sealed class Ok(string fileName) : ActivityStatus<Force>.Ok
             {
                 protected override StatusContract Render(Context activity)
                 {
@@ -426,6 +372,7 @@ public abstract class Examples
         var logger = new LoggerFactory().CreateLogger<Examples>();
         // busy...
         logger.Engine.LogStatus(new Contracts.DeleteFile.Force.Ok("fake.exe"));
+        logger.Output.LogTrace("Fake trace");
         logger.Output.LogTrace("Fake trace");
         //logger.Output.Note.LogInformation("Fake note");
         //logger.Output.Metric.LogInformation("Fake note");
