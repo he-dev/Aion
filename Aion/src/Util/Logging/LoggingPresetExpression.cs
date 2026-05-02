@@ -20,7 +20,7 @@ public class LoggingPresetExpression
         }
         else
         {
-            throw new ArgumentException($"Logging preset expression '{value}' is invalid.", nameof(value));
+            throw new ArgumentException($"The code is trying to create a {nameof(LoggingPresetExpression)} from '{value}' but it does not match the required format: file_name.json[:preset_name]", nameof(value));
         }
     }
 

@@ -35,6 +35,7 @@ public class WorkflowJob(ILogger<WorkflowJob> logger, ExecuteWorkflow executeWor
             if (workflowMode == WorkflowMode.Cron && !stepResults.Any())
             {
                 logger.LogWarning("Unscheduling workflow '{WorkflowName}' because it does not do anything.", workflowName);
+                //logger.Engine.LogStatus(new UnscheduleWorkflow.ThatDoesNotDoAnything.Ok(workflowName));
                 await context.Scheduler.DeleteJob(context.JobDetail.Key);
             }
         }

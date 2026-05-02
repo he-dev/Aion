@@ -26,7 +26,7 @@ public class FlagsEnumConverter<T> : JsonConverter<T> where T : struct, Enum
             }
             else
             {
-                throw new JsonException($"Unknown enum value: '{part}'");
+                throw new JsonException($"The code is trying to parse {typeof(T).Name} from '{part}' but it is not one of its values: {string.Join(", ", Enum.GetNames<T>())}");
             }
         }
 

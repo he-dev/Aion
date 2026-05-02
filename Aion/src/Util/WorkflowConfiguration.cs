@@ -36,7 +36,7 @@ public record WorkflowConfiguration
         if (!File.Exists(path))
         {
             // note: This is pretty unlikely, but who knows...
-            throw new FileNotFoundException($"Workflow template '{path}' not found.", fileName: path);
+            throw new FileNotFoundException($"The code is trying to load a workflow template from '{path}' that doesn't exist.", fileName: path);
         }
 
         await using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -49,7 +49,7 @@ public record WorkflowConfiguration
             {
                 new JsonStringEnumConverter()
             }
-        }) ?? throw new InvalidWorkflowConfiguration(path);
+        }) ?? throw new Exception($"The file '{path}' does not contain a workflow template. It is empty.");
 
         template = template with { Path = path };
 
@@ -84,8 +84,6 @@ public record StepConfiguration
 
     public LoggingConfiguration? Logging { get; init; }
 }
-
-public class InvalidWorkflowConfiguration(string path) : Exception($"File '{path}' is not a valid workflow template.");
 
 public record LoggingConfiguration
 {

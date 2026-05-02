@@ -12,13 +12,13 @@ public static class JobDataMapExtensions
         {
             if (value is null)
             {
-                throw new NullReferenceException($"Key {key} has a null value.");
+                throw new NullReferenceException($"The {nameof(JobDataMap)} contains a null value at {key}.");
             }
 
             return (T)value;
         }
 
-        throw new KeyNotFoundException($"Key '{key}' not found in JobDataMap");
+        throw new KeyNotFoundException($"The code is trying to get the value for the {key} key, but it does not exist in the {nameof(JobDataMap)}.");
     }
 
     public static void PutEnum<T>(this JobDataMap map, T value) where T : Enum
@@ -31,6 +31,6 @@ public static class JobDataMapExtensions
         return
             map.GetString(typeof(T).Name) is { } value
                 ? Enum.Parse<T>(value)
-                : throw new KeyNotFoundException($"Key '{typeof(T).Name}' not found in JobDataMap");
+                : throw new KeyNotFoundException($"The code is trying to get the value by the enum's type name '{typeof(T).Name}', but such key does not exist in the {nameof(JobDataMap)}.");
     }
 }
