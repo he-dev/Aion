@@ -11,15 +11,6 @@ namespace Aion.Util;
 
 public static class Telemetry
 {
-    [AttributeUsage(AttributeTargets.Class)]
-    public class ActivityAttribute : Attribute;
-
-    [AttributeUsage(AttributeTargets.Class)]
-    public class ChannelAttribute(string? name = null) : Attribute
-    {
-        public string? Name { get; } = name;
-    }
-
     public abstract class Channel
     {
         // core: Logs about what the system is supposed to produce.
@@ -40,15 +31,24 @@ public static class Telemetry
         // core: Readable entries meant for the console.
         public abstract class Text;
     }
-
-    public interface IStatusOnly;
-
-    public interface IStatusWithDuration;
 }
 
-public static class FindAttribute
+public interface IAllowsInconclusiveStatusOnDispose;
+
+[AttributeUsage(AttributeTargets.Class)]
+public class ChannelAttribute(string? name = null) : Attribute
 {
-    public static Match<TAttribute> Where<TActivity, TAttribute>() where TAttribute : Attribute
+    public string? Name { get; } = name;
+}
+
+public interface IActivityState
+{
+    public IEnumerable<KeyValuePair<string, object>> EnumerateStateItems();
+}
+
+public static class Find<TAttribute> where TAttribute : Attribute
+{
+    public static AttributeMatch<TAttribute> From<TActivity>()
     {
         var path = new Stack<Type>();
         var visited = new List<Type>();
@@ -61,19 +61,58 @@ public static class FindAttribute
             // core: Collecting only the first attribute of each type.
             if (current.GetCustomAttribute<TAttribute>(inherit: false) is { } attribute)
             {
-                return new Match<TAttribute>(attribute, visited.ToArray(), path.ToArray());
+                return new AttributeMatch<TAttribute>(attribute, visited.ToArray(), path.ToArray());
             }
         }
 
         throw new InvalidOperationException($"The '{typeof(TAttribute).Name}' was not found on any of the checked types [{string.Join(", ", visited.Select(t => t.Name))}].");
     }
+}
 
-    public sealed record Match<T>(T Attribute, IReadOnlyList<Type> Visited, IReadOnlyList<Type> Path) where T : Attribute
+public sealed record AttributeMatch<TAttribute>(TAttribute Attribute, IReadOnlyList<Type> Visited, IReadOnlyList<Type> Path)
+{
+    public int Depth => Visited.Count;
+}
+
+public static class FindChannel
+{
+    public static ChannelMatch From<TActivity>()
     {
-        public int Depth => Visited.Count;
+        var path = new Stack<Type>();
+        var visited = new List<Type>();
 
-        public string Name { get; } = string.Join(".", Path.Select(t => t.Name));
+        for (var current = typeof(TActivity); current is not null; current = current.DeclaringType)
+        {
+            path.Push(current);
+            visited.Add(current);
+
+            // core: Stop at the first type assignable to Channel.
+            if (current != typeof(Telemetry.Channel) && typeof(Telemetry.Channel).IsAssignableFrom(current))
+            {
+                return new(current, visited.ToArray(), path.ToArray());
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"The activity '{typeof(TActivity).FullName}' has no channel. " +
+            $"One of its declaring types must derive from '{nameof(Telemetry.Channel)}'. " +
+            $"Checked: [{string.Join(", ", visited.Select(t => t.Name))}].");
     }
+}
+
+public sealed record ChannelMatch(Type Type, IReadOnlyList<Type> Visited, IReadOnlyList<Type> Path)
+{
+    public int Depth => Visited.Count;
+
+    // core: The channel's own name unless an AliasAttribute renames it.
+    public string Name => Type.GetCustomAttribute<AliasAttribute>(inherit: false)?.Name ?? Type.Name;
+}
+
+// util: Can be used to override the default name.
+[AttributeUsage(AttributeTargets.Class)]
+public class AliasAttribute(string name) : Attribute
+{
+    public string Name { get; } = name;
 }
 
 public sealed class LoggerProxy<T>(ILogger inner, IEnumerable<KeyValuePair<string, object?>> items) : ILogger<T>
@@ -147,46 +186,17 @@ public static class LoggerExtensions
         public ILogger<Telemetry.Stream.Note> Note => logger.MapAs<T, Telemetry.Stream.Note>().WithState((nameof(Telemetry.Stream), nameof(Telemetry.Stream.Note)));
         public ILogger<Telemetry.Stream.Text> Text => logger.MapAs<T, Telemetry.Stream.Text>().WithState((nameof(Telemetry.Stream), nameof(Telemetry.Stream.Text)));
 
-        public void LogStatus<TActivity>(ActivityStatus<TActivity> status) where TActivity : Telemetry.IStatusOnly
+        public ActivityScope<TActivity> Begin<TActivity>(TActivity activity) where TActivity : IActivity
         {
-            status.Log(logger.Data, TimeSpan.Zero);
-        }
-    }
-
-    // note: Without these two concrete extensions, the wrong BeginScope is resolved and BeginScope requires two generic parameters to resolve correctly.
-
-    extension(ILogger<Telemetry.Channel.Engine> logger)
-    {
-        public ActivityScope<TActivity> BeginScope<TActivity>(params (string Key, object? Value)[] state) where TActivity : Telemetry.IStatusWithDuration
-        {
-            return ActivityScope<TActivity>.Start(logger, state);
-        }
-    }
-
-    extension(ILogger<Telemetry.Channel.Output> logger)
-    {
-        public ActivityScope<TActivity> BeginScope<TActivity>(params (string Key, object? Value)[] state) where TActivity : Telemetry.IStatusWithDuration
-        {
-            return ActivityScope<TActivity>.Start(logger, state);
+            return ActivityScope<TActivity>.Start(logger, activity);
         }
     }
 }
 
 // core: This class may not be a logger, because it will circumvent the LogStatus constraints for statuses allowing to apply IStatusOnly to an IStatusWithDuration scope!
-public class ActivityScope<TActivity> : IDisposable where TActivity : notnull
+public class ActivityScope<TActivity>(ILogger logger, TActivity activity) : IDisposable where TActivity : IActivity
 {
-    private static readonly ActivityStatus<TActivity>.First First = new();
-
-    // note: Not using the default constructor because the "state" parameter name clashes with the ILogger interface.
-    private ActivityScope(ILogger logger)
-    {
-        Logger = logger;
-        Activity = new Activity(First.Activity).Start();
-    }
-
-    private ILogger Logger { get; }
-
-    private Activity Activity { get; }
+    private Activity Activity { get; } = new Activity(activity.Name).Start();
 
     public ActivityScope<TActivity> LogStatus(ActivityStatus<TActivity> status)
     {
@@ -202,7 +212,7 @@ public class ActivityScope<TActivity> : IDisposable where TActivity : notnull
             Stop(statusCode);
         }
 
-        status.Log(Logger, Activity.Duration);
+        status.Log(logger, activity, Activity.Duration);
 
         return this;
     }
@@ -211,7 +221,7 @@ public class ActivityScope<TActivity> : IDisposable where TActivity : notnull
     {
         if (Activity.IsStopped)
         {
-            throw new InvalidOperationException($"The code is trying to log another terminal status for the '{{Activity.OperationName}}' activity, but activities can have only one result.");
+            throw new InvalidOperationException($"The code is trying to log another terminal status for the '{Activity.OperationName}' activity, but activities can have only one result.");
         }
 
         Activity.Stop();
@@ -223,70 +233,105 @@ public class ActivityScope<TActivity> : IDisposable where TActivity : notnull
     {
         if (!Activity.IsStopped)
         {
-            throw new InvalidOperationException($"The '{Activity.OperationName}' activity was started but never concluded. A terminal status (Ok or Error) is missing.");
+            if (activity is IAllowsInconclusiveStatusOnDispose)
+            {
+                LogStatus(new ActivityStatus<TActivity>.Inconclusive());
+            }
+            else
+            {
+                throw new InvalidOperationException($"The '{activity.Name}' activity was started but never concluded. A terminal status (Ok or Error) is missing.");
+            }
         }
 
         Activity.Dispose();
     }
 
-    public static ActivityScope<TActivity> Start<TChannel>(ILogger<TChannel> logger, params (string Key, object? Value)[] items) where TChannel : Telemetry.Channel
+    public static ActivityScope<TActivity> Start<T>(ILogger<T> logger, TActivity activity)
     {
-        logger = items.Any() ? logger.WithState(items) : logger;
-        return new ActivityScope<TActivity>(logger.Data).LogStatus(First);
+        return new ActivityScope<TActivity>(logger, activity).LogStatus(new ActivityStatus<TActivity>.First());
     }
 }
 
 // meta: This class is required to make the message template work with structured logging as the attribute can only be used on parameters.
-public record StatusContract([StructuredMessageTemplate] string? Message, params object?[] Args);
+public record StatusTemplate([StructuredMessageTemplate] string? Message, params object?[] Args);
 
-public abstract class ActivityStatus<TActivity>
+public interface IActivity
 {
-    // ReSharper disable once StaticMemberInGenericType - this is intended.
-    private static readonly FindAttribute.Match<Telemetry.ChannelAttribute> ChannelMatch;
+    public string Channel { get; }
 
-    // ReSharper disable once StaticMemberInGenericType - this is intended.
-    private static readonly FindAttribute.Match<Telemetry.ActivityAttribute> ActivityMatch;
+    public string Name { get; }
+}
 
-    static ActivityStatus()
-    {
-        ChannelMatch = FindAttribute.Where<TActivity, Telemetry.ChannelAttribute>();
-        ActivityMatch = FindAttribute.Where<TActivity, Telemetry.ActivityAttribute>();
-
-        // core: Making sure the channel comes before the activity.
-        if (!(ChannelMatch.Depth > ActivityMatch.Depth))
-        {
-            throw new InvalidOperationException($"Channels must come before contracts but '{ChannelMatch.Name}' comes after '{ActivityMatch.Name}'.");
-        }
-    }
+public abstract class Activity<TActivity> : IActivity where TActivity : notnull
+{
+    private static readonly AttributeMatch<ChannelAttribute> ChannelMatch = Find<ChannelAttribute>.From<TActivity>();
 
     public string Channel => ChannelMatch.Attribute.Name ?? ChannelMatch.Path.First().Name;
 
-    public string Activity => ActivityMatch.Name;
+    // note: The activity name begins after the channel, so skip it.
+    public string Name => string.Join(".", ChannelMatch.Path.Skip(1).Select(t => t.Name));
+}
 
+public abstract class ActivityStatus<TActivity> where TActivity : IActivity
+{
     public abstract string Code { get; }
 
     public abstract bool IsLast { get; }
 
-    protected abstract StatusContract Render(TimeSpan duration);
-
-    protected abstract void Emit(ILogger logger, StatusContract contract);
-
-    public void Log(ILogger logger, TimeSpan duration)
+    // core: Let inheritors provide their own template.
+    protected virtual StatusTemplate Render(TActivity activity, TimeSpan duration)
     {
-        var state = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        return Template("{Activity}: {Status} in {DurationMs:N0} ms", activity.Name, Code, duration.TotalMilliseconds);
+    }
+
+    // core: Each status needs to provide its own logging.
+    protected abstract void Log(ILogger logger, StatusTemplate template);
+
+    public void Log(ILogger logger, TActivity activity, TimeSpan duration)
+    {
+        var state = new Dictionary<string, object>
         {
-            { nameof(Activity), Activity },
-            { nameof(Channel), Channel },
-            { nameof(Telemetry.Stream), nameof(Telemetry.Stream.Data) },
+            { nameof(Activity), activity.Name },
+            { nameof(Telemetry.Channel), activity.Channel },
+            { nameof(Telemetry.Stream), nameof(Telemetry.Stream.Data) }
         };
+
+        MergeStateItems(activity, state);
+        MergeStateItems(this, state);
 
         using (logger.BeginScope(state))
         {
-            Emit(logger, Render(duration));
+            Log(logger, Render(activity, duration));
         }
     }
 
-    protected static StatusContract Template([StructuredMessageTemplate] string? message, params object?[] args) => new(message, args);
+    private static void MergeStateItems<T>(T source, IDictionary<string, object> state)
+    {
+        if (source is IActivityState customState)
+        {
+            var any = false;
+
+            // core: Adding the custom state items to the scope.
+            foreach (var (key, value) in customState.EnumerateStateItems())
+            {
+                if (state.TryGetValue(key, out var currentValue))
+                {
+                    throw new InvalidOperationException($"The type '{typeof(T).FullName}' tries to add the key '{key}' with value '{value}', but it already exists with value '{currentValue}'.");
+                }
+
+                state.Add(key, value);
+                any = true;
+            }
+
+            if (!any)
+            {
+                throw new InvalidOperationException($"The type '{typeof(T).FullName}' implements the '{nameof(IActivityState)}' interface but returns zero items.");
+            }
+        }
+    }
+
+    // util: Just some handy helper.
+    protected static StatusTemplate Template([StructuredMessageTemplate] string? message, params object?[] args) => new(message, args);
 
     // core: First status always logs at trace level.
     public class First : ActivityStatus<TActivity>
@@ -295,12 +340,16 @@ public abstract class ActivityStatus<TActivity>
 
         public override bool IsLast => false;
 
-        protected override StatusContract Render(TimeSpan duration)
-        {
-            return Template("{Activity}: {Status}", Activity, nameof(First));
-        }
+        protected override void Log(ILogger logger, StatusTemplate template) => logger.LogTrace(template.Message, template.Args);
+    }
 
-        protected override void Emit(ILogger logger, StatusContract contract) => logger.LogTrace(contract.Message, contract.Args);
+    public abstract class Halt : ActivityStatus<TActivity>
+    {
+        public override string Code => nameof(Halt);
+
+        public override bool IsLast => true;
+
+        protected override void Log(ILogger logger, StatusTemplate template) => logger.LogWarning(template.Message, template.Args);
     }
 
     // core: Ok status always logs at info level.
@@ -310,7 +359,7 @@ public abstract class ActivityStatus<TActivity>
 
         public override bool IsLast => true;
 
-        protected override void Emit(ILogger logger, StatusContract contract) => logger.LogInformation(contract.Message, contract.Args);
+        protected override void Log(ILogger logger, StatusTemplate template) => logger.LogInformation(template.Message, template.Args);
     }
 
     // core: Error status always logs at error level.
@@ -322,65 +371,65 @@ public abstract class ActivityStatus<TActivity>
 
         public Exception? Exception { get; init; }
 
-        protected override void Emit(ILogger logger, StatusContract contract) => logger.LogError(Exception, contract.Message, contract.Args);
+        protected override void Log(ILogger logger, StatusTemplate template) => logger.LogError(Exception, template.Message, template.Args);
+    }
+
+    public class Inconclusive : ActivityStatus<TActivity>
+    {
+        public override string Code => nameof(Inconclusive);
+
+        public override bool IsLast => true;
+
+        protected override void Log(ILogger logger, StatusTemplate template) => logger.LogWarning(template.Message, template.Args);
     }
 }
 
-[Telemetry.Channel]
-public abstract class Output
+[Channel]
+public abstract class Output : Telemetry.Channel.Output
 {
-    [Telemetry.Activity]
     public abstract class Workflow
     {
         public abstract class ExecuteStep
         {
-            public abstract class Now : Telemetry.IStatusWithDuration
+            public class Now : Activity<Now>, IActivityState
             {
                 public required int StepIndex { get; init; }
 
-                public sealed class First : ActivityStatus<Now>.First
+                public IEnumerable<KeyValuePair<string, object>> EnumerateStateItems()
                 {
-                    public required int StepIndex { get; init; }
+                    yield return new(nameof(StepIndex), StepIndex);
+                }
 
-                    protected override StatusContract Render(TimeSpan duration)
+                public sealed class Ok : ActivityStatus<Now>.Ok, IActivityState
+                {
+                    // note: Can be either a property or a constructor parameter. Does not really make any difference.
+                    public required int ItemsProcessed { get; init; }
+
+                    public IEnumerable<KeyValuePair<string, object>> EnumerateStateItems()
                     {
-                        return Template("{Activity}: {Status} in {DurationMs:N0} ms; StepIndex: {StepIndex}", Activity, Code, duration.TotalMilliseconds, StepIndex);
+                        yield return new(nameof(ItemsProcessed), ItemsProcessed);
                     }
                 }
 
-                public sealed class Ok(int stepIndex) : ActivityStatus<Now>.Ok
-                {
-                    protected override StatusContract Render(TimeSpan duration)
-                    {
-                        return Template("{Activity}: {Status} in {DurationMs:N0} ms; StepIndex: {StepIndex}", Activity, Code, duration.TotalMilliseconds, stepIndex);
-                    }
-                }
-
-                public sealed class Error(int stepIndex) : ActivityStatus<Now>.Error
-                {
-                    protected override StatusContract Render(TimeSpan duration)
-                    {
-                        return Template("{Activity}: {Status} in {DurationMs:N0} ms; StepIndex: {StepIndex}", Activity, Code, duration.TotalMilliseconds, stepIndex);
-                    }
-                }
+                public sealed class Error : ActivityStatus<Now>.Error;
             }
         }
     }
 }
 
-[Telemetry.Channel]
-public abstract class Engine
+[Channel]
+public abstract class Engine : Telemetry.Channel.Engine
 {
-    [Telemetry.Activity]
-    public abstract record DeleteFile : Telemetry.IStatusOnly
+    public class DeleteFile : Activity<DeleteFile>, IActivityState, IAllowsInconclusiveStatusOnDispose
     {
-        public sealed class Ok(string fileName) : ActivityStatus<DeleteFile>.Ok
+        public required string Path { get; init; }
+
+        public IEnumerable<KeyValuePair<string, object>> EnumerateStateItems()
         {
-            protected override StatusContract Render(TimeSpan duration)
-            {
-                return Template("{Activity}: {Status}; File: {FileName} ", Activity, Code, fileName);
-            }
+            yield return new(nameof(Path), Path);
         }
+
+        public sealed class Ok : ActivityStatus<DeleteFile>.Ok;
     }
 }
 
@@ -389,18 +438,17 @@ public abstract class Examples
     public static void TaskExample()
     {
         var logger = new LoggerFactory().CreateLogger<Examples>();
-        using var step = logger.Output.BeginScope<Output.Workflow.ExecuteStep.Now>();
+        using var step = logger.Begin(new Output.Workflow.ExecuteStep.Now { StepIndex = 1 });
         // busy...
-        step.LogStatus(new Output.Workflow.ExecuteStep.Now.Ok(1));
+        step.LogStatus(new Output.Workflow.ExecuteStep.Now.Ok { ItemsProcessed = 100 });
         // step.LogStatus(DeleteFile.Ok("fake.exe")); // core: Compile error because the activity does not match the scope!
-        step.LogStatus(new Output.Workflow.ExecuteStep.Now.Error(3) { Exception = new Exception("Fake error") }); // core: This will throw as the activity is already stopped.
+        step.LogStatus(new Output.Workflow.ExecuteStep.Now.Error { Exception = new Exception("Fake error") }); // core: This will throw as the activity is already stopped.
     }
 
     public static void FactExample()
     {
         var logger = new LoggerFactory().CreateLogger<Examples>();
         // busy...
-        logger.LogStatus(new Engine.DeleteFile.Ok("fake.exe"));
         logger.Output.LogTrace("Fake trace");
         logger.Output.LogTrace("Fake trace");
         //logger.Output.Note.LogInformation("Fake note");

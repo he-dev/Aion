@@ -132,13 +132,13 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    using var step = logger.Output.BeginScope<Output.Workflow.ExecuteStep.Now>(("StepIndex", 7));
+    using var step = logger.Begin(new Output.Workflow.ExecuteStep.Now { StepIndex = 1 });
     logger.Output.Note.LogInformation("This step has a note.");
-    step.LogStatus(new Output.Workflow.ExecuteStep.Now.Ok(7));
+    step.LogStatus(new Output.Workflow.ExecuteStep.Now.Ok { ItemsProcessed = 100 });
     //step.LogStatus(new Contracts.DeleteFile.Force.Ok("test.txt")); // note: Not assignable! Check!
 
     logger.Engine.Text.LogDebug("This is a log text.");
-    logger.LogStatus(new Engine.DeleteFile.Ok("test.txt"));
+    //logger.LogStatus(new Engine.DeleteFile.Ok("test.txt"));
     //logger.Engine.LogStatus(new Contracts.Workflow.ExecuteStep.Now.Ok(7)); // note: Not assignable! Check!
 }
 
