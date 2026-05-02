@@ -206,6 +206,7 @@ public class ActivityScope<TActivity>(ILogger logger, TActivity activity) : IDis
             {
                 ActivityStatus<TActivity>.Ok => ActivityStatusCode.Ok,
                 ActivityStatus<TActivity>.Error => ActivityStatusCode.Error,
+                // core: Inconclusive and Halt are terminal but their status is unknown.
                 _ => ActivityStatusCode.Unset
             };
 
@@ -343,13 +344,23 @@ public abstract class ActivityStatus<TActivity> where TActivity : IActivity
         protected override void Log(ILogger logger, StatusTemplate template) => logger.LogTrace(template.Message, template.Args);
     }
 
-    public abstract class Halt : ActivityStatus<TActivity>
+    // core: Used when an activity has started but deliberately stops before its normal completion path because a known,
+    // non-exceptional condition makes continuation invalid, impossible, or no longer meaningful.
+    public abstract class Halt : ActivityStatus<TActivity>, IActivityState
     {
         public override string Code => nameof(Halt);
 
         public override bool IsLast => true;
 
+        public required string Reason { get; init; }
+
+        public IEnumerable<KeyValuePair<string, object>> EnumerateStateItems()
+        {
+            yield return new(nameof(Reason), Reason);
+        }
+
         protected override void Log(ILogger logger, StatusTemplate template) => logger.LogWarning(template.Message, template.Args);
+
     }
 
     // core: Ok status always logs at info level.
